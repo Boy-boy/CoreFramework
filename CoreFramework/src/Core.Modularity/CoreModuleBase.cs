@@ -23,7 +23,7 @@ namespace Core.Modularity
         {
         }
 
-        public virtual void Configure(ConfigureApplicationContext app)
+        public virtual void Configure(ConfigureApplicationContext context)
         {
         }
 

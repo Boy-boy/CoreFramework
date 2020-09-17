@@ -1,0 +1,30 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29905.134
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{03EFE65F-3027-40EA-A790-7C8D31C11E18}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.Modularity", "src\Core.Modularity\Core.Modularity.csproj", "{8DA136E4-FE91-487E-9595-D882FC99117E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8DA136E4-FE91-487E-9595-D882FC99117E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8DA136E4-FE91-487E-9595-D882FC99117E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8DA136E4-FE91-487E-9595-D882FC99117E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8DA136E4-FE91-487E-9595-D882FC99117E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{8DA136E4-FE91-487E-9595-D882FC99117E} = {03EFE65F-3027-40EA-A790-7C8D31C11E18}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {67653D37-9D27-4AD4-9F01-DB21CA3B5835}
+	EndGlobalSection
+EndGlobal

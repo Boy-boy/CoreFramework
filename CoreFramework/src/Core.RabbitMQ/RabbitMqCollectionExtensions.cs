@@ -1,7 +1,7 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Core.RabbitMQ;
 using System;
 
-namespace Core.RabbitMQ
+namespace Microsoft.Extensions.DependencyInjection
 {
     public static class RabbitMqCollectionExtensions
     {

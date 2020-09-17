@@ -190,7 +190,7 @@ namespace Core.EventBus.RabbitMQ
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "----- ERROR Processing message \"{Message}\"", message);
+                _logger.LogWarning(ex.Message, "----- ERROR Processing message \"{Message}\"", message);
             }
         }
 

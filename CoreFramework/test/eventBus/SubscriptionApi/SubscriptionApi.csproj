@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Core.EventBus.RabbitMQ\Core.EventBus.RabbitMQ.csproj" />
+    <ProjectReference Include="..\..\..\src\Core.EventBus\Core.EventBus.csproj" />
+    <ProjectReference Include="..\..\..\src\Core.Modularity\Core.Modularity.csproj" />
+  </ItemGroup>
+
+
+</Project>

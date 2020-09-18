@@ -12,7 +12,6 @@
     <ProjectReference Include="..\Core.EventBus\Core.EventBus.csproj" />
     <ProjectReference Include="..\Core.Modularity\Core.Modularity.csproj" />
     <ProjectReference Include="..\Core.RabbitMQ\Core.RabbitMQ.csproj" />
-    <ProjectReference Include="..\RabbitMQ\Core.RabbitMQ.csproj" />
   </ItemGroup>
 
 </Project>

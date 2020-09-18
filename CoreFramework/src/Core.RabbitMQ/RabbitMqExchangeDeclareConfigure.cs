@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using RabbitMQ.Client;
+using System.Collections.Generic;
 
 namespace Core.RabbitMQ
 {
@@ -14,21 +15,28 @@ namespace Core.RabbitMQ
 
         public IDictionary<string, object> Arguments { get; }
 
-        public RabbitMqExchangeDeclareConfigure()
-        {
-        }
-
         public RabbitMqExchangeDeclareConfigure(
             string exchangeName,
             string type,
             bool durable = false,
-            bool autoDelete = false)
+            bool autoDelete = false,
+            Dictionary<string, object> arguments = null)
         {
             ExchangeName = exchangeName;
             Type = type;
             Durable = durable;
             AutoDelete = autoDelete;
-            Arguments = new Dictionary<string, object>();
+            Arguments = arguments ?? new Dictionary<string, object>();
+        }
+
+        public virtual void Declare(IModel channel)
+        {
+            channel.ExchangeDeclare(
+               exchange: ExchangeName,
+               type: Type,
+               durable: Durable,
+               autoDelete: AutoDelete,
+               arguments: Arguments);
         }
     }
 }

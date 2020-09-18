@@ -1,5 +1,4 @@
 ﻿using Core.Modularity.Abstraction;
-using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Reflection;
 

@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Core.RabbitMQ
 {
-    public class DefaultRabbitMqMessageConsumer : IRabbitMqMessageConsumer
+    internal class DefaultRabbitMqMessageConsumer : IRabbitMqMessageConsumer
     {
         private readonly ILogger<DefaultRabbitMqMessageConsumer> _logger;
         private readonly IRabbitMqPersistentConnection _persistentConnection;
@@ -62,17 +62,8 @@ namespace Core.RabbitMQ
             }
             using (var channel = _persistentConnection.CreateModel())
             {
-                channel.ExchangeDeclare(
-                    exchange: ExchangeDeclare.ExchangeName,
-                    type: ExchangeDeclare.Type,
-                    durable: ExchangeDeclare.Durable,
-                    autoDelete: ExchangeDeclare.AutoDelete,
-                    arguments: ExchangeDeclare.Arguments);
-                channel.QueueDeclare(queue: QueueDeclare.QueueName,
-                    durable: QueueDeclare.Durable,
-                    exclusive: QueueDeclare.Exclusive,
-                    autoDelete: QueueDeclare.AutoDelete,
-                    arguments: QueueDeclare.Arguments);
+                ExchangeDeclare.Declare(channel);
+                QueueDeclare.Declare(channel);
                 channel.QueueBind(queue: QueueDeclare.QueueName,
                     exchange: ExchangeDeclare.ExchangeName,
                     routingKey: routingKey);

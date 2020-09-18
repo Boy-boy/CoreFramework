@@ -17,21 +17,18 @@ namespace Core.RabbitMQ
 
         public IDictionary<string, object> Arguments { get; }
 
-        public RabbitMqQueueDeclareConfigure()
-        {
-
-        }
         public RabbitMqQueueDeclareConfigure(
-             string queueName,
+            string queueName,
             bool durable = true,
             bool exclusive = false,
-            bool autoDelete = false)
+            bool autoDelete = false,
+            Dictionary<string, object> arguments = null)
         {
             QueueName = queueName;
             Durable = durable;
             Exclusive = exclusive;
             AutoDelete = autoDelete;
-            Arguments = new Dictionary<string, object>();
+            Arguments = arguments ?? new Dictionary<string, object>();
         }
 
         public virtual QueueDeclareOk Declare(IModel channel)

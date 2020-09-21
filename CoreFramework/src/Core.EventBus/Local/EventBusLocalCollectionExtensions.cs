@@ -5,10 +5,10 @@ namespace Core.EventBus.Local
 {
     public static class EventBusLocalCollectionExtensions
     {
-        public static EventBusBuilder AddLocal(this EventBusBuilder eventBusBuilder)
+        public static IServiceCollection AddLocal(this IServiceCollection services)
         {
-            eventBusBuilder.Services.AddSingleton<IEventBus, EventBusLocal>();
-            return eventBusBuilder;
+            services.AddSingleton<IEventBus, EventBusLocal>();
+            return services;
         }
     }
 }

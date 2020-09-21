@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Core.EventBus
 {
-    public class CoreEventBusModule:CoreModuleBase
+    public class CoreEventBusModule : CoreModuleBase
     {
         public override void ConfigureServices(ServiceCollectionContext context)
         {

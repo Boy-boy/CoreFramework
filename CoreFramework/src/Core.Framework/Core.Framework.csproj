@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Core.Ddd.Domain\Core.Ddd.Domain.csproj" />
+    <ProjectReference Include="..\Core.EntityFrameworkCore\Core.EntityFrameworkCore.csproj" />
+    <ProjectReference Include="..\Core.EventBus.RabbitMQ\Core.EventBus.RabbitMQ.csproj" />
+    <ProjectReference Include="..\Core.EventBus\Core.EventBus.csproj" />
+    <ProjectReference Include="..\Core.Modularity\Core.Modularity.csproj" />
+    <ProjectReference Include="..\Core.RabbitMQ\Core.RabbitMQ.csproj" />
+    <ProjectReference Include="..\Core.Uow\Core.Uow.csproj" />
+  </ItemGroup>
+
+</Project>

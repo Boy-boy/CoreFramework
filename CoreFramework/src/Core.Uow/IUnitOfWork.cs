@@ -1,8 +1,8 @@
 ﻿using System.Threading.Tasks;
 
-namespace Core.EntityFrameworkCore.UnitOfWork
+namespace Core.Uow
 {
-    public  interface IUnitOfWork
+    public interface IUnitOfWork
     {
         void Commit();
         Task CommitAsync();

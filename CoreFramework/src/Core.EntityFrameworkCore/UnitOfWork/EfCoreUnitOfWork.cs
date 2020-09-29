@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Core.Uow;
+using Microsoft.EntityFrameworkCore;
+using System;
 using System.Threading.Tasks;
 
 namespace Core.EntityFrameworkCore.UnitOfWork
@@ -9,7 +11,7 @@ namespace Core.EntityFrameworkCore.UnitOfWork
 
         public EfCoreUnitOfWork(DbContext dbContext)
         {
-            _dbContext = dbContext;
+            _dbContext = dbContext ?? throw new Exception("EfCoreUnitOfWork could not work without dbContext"); ;
         }
         public void Commit()
         {

@@ -5,19 +5,22 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
+using Core.EntityFrameworkCore.UnitOfWork;
+using Core.Uow;
 
 namespace Core.EntityFrameworkCore.Repositories
 {
     public class Repository<TEntity> : IRepository<TEntity>
         where TEntity : class
     {
-        private readonly DbContext _dbContext;
+        private readonly CoreDbContext _dbContext;
         private readonly DbSet<TEntity> _dbSet;
 
-        public Repository(DbContext dbContext)
+        public Repository(CoreDbContext dbContext, IUnitOfWork unitOfWork)
         {
             _dbContext = dbContext ?? throw new Exception("repository could not work without dbContext");
             _dbSet = dbContext.Set<TEntity>();
+            (unitOfWork as EfCoreUnitOfWork)?.RegisterCoreDbContext(dbContext);
         }
         public void Add(IEnumerable<TEntity> entities)
         {

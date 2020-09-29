@@ -1,26 +1,35 @@
 ﻿using Core.Uow;
-using Microsoft.EntityFrameworkCore;
-using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Core.EntityFrameworkCore.UnitOfWork
 {
     public class EfCoreUnitOfWork : IUnitOfWork
     {
-        private readonly DbContext _dbContext;
+        public List<CoreDbContext> DbContexts { get; }
 
-        public EfCoreUnitOfWork(DbContext dbContext)
+        public EfCoreUnitOfWork()
         {
-            _dbContext = dbContext ?? throw new Exception("EfCoreUnitOfWork could not work without dbContext"); ;
+            DbContexts = new List<CoreDbContext>(); ;
         }
         public void Commit()
         {
-            _dbContext.SaveChanges();
+            DbContexts.ForEach(dbContext => dbContext.SaveChanges());
         }
 
         public Task CommitAsync()
         {
-            return _dbContext.SaveChangesAsync();
+            var tasks = new List<Task<int>>();
+            DbContexts.ForEach(dbContext => tasks.Add(dbContext.SaveChangesAsync()));
+            return Task.WhenAll(tasks);
+        }
+
+        public void RegisterCoreDbContext(CoreDbContext coreDbContext)
+        {
+            if (!DbContexts.Exists(dbCtx => dbCtx.Equals(coreDbContext)))
+            {
+                DbContexts.Add(coreDbContext);
+            }
         }
     }
 }

@@ -6,7 +6,7 @@ namespace Core.EventBus
     {
         public EventBusBuilder(IServiceCollection services)
         {
-            this.Services = services;
+            Services = services;
         }
 
         public virtual IServiceCollection Services { get; }

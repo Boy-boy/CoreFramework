@@ -18,7 +18,7 @@ namespace Core.EventBus
             _handlers = new ConcurrentDictionary<string, List<Type>>();
             _eventTypes = new ConcurrentDictionary<string, Type>();
         }
-        
+
         #region AddSubscription
         public void AddSubscription<T, TH>()
             where T : IntegrationEvent
@@ -28,6 +28,7 @@ namespace Core.EventBus
         }
         public void AddSubscription(Type eventType, Type handlerType)
         {
+            if (!typeof(IIntegrationEventHandler<>).MakeGenericType(eventType).IsAssignableFrom(handlerType)) return;
             TryAddSubscriptionEventType(eventType);
             TryAddSubscriptionEventHandler(eventType, handlerType);
         }
@@ -73,9 +74,11 @@ namespace Core.EventBus
         }
         public void RemoveSubscription(Type eventType, Type handlerType)
         {
+            if (!typeof(IIntegrationEventHandler<>).MakeGenericType(eventType).IsAssignableFrom(handlerType)) return;
             var eventName = EventNameAttribute.GetNameOrDefault(eventType);
             var handlerToRemove = TryFindSubscriptionToRemove(eventName, handlerType);
             TryRemoveHandler(eventName, handlerToRemove);
+
         }
         private Type TryFindSubscriptionToRemove(string eventName, Type handlerType)
         {

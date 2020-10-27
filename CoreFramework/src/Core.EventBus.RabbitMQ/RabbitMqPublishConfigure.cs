@@ -7,5 +7,10 @@
         public RabbitMqPublishConfigure()
         {
         }
+
+        public string GetExchangeName()
+        {
+            return ExchangeName;
+        }
     }
 }

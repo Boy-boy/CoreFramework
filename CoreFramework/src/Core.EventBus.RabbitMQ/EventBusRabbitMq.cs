@@ -9,6 +9,7 @@ using RabbitMQ.Client.Events;
 using RabbitMQ.Client.Exceptions;
 using System;
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
@@ -40,7 +41,7 @@ namespace Core.EventBus.RabbitMQ
         {
             _eventBusRabbitMqOptions = options.Value;
             _persistentConnection = persistentConnection ?? throw new ArgumentNullException(nameof(persistentConnection));
-            _rabbitMqMessageConsumerFactory = rabbitMqMessageConsumerFactory;
+            _rabbitMqMessageConsumerFactory = rabbitMqMessageConsumerFactory ?? throw new ArgumentNullException(nameof(subsManager));
             _subsManager = subsManager ?? throw new ArgumentNullException(nameof(subsManager));
             _eventHandlerFactory = eventHandlerFactory ?? throw new ArgumentNullException(nameof(eventHandlerFactory));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -51,7 +52,7 @@ namespace Core.EventBus.RabbitMQ
         private void SubsManager_OnEventRemoved(object sender, Type eventType)
         {
             var eventName = EventNameAttribute.GetNameOrDefault(eventType);
-            var (exchangeName, queueName) = GetSubscribeConfigure(eventType);
+            var (exchangeName, queueName) = GetExchangeNameAndQueueName(eventType);
             var key = $"{exchangeName}_{queueName}";
             if (!RabbitMqMessageConsumerDic.ContainsKey(key)) return;
             var rabbitMqMessageConsumer = RabbitMqMessageConsumerDic[key];
@@ -84,7 +85,7 @@ namespace Core.EventBus.RabbitMQ
                 var body = Encoding.UTF8.GetBytes(message);
 
                 var model = channel;
-                var exchangeName = GetPublishConfigure();
+                var exchangeName = _eventBusRabbitMqOptions.RabbitMqPublishConfigure.GetExchangeName() ?? EXCHANGE_NAME;
                 model.ExchangeDeclare(exchange: exchangeName, type: "direct", durable: true);
                 policy.Execute(() =>
                 {
@@ -133,7 +134,7 @@ namespace Core.EventBus.RabbitMQ
 
         private IRabbitMqMessageConsumer TeyGetOrSetMessageConsumer(Type eventType)
         {
-            var (exchangeName, queueName) = GetSubscribeConfigure(eventType);
+            var (exchangeName, queueName) = GetExchangeNameAndQueueName(eventType);
             var key = $"{exchangeName}_{queueName}";
             if (RabbitMqMessageConsumerDic.ContainsKey(key))
                 return RabbitMqMessageConsumerDic[key];
@@ -152,26 +153,16 @@ namespace Core.EventBus.RabbitMQ
             }
         }
 
-        private string GetPublishConfigure()
+        private (string ExchangeName, string QueueName) GetExchangeNameAndQueueName(Type eventType)
         {
-            return string.IsNullOrEmpty(_eventBusRabbitMqOptions.RabbitMqPublishConfigure.ExchangeName)
-                ? EXCHANGE_NAME
-                : _eventBusRabbitMqOptions.RabbitMqPublishConfigure.ExchangeName;
-        }
-
-        private (string ExchangeName, string QueueName) GetSubscribeConfigure(Type eventType)
-        {
-            var subscribeConfigure = _eventBusRabbitMqOptions.RabbitSubscribeConfigures.Find(p => p.EventType == eventType);
+            var subscribeConfigure = _eventBusRabbitMqOptions.RabbitSubscribeConfigures.LastOrDefault(p => p.EventType == eventType);
             if (subscribeConfigure == null)
                 return (EXCHANGE_NAME, QUEUE_NAME);
 
-            var exchangeName = string.IsNullOrEmpty(subscribeConfigure.ExchangeName)
-                ? EXCHANGE_NAME
-                : subscribeConfigure.ExchangeName;
+            var (exchangeName, queueName) = subscribeConfigure.GetExchangeNameAndQueueName(eventType);
 
-            var queueName = string.IsNullOrEmpty(subscribeConfigure.QueueName)
-                ? QUEUE_NAME
-                : subscribeConfigure.QueueName;
+            exchangeName = exchangeName ?? EXCHANGE_NAME;
+            queueName = queueName ?? QUEUE_NAME;
 
             return (exchangeName, queueName);
         }

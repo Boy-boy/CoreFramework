@@ -14,5 +14,10 @@ namespace Core.EventBus.RabbitMQ
             ExchangeName = exchangeName;
             QueueName = queueName;
         }
+
+        public (string exchangeName, string queueName) GetExchangeNameAndQueueName(Type eventType)
+        {
+            return eventType == EventType ? (ExchangeName, QueueName) : (null, null);
+        }
     }
 }

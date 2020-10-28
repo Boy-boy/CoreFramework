@@ -9,6 +9,6 @@ namespace Core.Modularity.Abstraction
 
         ICoreModule Instance { get; }
 
-        List<Type> DependedTypes { get; }
+        IReadOnlyList<ICoreModuleDescriptor> Dependencies { get; }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using Core.Modularity.Abstraction;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Core.Modularity
 {
@@ -10,13 +11,27 @@ namespace Core.Modularity
 
         public ICoreModule Instance { get; }
 
-        public List<Type> DependedTypes { get; }
+        public IReadOnlyList<ICoreModuleDescriptor> Dependencies => _dependencies;
 
-        public CoreModuleDescriptor(Type moduleType, ICoreModule instance, List<Type> dependedTypes)
+        private readonly List<ICoreModuleDescriptor> _dependencies;
+
+        public CoreModuleDescriptor(Type moduleType, ICoreModule instance)
         {
             ModuleType = moduleType ?? throw new ArgumentNullException(nameof(moduleType));
             Instance = instance ?? throw new ArgumentNullException(nameof(instance));
-            DependedTypes = dependedTypes ?? new List<Type>();
+            _dependencies = new List<ICoreModuleDescriptor>();
+        }
+        public void SetDependencies(List<CoreModuleDescriptor> modules)
+        {
+            foreach (var dependedModuleType in CoreModuleHelper.FindDependedModuleTypes(ModuleType))
+            {
+                var dependedModule = modules.FirstOrDefault(m => m.ModuleType == dependedModuleType);
+                if (dependedModule == null)
+                {
+                    throw new Exception("Could not find a depended module " + dependedModuleType.AssemblyQualifiedName + " for " + ModuleType.AssemblyQualifiedName);
+                }
+                _dependencies.Add(dependedModule);
+            }
         }
     }
 }

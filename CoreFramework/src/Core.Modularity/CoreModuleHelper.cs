@@ -34,9 +34,9 @@ namespace Core.Modularity
             CoreModuleBase.CheckCoreModuleType(moduleType);
             if (moduleTypes.Contains(moduleType))
                 return;
+            moduleTypes.Add(moduleType);
             foreach (var dependedModuleType in FindDependedModuleTypes(moduleType))
                 AddModules(moduleTypes, dependedModuleType);
-            moduleTypes.Add(moduleType);
         }
     }
 }

@@ -19,7 +19,7 @@ namespace EntityFrameworkCore.Api
             });
         }
 
-        public override void Configure(ConfigureApplicationContext context)
+        public override void Configure(ApplicationBuilderContext context)
         {
             var app = context.ApplicationBuilder;
             var env = app.ApplicationServices.GetRequiredService<IHostEnvironment>();

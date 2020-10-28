@@ -3,11 +3,11 @@ using System;
 
 namespace Core.Modularity
 {
-    public class ConfigureApplicationContext
+    public class ApplicationBuilderContext
     {
         public IApplicationBuilder ApplicationBuilder { get; }
 
-        public ConfigureApplicationContext(IApplicationBuilder applicationBuilder)
+        public ApplicationBuilderContext(IApplicationBuilder applicationBuilder)
         {
             ApplicationBuilder = applicationBuilder ?? throw new ArgumentNullException(nameof(applicationBuilder));
         }

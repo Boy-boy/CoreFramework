@@ -8,20 +8,20 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Core.Modularity
 {
-    public class CoreApplication : ICoreApplication
+    public class CoreApplicationManager : ICoreApplicationManager
     {
         public Type StartupModuleType { get; }
 
         public IReadOnlyList<ICoreModuleDescriptor> Modules { get; }
 
-        public CoreApplication(
+        public CoreApplicationManager(
             Type startupModuleType,
             IServiceCollection services)
         {
             if (services == null) throw new ArgumentNullException(nameof(services));
             StartupModuleType = startupModuleType ?? throw new ArgumentNullException(nameof(startupModuleType));
 
-            services.TryAddSingleton<ICoreApplication>(this);
+            services.TryAddSingleton<ICoreApplicationManager>(this);
             services.TryAddSingleton<IModuleLoader>(new ModuleLoader());
             Modules = LoadModules(services);
             ConfigureConfigureServices(services);
@@ -71,7 +71,7 @@ namespace Core.Modularity
 
         public void Configure(IApplicationBuilder app)
         {
-            var context = new ConfigureApplicationContext(app);
+            var context = new ApplicationBuilderContext(app);
             foreach (var moduleDescriptor in Modules)
             {
                 try

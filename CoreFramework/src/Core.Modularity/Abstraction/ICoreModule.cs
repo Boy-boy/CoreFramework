@@ -7,10 +7,10 @@
         void PostConfigureServices(ServiceCollectionContext context);
 
 
-        void PreConfigure(ConfigureApplicationContext context);
-        void Configure(ConfigureApplicationContext app);
+        void PreConfigure(ApplicationBuilderContext context);
+        void Configure(ApplicationBuilderContext app);
 
-        void PostConfigure(ConfigureApplicationContext context);
+        void PostConfigure(ApplicationBuilderContext context);
 
         void Shutdown(ShutdownApplicationContext context);
     }

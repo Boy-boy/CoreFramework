@@ -18,15 +18,15 @@ namespace Core.Modularity
         {
         }
 
-        public virtual void PreConfigure(ConfigureApplicationContext context)
+        public virtual void PreConfigure(ApplicationBuilderContext context)
         {
         }
 
-        public virtual void Configure(ConfigureApplicationContext context)
+        public virtual void Configure(ApplicationBuilderContext context)
         {
         }
 
-        public virtual void PostConfigure(ConfigureApplicationContext context)
+        public virtual void PostConfigure(ApplicationBuilderContext context)
         {
         }
 

@@ -18,7 +18,7 @@ namespace SubscriptionApi
             context.Services.AddScoped<EventHandler>();
         }
 
-        public override void Configure(ConfigureApplicationContext context)
+        public override void Configure(ApplicationBuilderContext context)
         {
             var app = context.ApplicationBuilder;
             var env = app.ApplicationServices.GetRequiredService<IHostEnvironment>();

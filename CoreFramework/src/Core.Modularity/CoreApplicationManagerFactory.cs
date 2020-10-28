@@ -4,13 +4,13 @@ using System;
 
 namespace Core.Modularity
 {
-    public static class CoreApplicationFactory
+    public static class CoreApplicationManagerFactory
     {
-        public static ICoreApplication CreateCoreApplication(
+        public static ICoreApplicationManager CreateCoreApplication(
             Type startupModuleType,
             IServiceCollection services)
         {
-            return new CoreApplication(startupModuleType, services);
+            return new CoreApplicationManager(startupModuleType, services);
         }
     }
 }

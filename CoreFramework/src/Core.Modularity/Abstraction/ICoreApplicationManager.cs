@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Core.Modularity.Abstraction
 {
-    public interface ICoreApplication
+    public interface ICoreApplicationManager
     {
         void ConfigureConfigureServices(IServiceCollection services);
         void Configure(IApplicationBuilder app);

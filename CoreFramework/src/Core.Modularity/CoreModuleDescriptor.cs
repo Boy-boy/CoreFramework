@@ -21,6 +21,7 @@ namespace Core.Modularity
             Instance = instance ?? throw new ArgumentNullException(nameof(instance));
             _dependencies = new List<ICoreModuleDescriptor>();
         }
+
         public void SetDependencies(List<CoreModuleDescriptor> modules)
         {
             foreach (var dependedModuleType in CoreModuleHelper.FindDependedModuleTypes(ModuleType))

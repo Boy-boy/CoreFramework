@@ -9,23 +9,15 @@ namespace Core.Modularity
 {
     public static class CoreFrameworkServiceCollectionExtensions
     {
-        public static void AddApplication<T>(this IServiceCollection service)
+        public static void AddApplicationManager<T>(this IServiceCollection service)
         where T : ICoreModule
         {
-            AddApplication(service, typeof(T));
+            AddApplicationManager(service, typeof(T));
         }
 
-        public static void AddApplication(this IServiceCollection service, Type startupModuleType)
+        public static void AddApplicationManager(this IServiceCollection service, Type startupModuleType)
         {
-            CoreApplicationFactory.CreateCoreApplication(startupModuleType, service);
-        }
-
-        public static IConfiguration GetConfiguration(this IServiceCollection services)
-        {
-            var configuration = ((HostBuilderContext)services
-                .FirstOrDefault(p => p.ServiceType == typeof(HostBuilderContext))?.ImplementationInstance)
-                ?.Configuration;
-            return configuration;
+            CoreApplicationManagerFactory.CreateCoreApplication(startupModuleType, service);
         }
     }
 }

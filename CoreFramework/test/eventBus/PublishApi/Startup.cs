@@ -18,12 +18,12 @@ namespace PublishApi
       
         public void ConfigureServices(IServiceCollection services)
         { 
-            services.AddApplication<StartupModule>();
+            services.AddApplicationManager<StartupModule>();
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
-            app.ConfigureApplicationBuilder();
+            app.InitializationApplicationBuilder();
         }
     }
 }

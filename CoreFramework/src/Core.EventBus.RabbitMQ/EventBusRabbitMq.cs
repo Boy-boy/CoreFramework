@@ -106,11 +106,7 @@ namespace Core.EventBus.RabbitMQ
 
         protected override void Subscribe(Type eventType, Type handlerType)
         {
-            var rabbitMqMessageConsumer = TeyGetOrSetMessageConsumer(eventType);
-            var eventName = EventNameAttribute.GetNameOrDefault(eventType);
-            _logger.LogInformation("Subscribing from event {EventName}", eventName);
-            if (!_subsManager.IncludeSubscriptionsHandlesForEventName(eventName))
-                rabbitMqMessageConsumer?.BindAsync(eventName);
+            TeyCreateMessageConsumer(eventType);
             _subsManager.AddSubscription(eventType, handlerType);
 
         }
@@ -131,24 +127,23 @@ namespace Core.EventBus.RabbitMQ
             RabbitMqMessageConsumerDic = new ConcurrentDictionary<string, IRabbitMqMessageConsumer>();
         }
 
-        private IRabbitMqMessageConsumer TeyGetOrSetMessageConsumer(Type eventType)
+        private void TeyCreateMessageConsumer(Type eventType)
         {
             var (exchangeName, queueName) = GetExchangeNameAndQueueName(eventType);
             var key = $"{exchangeName}_{queueName}";
             if (RabbitMqMessageConsumerDic.ContainsKey(key))
-                return RabbitMqMessageConsumerDic[key];
+                return;
             lock (_lock)
             {
                 if (RabbitMqMessageConsumerDic.ContainsKey(key))
-                    return RabbitMqMessageConsumerDic[key];
-
+                    return;
                 var rabbitMqMessageConsumer = _rabbitMqMessageConsumerFactory.Create(
                     new RabbitMqExchangeDeclareConfigure(exchangeName, "direct", true),
                     new RabbitMqQueueDeclareConfigure(queueName));
+                var eventName = EventNameAttribute.GetNameOrDefault(eventType);
+                rabbitMqMessageConsumer.BindAsync(eventName);
                 rabbitMqMessageConsumer.OnMessageReceived(Consumer_Received);
-
                 RabbitMqMessageConsumerDic.TryAdd(key, rabbitMqMessageConsumer);
-                return rabbitMqMessageConsumer;
             }
         }
 

@@ -2,7 +2,6 @@
 using Core.Modularity;
 using Core.Modularity.Attribute;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -14,7 +13,7 @@ namespace EntityFrameworkCore.Api
         public override void ConfigureServices(ServiceCollectionContext context)
         {
             context.Services.AddControllers();
-            context.Services.AddDbContextPool<DbContext,CustomerDbContext>(optionsAction =>
+            context.Services.AddDbContextPool<CoreDbContext,CustomerDbContext>(optionsAction =>
             {
             });
         }

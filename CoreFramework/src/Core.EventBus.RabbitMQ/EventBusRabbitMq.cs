@@ -62,7 +62,7 @@ namespace Core.EventBus.RabbitMQ
             RabbitMqMessageConsumerDic.TryRemove(key, out _);
         }
 
-        protected override Task PublishAsync(Type eventType, IntegrationEvent eventDate)
+        protected override void Publish(Type eventType, IntegrationEvent eventDate)
         {
             if (!_persistentConnection.IsConnected)
             {
@@ -102,7 +102,6 @@ namespace Core.EventBus.RabbitMQ
                         body: body);
                 });
             }
-            return Task.CompletedTask;
         }
 
         protected override void Subscribe(Type eventType, Type handlerType)
@@ -198,7 +197,7 @@ namespace Core.EventBus.RabbitMQ
                     var integrationEvent = JsonConvert.DeserializeObject(message, eventType);
                     var concreteType = typeof(IIntegrationEventHandler<>).MakeGenericType(eventType);
                     await Task.Yield();
-                    await (Task)concreteType.GetMethod("HandleAsync").Invoke(handlerInstance, new[] { integrationEvent });
+                    await (Task)concreteType.GetMethod("Handle").Invoke(handlerInstance, new[] { integrationEvent });
                 }
             }
             else

@@ -1,10 +1,8 @@
-﻿using System.Threading.Tasks;
-
-namespace Core.EventBus.Abstraction
+﻿namespace Core.EventBus.Abstraction
 {
     public interface IEventBus
     {
-        Task PublishAsync<TEvent>(TEvent eventData)
+        void Publish<TEvent>(TEvent eventData)
             where TEvent : IntegrationEvent;
 
         void Subscribe<T, TH>()

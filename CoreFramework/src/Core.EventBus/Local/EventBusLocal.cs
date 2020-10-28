@@ -23,7 +23,7 @@ namespace Core.EventBus.Local
             _logger = logger;
         }
 
-        protected override async Task PublishAsync(Type eventType, IntegrationEvent eventDate)
+        protected override void Publish(Type eventType, IntegrationEvent eventDate)
         {
             var exceptions = new List<Exception>();
             var eventName = EventNameAttribute.GetNameOrDefault(eventType);
@@ -36,8 +36,7 @@ namespace Core.EventBus.Local
                     {
                         var handlerInstance = _eventHandlerFactory.GetHandler(eventHandleType);
                         var concreteType = typeof(IIntegrationEventHandler<>).MakeGenericType(eventType);
-                        await Task.Yield();
-                        await (Task)concreteType.GetMethod("HandleAsync").Invoke(handlerInstance, new object[] { eventDate });
+                        concreteType.GetMethod("Handle").Invoke(handlerInstance, new object[] { eventDate });
                     }
                     catch (TargetInvocationException ex)
                     {

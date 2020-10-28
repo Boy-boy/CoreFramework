@@ -1,18 +1,17 @@
 ﻿using Core.EventBus.Abstraction;
 using System;
-using System.Threading.Tasks;
 
 namespace Core.EventBus
 {
     public abstract class EventBusBase : IEventBus
     {
-        public Task PublishAsync<TEvent>(TEvent eventData)
+        public void Publish<TEvent>(TEvent eventData)
             where TEvent : IntegrationEvent
         {
-            return PublishAsync(typeof(TEvent), eventData);
+            Publish(typeof(TEvent), eventData);
         }
 
-        protected abstract Task PublishAsync(Type eventType, IntegrationEvent eventDate);
+        protected abstract void Publish(Type eventType, IntegrationEvent eventDate);
 
         public void Subscribe<T, TH>()
             where T : IntegrationEvent

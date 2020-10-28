@@ -31,7 +31,7 @@ namespace PublishApi.Controllers
         {
             for (int i = 0; i < 1000; i++)
             {
-                _eventBus.PublishAsync(new CustomerEvent()).GetAwaiter().GetResult();
+                _eventBus.Publish(new CustomerEvent());
             }
 
             var rng = new Random();

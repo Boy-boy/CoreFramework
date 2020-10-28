@@ -20,7 +20,7 @@ namespace PublishApi.Controllers
         private readonly ILogger<WeatherForecastController> _logger;
         private readonly IEventBus _eventBus;
 
-        public WeatherForecastController(ILogger<WeatherForecastController> logger,IEventBus eventBus)
+        public WeatherForecastController(ILogger<WeatherForecastController> logger, IEventBus eventBus)
         {
             _logger = logger;
             _eventBus = eventBus;
@@ -29,9 +29,9 @@ namespace PublishApi.Controllers
         [HttpGet]
         public IEnumerable<WeatherForecast> Get()
         {
-            for (int i = 0; i < 5000; i++)
+            for (int i = 0; i < 1000; i++)
             {
-                _eventBus.PublishAsync(new CustomerEvent());
+                _eventBus.PublishAsync(new CustomerEvent()).GetAwaiter().GetResult();
             }
 
             var rng = new Random();

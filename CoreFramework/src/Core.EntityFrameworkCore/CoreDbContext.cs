@@ -14,7 +14,6 @@ namespace Core.EntityFrameworkCore
             : base(options)
         {
         }
-
         public DbSet<Event> Events { get; set; }
 
         public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess,

@@ -1,4 +1,5 @@
 ﻿using Core.EntityFrameworkCore;
+using EntityFrameworkCore.Api.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace EntityFrameworkCore.Api
@@ -9,5 +10,7 @@ namespace EntityFrameworkCore.Api
             : base(options)
         {
         }
+
+        public DbSet<Student> Students { get; set; }
     }
 }

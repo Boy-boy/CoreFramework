@@ -1,9 +1,13 @@
 ﻿using Core.Uow;
+using EntityFrameworkCore.Api.Entities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using EntityFrameworkCore.Api.Events;
+using System.Threading.Tasks;
+using Core.EntityFrameworkCore;
 
 namespace EntityFrameworkCore.Api.Controllers
 {
@@ -17,12 +21,15 @@ namespace EntityFrameworkCore.Api.Controllers
         };
 
         private readonly ILogger<WeatherForecastController> _logger;
+        private readonly CoreDbContext _customerDbContext;
         private readonly IUnitOfWork _unitOfWork;
 
         public WeatherForecastController(ILogger<WeatherForecastController> logger,
+            CoreDbContext customerDbContext,
             IUnitOfWork unitOfWork)
         {
             _logger = logger;
+            _customerDbContext = customerDbContext;
             _unitOfWork = unitOfWork;
         }
 
@@ -38,5 +45,16 @@ namespace EntityFrameworkCore.Api.Controllers
             })
             .ToArray();
         }
+
+        [HttpGet("add")]
+        public async Task<string> Add()
+        {
+            var student = new Student("张三", 23);
+            student.AddEvent(new AddStudentEvent { AggregateRootId = student.Id });
+            _customerDbContext.Add(student);
+            await _customerDbContext.SaveChangesAsync();
+            return "ok";
+        }
+
     }
 }

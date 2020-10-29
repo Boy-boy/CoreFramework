@@ -5,17 +5,18 @@ namespace Core.EntityFrameworkCore
 {
     public class Event
     {
+        public Event() { }
         public Event(AggregateRootEvent aggregateRootEvent)
         {
             Id = Guid.NewGuid().ToString();
-            EventType = aggregateRootEvent.GetType();
-            EventData = aggregateRootEvent;
+            EventType = aggregateRootEvent.GetType().ToString();
+            EventData = aggregateRootEvent.ToString();
         }
 
         public string Id { get; set; }
 
-        public Type EventType { get; set; }
+        public string EventType { get; set; }
 
-        public object EventData { get; set; }
+        public string EventData { get; set; }
     }
 }

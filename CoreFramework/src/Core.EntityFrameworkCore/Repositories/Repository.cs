@@ -15,7 +15,7 @@ namespace Core.EntityFrameworkCore.Repositories
     public class Repository<TEntity> : IRepository<TEntity>
         where TEntity : class
     {
-        private readonly CoreDbContext _dbContext;
+        private readonly DbContext _dbContext;
         private readonly DbSet<TEntity> _dbSet;
 
         public Repository(CoreDbContext dbContext, IUnitOfWork unitOfWork)

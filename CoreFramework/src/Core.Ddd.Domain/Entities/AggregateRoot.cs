@@ -1,20 +1,31 @@
 ﻿using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using Core.Ddd.Domain.Events;
 
 namespace Core.Ddd.Domain.Entities
 {
     public class AggregateRoot : Entity, IAggregateRoot
     {
-        public Queue<AggregateRootEvent> Events { get; }
+        private readonly ICollection<AggregateRootEvent> _events = new Collection<AggregateRootEvent>();
 
-        public AggregateRoot()
+        public void AddEvent(AggregateRootEvent @event)
         {
-            Events = new Queue<AggregateRootEvent>();
+            _events.Add(@event);
         }
 
-        public void OnEvent(AggregateRootEvent @event)
+        public IEnumerable<AggregateRootEvent> GetEvents()
         {
-            Events.Enqueue(@event);
+            return _events;
         }
+
+        public void CleanEvents()
+        {
+            _events.Clear();
+        }
+    }
+
+    public class AggregateRoot<TKey> : AggregateRoot, IAggregateRoot<TKey>
+    {
+        public TKey Id { get; set; }
     }
 }

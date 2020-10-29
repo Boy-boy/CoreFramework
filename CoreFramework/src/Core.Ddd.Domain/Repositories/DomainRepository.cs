@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Core.Ddd.Domain.Repositories
@@ -26,19 +27,9 @@ namespace Core.Ddd.Domain.Repositories
             _repository.Add(entity);
         }
 
-        public Task AddAsync(IEnumerable<TAggregateRoot> entities)
+        public Task AddAsync(IEnumerable<TAggregateRoot> entities, CancellationToken cancellationToken = default)
         {
-            return _repository.AddAsync(entities);
-        }
-
-        public TAggregateRoot GetByKey(params object[] keyValues)
-        {
-            return _repository.GetByKey(keyValues);
-        }
-
-        public ValueTask<TAggregateRoot> GetByKeyAsync(params object[] keyValues)
-        {
-            return _repository.GetByKeyAsync(keyValues);
+            return _repository.AddAsync(entities, cancellationToken);
         }
 
         public long Count(Expression<Func<TAggregateRoot, bool>> expression)
@@ -46,34 +37,19 @@ namespace Core.Ddd.Domain.Repositories
             return _repository.Count(expression);
         }
 
-        public Task<long> CountAsync(Expression<Func<TAggregateRoot, bool>> expression)
-        {
-            return _repository.CountAsync(expression);
-        }
-
         public long Count()
         {
             return _repository.Count();
         }
 
-        public Task<long> CountAsync()
+        public Task<long> CountAsync(Expression<Func<TAggregateRoot, bool>> expression, CancellationToken cancellationToken = default)
         {
-            return _repository.CountAsync();
+            return _repository.CountAsync(expression, cancellationToken);
         }
 
-        public IQueryable<TAggregateRoot> FindAll(Expression<Func<TAggregateRoot, bool>> expression)
+        public Task<long> CountAsync(CancellationToken cancellationToken = default)
         {
-            return _repository.FindAll(expression);
-        }
-
-        public TAggregateRoot Find(Expression<Func<TAggregateRoot, bool>> expression)
-        {
-            return _repository.Find(expression);
-        }
-
-        public Task<TAggregateRoot> FindAsync(Expression<Func<TAggregateRoot, bool>> expression)
-        {
-            return _repository.FindAsync(expression);
+            return _repository.CountAsync(cancellationToken);
         }
 
         public bool Exists(Expression<Func<TAggregateRoot, bool>> expression)
@@ -81,9 +57,54 @@ namespace Core.Ddd.Domain.Repositories
             return _repository.Exists(expression);
         }
 
-        public Task<bool> ExistsAsync(Expression<Func<TAggregateRoot, bool>> expression)
+        public Task<bool> ExistsAsync(Expression<Func<TAggregateRoot, bool>> expression, CancellationToken cancellationToken = default)
         {
-            return _repository.ExistsAsync(expression);
+            return _repository.ExistsAsync(expression, cancellationToken);
+        }
+
+        public TAggregateRoot Find(Expression<Func<TAggregateRoot, bool>> expression)
+        {
+            return _repository.Find(expression);
+        }
+
+        public IEnumerable<TAggregateRoot> FindAll(Expression<Func<TAggregateRoot, bool>> expression)
+        {
+            return _repository.FindAll(expression);
+        }
+
+        public Task<List<TAggregateRoot>> FindAllAsync(Expression<Func<TAggregateRoot, bool>> expression, CancellationToken cancellationToken = default)
+        {
+            return _repository.FindAllAsync(expression, cancellationToken);
+        }
+
+        public Task<TAggregateRoot> FindAsync(Expression<Func<TAggregateRoot, bool>> expression, CancellationToken cancellationToken = default)
+        {
+            return _repository.FindAsync(expression, cancellationToken);
+        }
+
+        public IQueryable<TAggregateRoot> GetQueryable()
+        {
+            return _repository.GetQueryable();
+        }
+
+        public (IEnumerable<TAggregateRoot> DataQueryable, int Total) PageFind(int pageIndex, int pageSize, Expression<Func<TAggregateRoot, bool>> expression)
+        {
+            return _repository.PageFind(pageIndex, pageSize, expression);
+        }
+
+        public Task<(Task<List<TAggregateRoot>> DataQueryable, Task<int>)> PageFindAsync(int pageIndex, int pageSize, Expression<Func<TAggregateRoot, bool>> expression, CancellationToken cancellationToken = default)
+        {
+            return _repository.PageFindAsync(pageIndex, pageSize, expression, cancellationToken);
+        }
+
+        public void Reload(TAggregateRoot entity)
+        {
+            _repository.Reload(entity);
+        }
+
+        public Task ReloadAsync(TAggregateRoot entity, CancellationToken cancellationToken = default)
+        {
+            return _repository.ReloadAsync(entity, cancellationToken);
         }
 
         public void Remove(TAggregateRoot entity)
@@ -96,29 +117,9 @@ namespace Core.Ddd.Domain.Repositories
             _repository.Remove(entities);
         }
 
-        public void Reload(TAggregateRoot entity)
-        {
-            _repository.Reload(entity);
-        }
-
-        public Task ReloadAsync(TAggregateRoot entity)
-        {
-            return _repository.ReloadAsync(entity);
-        }
-
         public void Update(TAggregateRoot entity)
         {
             _repository.Update(entity);
-        }
-
-        public (IQueryable<TAggregateRoot> DataQueryable, long Total) PageFind(int pageIndex, int pageSize, Expression<Func<TAggregateRoot, bool>> expression)
-        {
-            return _repository.PageFind(pageIndex, pageSize, expression);
-        }
-
-        public Task<(IQueryable<TAggregateRoot> DataQueryable, Task<int>)> PageFindAsync(int pageIndex, int pageSize, Expression<Func<TAggregateRoot, bool>> expression)
-        {
-            return _repository.PageFindAsync(pageIndex, pageSize, expression);
         }
     }
 }

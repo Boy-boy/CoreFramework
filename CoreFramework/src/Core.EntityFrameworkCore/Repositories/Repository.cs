@@ -4,9 +4,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Core.EntityFrameworkCore.UnitOfWork;
 using Core.Uow;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace Core.EntityFrameworkCore.Repositories
 {
@@ -22,12 +24,10 @@ namespace Core.EntityFrameworkCore.Repositories
             _dbSet = dbContext.Set<TEntity>();
             (unitOfWork as EfCoreUnitOfWork)?.RegisterCoreDbContext(dbContext);
         }
-        public void Add(IEnumerable<TEntity> entities)
+
+        public IQueryable<TEntity> GetQueryable()
         {
-            foreach (var entity in entities)
-            {
-                Add(entity);
-            }
+            return _dbSet.AsQueryable();
         }
 
         public void Add(TEntity entity)
@@ -35,9 +35,15 @@ namespace Core.EntityFrameworkCore.Repositories
             _dbSet.Add(entity);
         }
 
-        public Task AddAsync(IEnumerable<TEntity> entities)
+        public void Add(IEnumerable<TEntity> entities)
         {
-            return _dbSet.AddRangeAsync(entities);
+            var enumerable = entities as TEntity[] ?? entities.ToArray();
+            _dbSet.AddRange(enumerable);
+        }
+
+        public Task AddAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default)
+        {
+            return _dbSet.AddRangeAsync(entities, cancellationToken);
         }
 
         public long Count(Expression<Func<TEntity, bool>> expression)
@@ -50,14 +56,14 @@ namespace Core.EntityFrameworkCore.Repositories
             return _dbSet.LongCount();
         }
 
-        public Task<long> CountAsync(Expression<Func<TEntity, bool>> expression)
+        public Task<long> CountAsync(Expression<Func<TEntity, bool>> expression, CancellationToken cancellationToken = default)
         {
-            return _dbSet.LongCountAsync(expression);
+            return _dbSet.LongCountAsync(expression, cancellationToken);
         }
 
-        public Task<long> CountAsync()
+        public Task<long> CountAsync(CancellationToken cancellationToken = default)
         {
-            return _dbSet.LongCountAsync();
+            return _dbSet.LongCountAsync(cancellationToken);
         }
 
         public bool Exists(Expression<Func<TEntity, bool>> expression)
@@ -65,9 +71,9 @@ namespace Core.EntityFrameworkCore.Repositories
             return _dbSet.Any(expression);
         }
 
-        public Task<bool> ExistsAsync(Expression<Func<TEntity, bool>> expression)
+        public Task<bool> ExistsAsync(Expression<Func<TEntity, bool>> expression, CancellationToken cancellationToken = default)
         {
-            return _dbSet.AnyAsync(expression);
+            return _dbSet.AnyAsync(expression, cancellationToken);
         }
 
         public TEntity Find(Expression<Func<TEntity, bool>> expression)
@@ -75,27 +81,25 @@ namespace Core.EntityFrameworkCore.Repositories
             return _dbSet.Where(expression).FirstOrDefault();
         }
 
-        public IQueryable<TEntity> FindAll(Expression<Func<TEntity, bool>> expressions)
+        public IEnumerable<TEntity> FindAll(Expression<Func<TEntity, bool>> expressions)
         {
-            return _dbSet.Where(expressions);
+            return _dbSet.Where(expressions).ToList();
         }
 
-        public Task<TEntity> FindAsync(Expression<Func<TEntity, bool>> expression)
+        public Task<TEntity> FindAsync(Expression<Func<TEntity, bool>> expression, CancellationToken cancellationToken = default)
         {
-            return _dbSet.Where(expression).FirstOrDefaultAsync();
+            return _dbSet.Where(expression).FirstOrDefaultAsync(cancellationToken);
         }
 
-        public TEntity GetByKey(params object[] keyValues)
+        public Task<List<TEntity>> FindAllAsync(Expression<Func<TEntity, bool>> expression, CancellationToken cancellationToken = default)
         {
-            return _dbSet.Find(keyValues);
+            return _dbSet.Where(expression).ToListAsync(cancellationToken);
         }
 
-        public ValueTask<TEntity> GetByKeyAsync(params object[] keyValues)
-        {
-            return _dbSet.FindAsync(keyValues);
-        }
-
-        public (IQueryable<TEntity> DataQueryable, long Total) PageFind(int pageIndex, int pageSize, Expression<Func<TEntity, bool>> expression)
+        public (IEnumerable<TEntity> DataQueryable, int Total) PageFind(
+            int pageIndex,
+            int pageSize,
+            Expression<Func<TEntity, bool>> expression)
         {
             if (pageIndex < 0)
             {
@@ -112,10 +116,14 @@ namespace Core.EntityFrameworkCore.Repositories
             {
                 query = query.Where(expression);
             }
-            return (query, query.Count());
+            return (query.ToList(), query.Count());
         }
 
-        public Task<(IQueryable<TEntity> DataQueryable, Task<int>)> PageFindAsync(int pageIndex, int pageSize, Expression<Func<TEntity, bool>> expression)
+        public Task<(Task<List<TEntity>> DataQueryable, Task<int>)> PageFindAsync(
+            int pageIndex,
+            int pageSize,
+            Expression<Func<TEntity, bool>> expression,
+            CancellationToken cancellationToken = default)
         {
             if (pageIndex < 0)
             {
@@ -131,7 +139,7 @@ namespace Core.EntityFrameworkCore.Repositories
             {
                 query = query.Where(expression);
             }
-            return Task.FromResult((query, query.CountAsync()));
+            return Task.FromResult((query.ToListAsync(cancellationToken), query.CountAsync(cancellationToken)));
         }
 
         public void Reload(TEntity entity)
@@ -139,10 +147,10 @@ namespace Core.EntityFrameworkCore.Repositories
             _dbContext.Entry(entity).Reload();
         }
 
-        public Task ReloadAsync(TEntity entity)
+        public Task ReloadAsync(TEntity entity, CancellationToken cancellationToken = default)
         {
             return _dbContext.Entry(entity)
-                .ReloadAsync();
+                .ReloadAsync(cancellationToken);
         }
 
         public void Remove(TEntity entity)
@@ -152,10 +160,8 @@ namespace Core.EntityFrameworkCore.Repositories
 
         public void Remove(IEnumerable<TEntity> entities)
         {
-            foreach (var entity in entities)
-            {
-                Remove(entity);
-            }
+            var enumerable = entities as TEntity[] ?? entities.ToArray();
+            _dbSet.RemoveRange(enumerable);
         }
 
         public void Update(TEntity entity)

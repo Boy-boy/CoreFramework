@@ -20,7 +20,7 @@ namespace Core.EntityFrameworkCore
             CancellationToken cancellationToken = default)
         {
             var events = GetDomainEvents();
-            TrackEventEntities(events);
+            TrackingEventEntities(events);
             var result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
 
             return result;
@@ -40,7 +40,7 @@ namespace Core.EntityFrameworkCore
             return events;
         }
 
-        private void TrackEventEntities(List<AggregateRootEvent> events)
+        private void TrackingEventEntities(List<AggregateRootEvent> events)
         {
             events = events ?? new List<AggregateRootEvent>();
             foreach (var @event in events)

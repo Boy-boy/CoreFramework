@@ -8,7 +8,7 @@ namespace Core.EventBus
         public void Publish<TEvent>(TEvent eventData)
             where TEvent : IntegrationEvent
         {
-            Publish(typeof(TEvent), eventData);
+            Publish(eventData.GetType(), eventData);
         }
 
         protected abstract void Publish(Type eventType, IntegrationEvent eventDate);

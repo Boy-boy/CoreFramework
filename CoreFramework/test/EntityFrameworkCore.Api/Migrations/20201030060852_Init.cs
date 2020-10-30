@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace EntityFrameworkCore.Api.Migrations
 {
@@ -12,7 +13,8 @@ namespace EntityFrameworkCore.Api.Migrations
                 {
                     Id = table.Column<string>(nullable: false),
                     EventType = table.Column<string>(nullable: true),
-                    EventData = table.Column<string>(nullable: true)
+                    EventData = table.Column<string>(nullable: true),
+                    CreateTime = table.Column<DateTime>(nullable: false)
                 },
                 constraints: table =>
                 {

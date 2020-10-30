@@ -5,6 +5,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Core.EventBus.Abstraction;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Core.EntityFrameworkCore
 {
@@ -13,8 +16,23 @@ namespace Core.EntityFrameworkCore
         public CoreDbContext(DbContextOptions options)
             : base(options)
         {
+            var serviceProvider = options.FindExtension<CoreOptionsExtension>().ApplicationServiceProvider;
+            var eventBus = serviceProvider.GetService<IEventBus>();
+            EntityChangeEvent = new EntityChangeEventPublish(eventBus);
         }
+
+        protected EntityChangeEventPublish EntityChangeEvent { get; set; }
+
         public DbSet<Event> Events { get; set; }
+
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            var events = GetDomainEvents();
+            TrackingEventEntities(events);
+            var result = base.SaveChanges(acceptAllChangesOnSuccess);
+            EntityChangeEvent?.PublishAggregateRootEvents(events);
+            return result;
+        }
 
         public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess,
             CancellationToken cancellationToken = default)
@@ -22,7 +40,7 @@ namespace Core.EntityFrameworkCore
             var events = GetDomainEvents();
             TrackingEventEntities(events);
             var result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
-
+            EntityChangeEvent?.PublishAggregateRootEvents(events);
             return result;
         }
 
@@ -47,6 +65,12 @@ namespace Core.EntityFrameworkCore
             {
                 Add(new Event(@event));
             }
+        }
+
+        public override void Dispose()
+        {
+            base.Dispose();
+            EntityChangeEvent = null;
         }
     }
 }

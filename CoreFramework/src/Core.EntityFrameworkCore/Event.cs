@@ -1,5 +1,6 @@
 ﻿using System;
 using Core.Ddd.Domain.Events;
+using Core.Json.Newtonsoft;
 
 namespace Core.EntityFrameworkCore
 {
@@ -10,7 +11,8 @@ namespace Core.EntityFrameworkCore
         {
             Id = Guid.NewGuid().ToString();
             EventType = aggregateRootEvent.GetType().ToString();
-            EventData = aggregateRootEvent.ToString();
+            EventData = NewtonsoftJsonSerializer.Serialize(aggregateRootEvent);
+            CreateTime = DateTime.Now;
         }
 
         public string Id { get; set; }
@@ -18,5 +20,7 @@ namespace Core.EntityFrameworkCore
         public string EventType { get; set; }
 
         public string EventData { get; set; }
+
+        public DateTime CreateTime { get; set; }
     }
 }

@@ -1,4 +1,6 @@
 ﻿using Core.Ddd.Domain.Repositories;
+using Core.EntityFrameworkCore.UnitOfWork;
+using Core.Uow;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -6,9 +8,6 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
-using Core.EntityFrameworkCore.UnitOfWork;
-using Core.Uow;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace Core.EntityFrameworkCore.Repositories
 {

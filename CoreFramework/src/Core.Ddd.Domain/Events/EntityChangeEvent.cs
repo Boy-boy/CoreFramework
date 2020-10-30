@@ -3,11 +3,11 @@ using System.Collections.Generic;
 
 namespace Core.Ddd.Domain.Events
 {
-    public class EntityChangeEvent
+    public class EntityChangeEventPublish
     {
         private readonly IEventBus _eventBus;
 
-        public EntityChangeEvent(IEventBus eventBus)
+        public EntityChangeEventPublish(IEventBus eventBus)
         {
             _eventBus = eventBus;
         }
@@ -16,7 +16,7 @@ namespace Core.Ddd.Domain.Events
         {
             foreach (var @event in events)
             {
-                _eventBus.Publish(@event);
+                _eventBus?.Publish(@event);
             }
         }
     }

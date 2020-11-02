@@ -7,11 +7,12 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Core.EntityFrameworkCore
 {
-    public class CoreEfCoreModule:CoreModuleBase
+    public class CoreEfCoreModule : CoreModuleBase
     {
         public override void ConfigureServices(ServiceCollectionContext context)
         {
             context.Services.TryAddScoped(typeof(IRepository<>), typeof(Repository<>));
+            context.Services.TryAddScoped(typeof(IRepository<,>), typeof(Repository<,>));
             context.Services.TryAddScoped(typeof(IUnitOfWork), typeof(EfCoreUnitOfWork));
         }
     }

@@ -12,6 +12,7 @@ namespace Core.EventBus
         {
             _serviceScopeFactory = serviceScopeFactory;
         }
+
         public IIntegrationEventHandler GetHandler(Type handlerType)
         {
             var scope = _serviceScopeFactory.CreateScope();

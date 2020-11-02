@@ -36,7 +36,11 @@ namespace Core.EventBus.Local
                     {
                         var handlerInstance = _eventHandlerFactory.GetHandler(eventHandleType);
                         var concreteType = typeof(IIntegrationEventHandler<>).MakeGenericType(eventType);
-                        concreteType.GetMethod("Handle").Invoke(handlerInstance, new object[] { eventDate });
+                        var method = concreteType.GetMethod("Handle");
+                        if (method != null)
+                        {
+                            ((Task)method.Invoke(handlerInstance, new object[] { eventDate })).GetAwaiter().GetResult();
+                        }
                     }
                     catch (TargetInvocationException ex)
                     {

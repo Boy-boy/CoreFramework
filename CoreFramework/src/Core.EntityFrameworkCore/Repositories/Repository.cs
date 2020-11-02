@@ -8,91 +8,92 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Core.Ddd.Domain.Entities;
 
 namespace Core.EntityFrameworkCore.Repositories
 {
     public class Repository<TEntity> : IRepository<TEntity>
-        where TEntity : class
+        where TEntity : class, IEntity
     {
-        private readonly DbContext _dbContext;
-        private readonly DbSet<TEntity> _dbSet;
+        protected readonly DbContext DbContext;
+        protected readonly DbSet<TEntity> DbSet;
 
         public Repository(CoreDbContext dbContext, IUnitOfWork unitOfWork)
         {
-            _dbContext = dbContext ?? throw new Exception("repository could not work without dbContext");
-            _dbSet = dbContext.Set<TEntity>();
+            DbContext = dbContext ?? throw new Exception("repository could not work without dbContext");
+            DbSet = dbContext.Set<TEntity>();
             (unitOfWork as EfCoreUnitOfWork)?.RegisterCoreDbContext(dbContext);
         }
 
         public IQueryable<TEntity> GetQueryable()
         {
-            return _dbSet.AsQueryable();
+            return DbSet.AsQueryable();
         }
 
         public void Add(TEntity entity)
         {
-            _dbSet.Add(entity);
+            DbSet.Add(entity);
         }
 
         public void Add(IEnumerable<TEntity> entities)
         {
             var enumerable = entities as TEntity[] ?? entities.ToArray();
-            _dbSet.AddRange(enumerable);
+            DbSet.AddRange(enumerable);
         }
 
         public Task AddAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default)
         {
-            return _dbSet.AddRangeAsync(entities, cancellationToken);
+            return DbSet.AddRangeAsync(entities, cancellationToken);
         }
 
         public long Count(Expression<Func<TEntity, bool>> expression)
         {
-            return _dbSet.LongCount(expression);
+            return DbSet.LongCount(expression);
         }
 
         public long Count()
         {
-            return _dbSet.LongCount();
+            return DbSet.LongCount();
         }
 
         public Task<long> CountAsync(Expression<Func<TEntity, bool>> expression, CancellationToken cancellationToken = default)
         {
-            return _dbSet.LongCountAsync(expression, cancellationToken);
+            return DbSet.LongCountAsync(expression, cancellationToken);
         }
 
         public Task<long> CountAsync(CancellationToken cancellationToken = default)
         {
-            return _dbSet.LongCountAsync(cancellationToken);
+            return DbSet.LongCountAsync(cancellationToken);
         }
 
         public bool Exists(Expression<Func<TEntity, bool>> expression)
         {
-            return _dbSet.Any(expression);
+            return DbSet.Any(expression);
         }
 
         public Task<bool> ExistsAsync(Expression<Func<TEntity, bool>> expression, CancellationToken cancellationToken = default)
         {
-            return _dbSet.AnyAsync(expression, cancellationToken);
+            return DbSet.AnyAsync(expression, cancellationToken);
         }
 
         public TEntity Find(Expression<Func<TEntity, bool>> expression)
         {
-            return _dbSet.Where(expression).FirstOrDefault();
+            return DbSet.Where(expression).FirstOrDefault();
         }
 
         public IEnumerable<TEntity> FindAll(Expression<Func<TEntity, bool>> expressions)
         {
-            return _dbSet.Where(expressions).ToList();
+            return DbSet.Where(expressions).ToList();
         }
 
         public Task<TEntity> FindAsync(Expression<Func<TEntity, bool>> expression, CancellationToken cancellationToken = default)
         {
-            return _dbSet.Where(expression).FirstOrDefaultAsync(cancellationToken);
+            return DbSet.Where(expression).FirstOrDefaultAsync(cancellationToken);
         }
 
         public Task<List<TEntity>> FindAllAsync(Expression<Func<TEntity, bool>> expression, CancellationToken cancellationToken = default)
         {
-            return _dbSet.Where(expression).ToListAsync(cancellationToken);
+            return DbSet.Where(expression).ToListAsync(cancellationToken);
         }
 
         public (IEnumerable<TEntity> DataQueryable, int Total) PageFind(
@@ -110,7 +111,7 @@ namespace Core.EntityFrameworkCore.Repositories
                 throw new ArgumentException("InvalidPageCount");
             }
 
-            var query = _dbSet.Skip(pageIndex * pageSize).Take(pageSize);
+            var query = DbSet.Skip(pageIndex * pageSize).Take(pageSize);
             if (expression != null)
             {
                 query = query.Where(expression);
@@ -133,7 +134,7 @@ namespace Core.EntityFrameworkCore.Repositories
             {
                 throw new ArgumentException("InvalidPageCount");
             }
-            var query = _dbSet.Skip(pageIndex * pageSize).Take(pageSize);
+            var query = DbSet.Skip(pageIndex * pageSize).Take(pageSize);
             if (expression != null)
             {
                 query = query.Where(expression);
@@ -143,29 +144,60 @@ namespace Core.EntityFrameworkCore.Repositories
 
         public void Reload(TEntity entity)
         {
-            _dbContext.Entry(entity).Reload();
+            DbContext.Entry(entity).Reload();
         }
 
         public Task ReloadAsync(TEntity entity, CancellationToken cancellationToken = default)
         {
-            return _dbContext.Entry(entity)
+            return DbContext.Entry(entity)
                 .ReloadAsync(cancellationToken);
         }
 
         public void Remove(TEntity entity)
         {
-            _dbSet.Remove(entity);
+            DbSet.Remove(entity);
         }
 
         public void Remove(IEnumerable<TEntity> entities)
         {
             var enumerable = entities as TEntity[] ?? entities.ToArray();
-            _dbSet.RemoveRange(enumerable);
+            DbSet.RemoveRange(enumerable);
         }
 
         public void Update(TEntity entity)
         {
-            _dbContext.Entry(entity).State = EntityState.Modified;
+            DbContext.Entry(entity).State = EntityState.Modified;
+        }
+    }
+
+    public class Repository<TEntity, TKey> : Repository<TEntity>, IRepository<TEntity, TKey>
+        where TEntity : class, IEntity<TKey>
+    {
+        public Repository(CoreDbContext dbContext, IUnitOfWork unitOfWork)
+        : base(dbContext, unitOfWork)
+        {
+        }
+
+        public TEntity Find(TKey key)
+        {
+            return DbSet.FirstOrDefault(p => p.Id.Equals(key));
+        }
+
+        public Task<TEntity> FindAsync(TKey key, CancellationToken cancellationToken = default)
+        {
+            return DbSet.FirstOrDefaultAsync(p => p.Id.Equals(key), cancellationToken);
+        }
+
+        public void Remove(TKey key)
+        {
+            var entity = Find(key);
+            if (entity != null) DbSet.Remove(entity);
+        }
+
+        public async Task RemoveAsync(TKey key, CancellationToken cancellationToken = default)
+        {
+            var entity = await FindAsync(key, cancellationToken);
+            if (entity != null) DbSet.Remove(entity);
         }
     }
 }

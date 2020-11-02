@@ -192,7 +192,11 @@ namespace Core.EventBus.RabbitMQ
                     var integrationEvent = JsonConvert.DeserializeObject(message, eventType);
                     var concreteType = typeof(IIntegrationEventHandler<>).MakeGenericType(eventType);
                     await Task.Yield();
-                    await (Task)concreteType.GetMethod("Handle").Invoke(handlerInstance, new[] { integrationEvent });
+                    var method = concreteType.GetMethod("Handle");
+                    if (method != null)
+                    {
+                        await (Task)method.Invoke(handlerInstance, new[] { integrationEvent });
+                    }
                 }
             }
             else

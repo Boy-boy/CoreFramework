@@ -4,11 +4,12 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Core.Ddd.Domain.Entities;
 
 namespace Core.Ddd.Domain.Repositories
 {
     public class DomainRepository<TAggregateRoot> : IDomainRepository<TAggregateRoot>
-       where TAggregateRoot : class
+       where TAggregateRoot : class, IEntity
     {
         private readonly IRepository<TAggregateRoot> _repository;
 
@@ -120,6 +121,38 @@ namespace Core.Ddd.Domain.Repositories
         public void Update(TAggregateRoot entity)
         {
             _repository.Update(entity);
+        }
+    }
+
+    public class DomainRepository<TAggregateRoot, TKey> : DomainRepository<TAggregateRoot>, IDomainRepository<TAggregateRoot, TKey>
+        where TAggregateRoot : class, IEntity<TKey>
+    {
+        private readonly IRepository<TAggregateRoot, TKey> _repository;
+
+        public DomainRepository(IRepository<TAggregateRoot, TKey> repository)
+        : base(repository)
+        {
+            _repository = repository;
+        }
+
+        public TAggregateRoot Find(TKey key)
+        {
+            return _repository.Find(key);
+        }
+
+        public Task<TAggregateRoot> FindAsync(TKey key, CancellationToken cancellationToken = default)
+        {
+            return _repository.FindAsync(key, cancellationToken);
+        }
+
+        public void Remove(TKey key)
+        {
+            _repository.Remove(key);
+        }
+
+        public Task RemoveAsync(TKey key, CancellationToken cancellationToken = default)
+        {
+            return _repository.RemoveAsync(key, cancellationToken);
         }
     }
 }

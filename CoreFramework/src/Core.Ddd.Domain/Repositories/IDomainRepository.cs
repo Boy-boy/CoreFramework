@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Core.Ddd.Domain.Entities;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
@@ -12,7 +13,7 @@ namespace Core.Ddd.Domain.Repositories
     }
 
     public interface IDomainRepository<TAggregateRoot>
-        where TAggregateRoot : class
+        where TAggregateRoot : class, IEntity
     {
         IQueryable<TAggregateRoot> GetQueryable();
 
@@ -61,5 +62,18 @@ namespace Core.Ddd.Domain.Repositories
             int pageSize,
             Expression<Func<TAggregateRoot, bool>> expression,
             CancellationToken cancellationToken = default);
+    }
+
+    public interface IDomainRepository<TEntity, TKey> : IRepository<TEntity>
+        where TEntity : class, IEntity<TKey>
+    {
+        void Remove(TKey key);
+
+        Task RemoveAsync(TKey id, CancellationToken cancellationToken = default);
+
+        TEntity Find(TKey key);
+
+        Task<TEntity> FindAsync(TKey key, CancellationToken cancellationToken = default);
+
     }
 }

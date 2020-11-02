@@ -4,14 +4,16 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Core.Ddd.Domain.Entities;
 
 namespace Core.Ddd.Domain.Repositories
 {
     public interface IRepository
     {
     }
+
     public interface IRepository<TEntity> : IRepository
-        where TEntity : class
+        where TEntity : class, IEntity
     {
         IQueryable<TEntity> GetQueryable();
 
@@ -37,6 +39,7 @@ namespace Core.Ddd.Domain.Repositories
         Task<List<TEntity>> FindAllAsync(Expression<Func<TEntity, bool>> expression, CancellationToken cancellationToken = default);
 
         bool Exists(Expression<Func<TEntity, bool>> expression);
+
         Task<bool> ExistsAsync(Expression<Func<TEntity, bool>> expression, CancellationToken cancellationToken = default);
 
         void Remove(TEntity entity);
@@ -44,6 +47,7 @@ namespace Core.Ddd.Domain.Repositories
         void Remove(IEnumerable<TEntity> entities);
 
         void Reload(TEntity entity);
+
         Task ReloadAsync(TEntity entity, CancellationToken cancellationToken = default);
 
         void Update(TEntity entity);
@@ -58,5 +62,18 @@ namespace Core.Ddd.Domain.Repositories
             int pageSize,
             Expression<Func<TEntity, bool>> expression,
              CancellationToken cancellationToken = default);
+    }
+
+    public interface IRepository<TEntity, in TKey> : IRepository<TEntity>
+        where TEntity : class, IEntity<TKey>
+    {
+        void Remove(TKey key);
+
+        Task RemoveAsync(TKey key, CancellationToken cancellationToken = default);
+
+        TEntity Find(TKey key);
+
+        Task<TEntity> FindAsync(TKey key, CancellationToken cancellationToken = default);
+
     }
 }

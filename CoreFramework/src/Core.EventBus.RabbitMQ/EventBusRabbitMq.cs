@@ -81,7 +81,7 @@ namespace Core.EventBus.RabbitMQ
             {
                 _logger.LogTrace("Declaring RabbitMQ exchange to publish event: {EventId}", eventDate.Id);
                 var message = JsonConvert.SerializeObject(eventDate);
-                var body = Encoding.UTF8.GetBytes(message);
+                var body = Encoding.UTF8.GetBytes(message).AsMemory();
 
                 var model = channel;
                 var exchangeName = _eventBusRabbitMqOptions.RabbitMqPublishConfigure.GetExchangeName() ?? EXCHANGE_NAME;
@@ -163,7 +163,7 @@ namespace Core.EventBus.RabbitMQ
         private async Task Consumer_Received(IModel model, BasicDeliverEventArgs eventArgs)
         {
             var eventName = eventArgs.RoutingKey;
-            var message = Encoding.UTF8.GetString(eventArgs.Body);
+            var message = Encoding.UTF8.GetString(eventArgs.Body.ToArray());
             try
             {
                 if (message.ToLowerInvariant().Contains("throw-fake-exception"))

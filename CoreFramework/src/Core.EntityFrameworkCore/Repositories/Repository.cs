@@ -18,7 +18,7 @@ namespace Core.EntityFrameworkCore.Repositories
         protected readonly DbContext DbContext;
         protected readonly DbSet<TEntity> DbSet;
 
-        public Repository(CoreDbContext dbContext, IUnitOfWork unitOfWork)
+        public Repository(DbContext dbContext, IUnitOfWork unitOfWork)
         {
             DbContext = dbContext ?? throw new Exception("repository could not work without dbContext");
             DbSet = dbContext.Set<TEntity>();
@@ -173,7 +173,7 @@ namespace Core.EntityFrameworkCore.Repositories
     public class Repository<TEntity, TKey> : Repository<TEntity>, IRepository<TEntity, TKey>
         where TEntity : class, IEntity<TKey>
     {
-        public Repository(CoreDbContext dbContext, IUnitOfWork unitOfWork)
+        public Repository(DbContext dbContext, IUnitOfWork unitOfWork)
         : base(dbContext, unitOfWork)
         {
         }

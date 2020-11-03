@@ -14,7 +14,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Core.EntityFrameworkCore\Core.EntityFrameworkCore.csproj" />
-    <ProjectReference Include="..\..\src\Core.EventBus.RabbitMQ\Core.EventBus.RabbitMQ.csproj" />
     <ProjectReference Include="..\..\src\Core.Modularity\Core.Modularity.csproj" />
   </ItemGroup>
 

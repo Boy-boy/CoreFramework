@@ -1,16 +1,17 @@
 ﻿using Core.Uow;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
 namespace Core.EntityFrameworkCore.UnitOfWork
 {
     public class EfCoreUnitOfWork : IUnitOfWork
     {
-        public List<CoreDbContext> DbContexts { get; }
+        public List<DbContext> DbContexts { get; }
 
         public EfCoreUnitOfWork()
         {
-            DbContexts = new List<CoreDbContext>(); ;
+            DbContexts = new List<DbContext>(); ;
         }
 
         public void Commit()
@@ -25,7 +26,7 @@ namespace Core.EntityFrameworkCore.UnitOfWork
             return Task.WhenAll(tasks);
         }
 
-        public void RegisterCoreDbContext(CoreDbContext coreDbContext)
+        public void RegisterCoreDbContext(DbContext coreDbContext)
         {
             if (!DbContexts.Exists(dbCtx => dbCtx.Equals(coreDbContext)))
             {

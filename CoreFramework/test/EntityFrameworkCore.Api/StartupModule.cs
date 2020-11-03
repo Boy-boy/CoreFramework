@@ -1,8 +1,6 @@
 ﻿using Core.EntityFrameworkCore;
-using Core.EventBus.RabbitMQ;
 using Core.Modularity;
 using Core.Modularity.Attribute;
-using Core.RabbitMQ;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -11,7 +9,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace EntityFrameworkCore.Api
 {
-    [DependsOn(typeof(CoreEfCoreModule), typeof(CoreEventBusRabbitMqModule))]
+    [DependsOn(typeof(CoreEfCoreModule))]
     public class StartupModule : CoreModuleBase
     {
         public StartupModule(IConfiguration configuration)
@@ -23,12 +21,10 @@ namespace EntityFrameworkCore.Api
         public override void ConfigureServices(ServiceCollectionContext context)
         {
             context.Services.AddControllers();
-            context.Services.AddDbContextPool<CoreDbContext, CustomerDbContext>(options =>
+            context.Services.AddDbContextPool<DbContext, CustomerDbContext>(options =>
              {
                  options.UseSqlServer(Configuration.GetConnectionString("Customer"));
              });
-
-            context.Services.Configure<RabbitMqOptions>(Configuration.GetSection("RabbitMq"));
         }
 
         public override void Configure(ApplicationBuilderContext context)

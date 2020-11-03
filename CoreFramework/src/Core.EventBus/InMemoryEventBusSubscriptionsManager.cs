@@ -26,12 +26,15 @@ namespace Core.EventBus
         {
             AddSubscription(typeof(T), typeof(TH));
         }
+
         public void AddSubscription(Type eventType, Type handlerType)
         {
-            if (!typeof(IIntegrationEventHandler<>).MakeGenericType(eventType).IsAssignableFrom(handlerType)) return;
+            var baseHandlerType = typeof(IIntegrationEventHandler<>).MakeGenericType(eventType);
+            if (!baseHandlerType.IsAssignableFrom(handlerType)) return;
             TryAddSubscriptionEventType(eventType);
-            TryAddSubscriptionEventHandler(eventType, handlerType);
+            TryAddSubscriptionEventHandler(eventType, baseHandlerType);
         }
+
         private void TryAddSubscriptionEventType(Type eventType)
         {
             var eventName = EventNameAttribute.GetNameOrDefault(eventType);
@@ -49,19 +52,20 @@ namespace Core.EventBus
                 _eventTypes[eventName] = eventType;
             }
         }
-        private void TryAddSubscriptionEventHandler(Type eventType, Type handlerType)
+
+        private void TryAddSubscriptionEventHandler(Type eventType, Type baseHandlerType)
         {
             var eventName = EventNameAttribute.GetNameOrDefault(eventType);
             if (!IncludeSubscriptionsHandlesForEventName(eventName))
             {
                 _handlers.GetOrAdd(eventName, new List<Type>());
             }
-            if (_handlers[eventName].Any(s => s == handlerType))
+            if (_handlers[eventName].Any(s => s == baseHandlerType))
             {
                 throw new ArgumentException(
-                    $"Handler Type {handlerType.Name} already registered for '{eventName}'", nameof(handlerType));
+                    $"Handler Type {baseHandlerType.Name} already registered for '{eventName}'", nameof(baseHandlerType));
             }
-            _handlers[eventName].Add(handlerType);
+            _handlers[eventName].Add(baseHandlerType);
         }
         #endregion
 
@@ -74,15 +78,16 @@ namespace Core.EventBus
         }
         public void RemoveSubscription(Type eventType, Type handlerType)
         {
-            if (!typeof(IIntegrationEventHandler<>).MakeGenericType(eventType).IsAssignableFrom(handlerType)) return;
+            var baseHandlerType = typeof(IIntegrationEventHandler<>).MakeGenericType(eventType);
+            if (!baseHandlerType.IsAssignableFrom(handlerType)) return;
             var eventName = EventNameAttribute.GetNameOrDefault(eventType);
-            var handlerToRemove = TryFindSubscriptionToRemove(eventName, handlerType);
+            var handlerToRemove = TryFindSubscriptionToRemove(eventName, baseHandlerType);
             TryRemoveHandler(eventName, handlerToRemove);
 
         }
-        private Type TryFindSubscriptionToRemove(string eventName, Type handlerType)
+        private Type TryFindSubscriptionToRemove(string eventName, Type baseHandlerType)
         {
-            return !IncludeSubscriptionsHandlesForEventName(eventName) ? null : _handlers[eventName].SingleOrDefault(s => s == handlerType);
+            return !IncludeSubscriptionsHandlesForEventName(eventName) ? null : _handlers[eventName].SingleOrDefault(s => s == baseHandlerType);
         }
         private void TryRemoveHandler(string eventName, Type subsToRemove)
         {

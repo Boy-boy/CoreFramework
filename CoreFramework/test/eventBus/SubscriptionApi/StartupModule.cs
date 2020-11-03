@@ -21,6 +21,7 @@ namespace SubscriptionApi
         {
             Configuration = configuration;
         }
+
         public override void PreConfigureServices(ServiceCollectionContext context)
         {
             context.Services.Configure<EventBusOptions>(options =>
@@ -32,7 +33,7 @@ namespace SubscriptionApi
         public override void ConfigureServices(ServiceCollectionContext context)
         {
             context.Services.AddControllers();
-            context.Services.AddScoped<EventHandler>();
+          //  context.Services.AddScoped<EventHandler>();
 
             var rabbitMqOptions = new RabbitMqOptions();
             Configuration.GetSection("RabbitMq").Bind(rabbitMqOptions);
@@ -57,7 +58,6 @@ namespace SubscriptionApi
 
             var eventBus = app.ApplicationServices.GetRequiredService<IEventBus>();
             eventBus.Subscribe<CustomerEvent, EventHandler>();
-
 
             app.UseEndpoints(endpoints =>
             {

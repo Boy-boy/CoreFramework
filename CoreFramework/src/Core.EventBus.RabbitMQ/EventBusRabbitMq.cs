@@ -30,7 +30,6 @@ namespace Core.EventBus.RabbitMQ
         private readonly object _lock = new object();
         protected ConcurrentDictionary<string, IRabbitMqMessageConsumer> RabbitMqMessageConsumerDic { get; private set; }
 
-
         public EventBusRabbitMq(
             IRabbitMqPersistentConnection persistentConnection,
             IRabbitMqMessageConsumerFactory rabbitMqMessageConsumerFactory,

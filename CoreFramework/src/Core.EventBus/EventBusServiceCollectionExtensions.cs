@@ -10,7 +10,7 @@ namespace Microsoft.Extensions.DependencyInjection
 {
     public static class EventBusServiceCollectionExtensions
     {
-        public static EventBusBuilder AddEventBus(this IServiceCollection services, Action<EventBusOptions> options = null)
+        public static IServiceCollection AddEventBus(this IServiceCollection services)
         {
             if (services == null)
             {
@@ -18,17 +18,12 @@ namespace Microsoft.Extensions.DependencyInjection
             }
             services.TryAddSingleton<IEventBusSubscriptionsManager, InMemoryEventBusSubscriptionsManager>();
             services.TryAddSingleton<IEventHandlerFactory, IocEventHandlerFactory>();
-            if (options != null)
-            {
-                services.Configure(options);
-            }
-            var builder = new EventBusBuilder(services);
-            return builder;
+            return services;
         }
 
-        public static EventBusBuilder RegistrarIntegrationEventHandlers(this EventBusBuilder builder, IEnumerable<Assembly> assemblies)
+        public static IServiceCollection RegistrarIntegrationEventHandlers(this IServiceCollection services, IEnumerable<Assembly> assemblies)
         {
-            if (assemblies == null) return builder;
+            if (assemblies == null) return services;
             var typeInfos = assemblies.SelectMany(a => a.DefinedTypes)
                 .Where(t => t.IsClass)
                 .Where(t => t.IsPublic)
@@ -41,10 +36,10 @@ namespace Microsoft.Extensions.DependencyInjection
                     t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IIntegrationEventHandler<>));
                 foreach (var baseHandlerType in baseHandlerTypes)
                 {
-                    builder.Services.AddTransient(baseHandlerType, typeInfo);
+                    services.AddTransient(baseHandlerType, typeInfo);
                 }
             }
-            return builder;
+            return services;
         }
     }
 }

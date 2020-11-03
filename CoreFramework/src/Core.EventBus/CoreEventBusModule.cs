@@ -11,7 +11,12 @@ namespace Core.EventBus
             var options = context.Services.BuildServiceProvider().GetService<IOptions<EventBusOptions>>().Value;
             context.Services
                 .AddEventBus()
-                .RegistrarIntegrationEventHandlers(options.AutoRegistrarHandlersAssemblies);
+                .AutoRegistrarHandlers(options.AutoRegistrarHandlersAssemblies);
+        }
+
+        public override void Configure(ApplicationBuilderContext context)
+        {
+            context.ApplicationBuilder.UseEventBus();
         }
     }
 }

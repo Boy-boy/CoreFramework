@@ -23,7 +23,6 @@ namespace Core.EventBus.Abstraction
 
         void RemoveSubscription(Type eventType, Type handlerType);
 
-
         bool IncludeSubscriptionsHandlesForEventName(string eventName);
 
         bool IncludeEventTypeForEventName(string eventName);

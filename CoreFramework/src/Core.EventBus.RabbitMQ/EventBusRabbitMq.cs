@@ -39,11 +39,11 @@ namespace Core.EventBus.RabbitMQ
             IOptions<EventBusRabbitMqOptions> options)
         {
             _eventBusRabbitMqOptions = options.Value;
-            _persistentConnection = persistentConnection ?? throw new ArgumentNullException(nameof(persistentConnection));
-            _rabbitMqMessageConsumerFactory = rabbitMqMessageConsumerFactory ?? throw new ArgumentNullException(nameof(subsManager));
-            _subsManager = subsManager ?? throw new ArgumentNullException(nameof(subsManager));
-            _eventHandlerFactory = eventHandlerFactory ?? throw new ArgumentNullException(nameof(eventHandlerFactory));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _persistentConnection = persistentConnection;
+            _rabbitMqMessageConsumerFactory = rabbitMqMessageConsumerFactory;
+            _subsManager = subsManager;
+            _eventHandlerFactory = eventHandlerFactory;
+            _logger = logger;
             RabbitMqMessageConsumerDic = new ConcurrentDictionary<string, IRabbitMqMessageConsumer>();
             _subsManager.OnEventRemoved += SubsManager_OnEventRemoved;
         }

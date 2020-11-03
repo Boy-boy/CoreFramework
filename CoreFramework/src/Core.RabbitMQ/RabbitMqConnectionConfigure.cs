@@ -27,8 +27,8 @@ namespace Core.RabbitMQ
                     Password = Password,
                     DispatchConsumersAsync = true
                 };
-                if (!string.IsNullOrWhiteSpace(this.VirtualHost))
-                    connectionFactory.VirtualHost = this.VirtualHost;
+                if (!string.IsNullOrWhiteSpace(VirtualHost))
+                    connectionFactory.VirtualHost = VirtualHost;
                 return connectionFactory;
             }
         }

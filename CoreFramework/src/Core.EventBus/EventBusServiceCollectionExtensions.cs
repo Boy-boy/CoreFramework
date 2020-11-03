@@ -2,6 +2,7 @@
 using Core.EventBus.Abstraction;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
@@ -9,7 +10,7 @@ namespace Microsoft.Extensions.DependencyInjection
 {
     public static class EventBusServiceCollectionExtensions
     {
-        public static EventBusBuilder AddEventBus(this IServiceCollection services)
+        public static EventBusBuilder AddEventBus(this IServiceCollection services, Action<EventBusOptions> options = null)
         {
             if (services == null)
             {
@@ -17,11 +18,15 @@ namespace Microsoft.Extensions.DependencyInjection
             }
             services.TryAddSingleton<IEventBusSubscriptionsManager, InMemoryEventBusSubscriptionsManager>();
             services.TryAddSingleton<IEventHandlerFactory, IocEventHandlerFactory>();
+            if (options != null)
+            {
+                services.Configure(options);
+            }
             var builder = new EventBusBuilder(services);
             return builder;
         }
 
-        public static EventBusBuilder RegisterEventHandlers(this EventBusBuilder builder, params Assembly[] assemblies)
+        public static EventBusBuilder RegistrarIntegrationEventHandlers(this EventBusBuilder builder, IEnumerable<Assembly> assemblies)
         {
             if (assemblies == null) return builder;
             var typeInfos = assemblies.SelectMany(a => a.DefinedTypes)

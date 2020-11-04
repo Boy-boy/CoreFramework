@@ -113,7 +113,8 @@ namespace Core.Modularity
         public void Shutdown(IServiceProvider serviceProvider)
         {
             var context = new ShutdownApplicationContext(serviceProvider);
-            foreach (var moduleDescriptor in Modules)
+            var modules = Modules.Reverse().ToList();
+            foreach (var moduleDescriptor in modules)
             {
                 try
                 {

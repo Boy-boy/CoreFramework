@@ -1,27 +1,40 @@
 ﻿using System;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
+using Newtonsoft.Json.Serialization;
 
 namespace Core.Json.Newtonsoft
 {
     public static class NewtonsoftJsonSerializer
     {
-        public static T Deserialize<T>(string jsonString, JsonSerializerSettings settings = default)
+        public static T ToObject<T>(this string jsonString, bool camelCase = true)
         {
-            settings = settings ?? new JsonSerializerSettings();
-            return JsonConvert.DeserializeObject<T>(jsonString, settings);
+            return JsonConvert.DeserializeObject<T>(jsonString, CreateSerializerSettings(camelCase));
         }
 
-        public static object Deserialize(Type type, string jsonString, JsonSerializerSettings settings = default)
+        public static object ToObject(this string jsonString, Type type, bool camelCase = true)
         {
-            settings = settings ?? new JsonSerializerSettings();
-            return JsonConvert.DeserializeObject(jsonString, type, settings);
+            return JsonConvert.DeserializeObject(jsonString, type, CreateSerializerSettings(camelCase));
         }
 
-        public static string Serialize(object obj, JsonSerializerSettings settings = default)
+        public static string ToJson(this object obj, bool camelCase = true, bool indented = false)
         {
-            settings = settings ?? new JsonSerializerSettings();
-            return JsonConvert.SerializeObject(obj, settings);
+            return JsonConvert.SerializeObject(obj, CreateSerializerSettings(camelCase, indented));
         }
 
+        private static JsonSerializerSettings CreateSerializerSettings(bool camelCase = true, bool indented = false)
+        {
+            var settings = new JsonSerializerSettings();
+            settings.Converters.Insert(0, new IsoDateTimeConverter());
+            if (camelCase)
+            {
+                settings.ContractResolver = new CamelCasePropertyNamesContractResolver();
+            }
+            if (indented)
+            {
+                settings.Formatting = Formatting.Indented;
+            }
+            return settings;
+        }
     }
 }

@@ -11,7 +11,7 @@ namespace Core.EntityFrameworkCore
         {
             Id = Guid.NewGuid().ToString();
             EventType = aggregateRootEvent.GetType().ToString();
-            EventData = NewtonsoftJsonSerializer.Serialize(aggregateRootEvent);
+            EventData = aggregateRootEvent.ToJson();
             CreateTime = DateTime.Now;
         }
 

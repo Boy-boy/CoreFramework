@@ -2,6 +2,11 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <Version>3.1.9</Version>
+    <Authors>gaobo</Authors>
+    <Description>asp net core basic framework</Description>
+    <Product>Core.ElasticSearch</Product>
+    <PackageProjectUrl>https://github.com/Boy-boy/CoreFramework</PackageProjectUrl>
   </PropertyGroup>
 
   <ItemGroup>

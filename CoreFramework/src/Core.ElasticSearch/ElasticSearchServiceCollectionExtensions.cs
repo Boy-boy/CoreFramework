@@ -10,7 +10,7 @@ namespace Core.ElasticSearch
         public static IServiceCollection AddElasticClientFactory(this IServiceCollection services)
         {
             services.AddOptions();
-            services.TryAddSingleton<IElasticClientFactory,ElasticClientFactory>();
+            services.TryAddSingleton<IElasticClientFactory, ElasticClientFactory>();
             return services;
         }
 
@@ -21,7 +21,7 @@ namespace Core.ElasticSearch
             AddElasticClientFactory(services);
             if (options != null)
             {
-                services.Configure(name, options);
+                services.Configure(name ?? Microsoft.Extensions.Options.Options.DefaultName, options);
             }
             return new DefaultElasticClientBuilder(services, name);
         }

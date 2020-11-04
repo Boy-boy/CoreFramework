@@ -33,14 +33,6 @@ namespace SubscriptionApi
         public override void ConfigureServices(ServiceCollectionContext context)
         {
             context.Services.AddControllers();
-          //  context.Services.AddScoped<EventHandler>();
-
-            var rabbitMqOptions = new RabbitMqOptions();
-            Configuration.GetSection("RabbitMq").Bind(rabbitMqOptions);
-            context.Services.Configure<RabbitMqOptions>(options =>
-            {
-                options.Connection = rabbitMqOptions.Connection;
-            });
         }
 
         public override void Configure(ApplicationBuilderContext context)

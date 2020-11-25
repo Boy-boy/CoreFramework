@@ -35,20 +35,20 @@ namespace Core.EventBus
                 foreach (var baseHandlerType in baseHandlerTypes)
                 {
                     var eventType = baseHandlerType.GenericTypeArguments.FirstOrDefault();
-                    var subscribeItemType = typeof(SubscribeItem<,>).MakeGenericType(eventType, handlerType);
-                    var subscribeItem = Activator.CreateInstance(subscribeItemType, eventBus);
-                    subscribeItemType.GetMethod("Subscribe")?.Invoke(subscribeItem, new object[] { });
+                    var subscribeWrapperType = typeof(SubscribeWrapper<,>).MakeGenericType(eventType, handlerType);
+                    var subscribeWrapper = Activator.CreateInstance(subscribeWrapperType, eventBus);
+                    subscribeWrapperType.GetMethod("Subscribe")?.Invoke(subscribeWrapper, new object[] { });
                 }
             }
         }
 
-        public class SubscribeItem<T, TH>
+        public class SubscribeWrapper<T, TH>
              where T : IntegrationEvent
              where TH : IIntegrationEventHandler<T>, new()
         {
             private readonly IEventBus _eventBus;
 
-            public SubscribeItem(IEventBus eventBus)
+            public SubscribeWrapper(IEventBus eventBus)
             {
                 _eventBus = eventBus;
             }

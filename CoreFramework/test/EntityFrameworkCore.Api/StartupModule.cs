@@ -21,7 +21,7 @@ namespace EntityFrameworkCore.Api
         public override void ConfigureServices(ServiceCollectionContext context)
         {
             context.Services.AddControllers();
-            context.Services.AddDbContextPool<DbContext, CustomerDbContext>(options =>
+            context.Services.AddDbContextSharding<CustomerDbContext>(options =>
              {
                  options.UseSqlServer(Configuration.GetConnectionString("Customer"));
              });

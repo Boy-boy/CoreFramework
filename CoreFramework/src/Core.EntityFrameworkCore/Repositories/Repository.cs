@@ -30,7 +30,7 @@ namespace Core.EntityFrameworkCore.Repositories
 
         public void InitialDbContext(object dbContext)
         {
-            DbContext = dbContext as DbContext ?? throw new Exception("repository could not work without dbContext");
+            DbContext = dbContext as DbContext ?? throw new Exception("failed to initialize db context,repository could not work without dbContext");
             DbSet = DbContext.Set<TEntity>();
             (_unitOfWork as EfCoreUnitOfWork)?.RegisterCoreDbContext(DbContext);
         }

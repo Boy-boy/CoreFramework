@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Core.EventBus.Abstraction;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Core.EntityFrameworkCore
@@ -27,6 +28,7 @@ namespace Core.EntityFrameworkCore
 
         public override int SaveChanges(bool acceptAllChangesOnSuccess)
         {
+            FinalizeModel();
             var events = GetDomainEvents();
             TrackingEventEntities(events);
             var result = base.SaveChanges(acceptAllChangesOnSuccess);
@@ -37,6 +39,7 @@ namespace Core.EntityFrameworkCore
         public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess,
             CancellationToken cancellationToken = default)
         {
+            FinalizeModel();
             var events = GetDomainEvents();
             TrackingEventEntities(events);
             var result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
@@ -71,6 +74,15 @@ namespace Core.EntityFrameworkCore
         {
             base.Dispose();
             EntityChangeEvent = null;
+        }
+
+        private void FinalizeModel()
+        {
+            var model = (Model)Model;
+            if (model.IsReadonly == false)
+            {
+                model.FinalizeModel();
+            }
         }
     }
 }

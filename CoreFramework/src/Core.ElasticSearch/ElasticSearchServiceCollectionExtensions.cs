@@ -1,9 +1,9 @@
-﻿using System;
+﻿using Core.ElasticSearch;
 using Core.ElasticSearch.Options;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using System;
 
-namespace Core.ElasticSearch
+namespace Microsoft.Extensions.DependencyInjection
 {
     public static class ElasticSearchServiceCollectionExtensions
     {

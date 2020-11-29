@@ -15,6 +15,13 @@ namespace Core.Ddd.Domain.Repositories
     public interface IRepository<TEntity> : IRepository
         where TEntity : class, IEntity
     {
+        void ChangeConnection(string connection, string schema);
+        void ChangeDatabase(string database, string schema);
+
+        void ChangeSchema(string schema);
+
+        void ChangeTable(string tableName);
+
         IQueryable<TEntity> GetQueryable();
 
         void Add(IEnumerable<TEntity> entities);

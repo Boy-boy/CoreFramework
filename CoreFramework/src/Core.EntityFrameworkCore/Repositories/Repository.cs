@@ -1,14 +1,18 @@
-﻿using Core.Ddd.Domain.Repositories;
+﻿using Core.Ddd.Domain.Entities;
+using Core.Ddd.Domain.Repositories;
 using Core.EntityFrameworkCore.UnitOfWork;
 using Core.Uow;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using Core.Ddd.Domain.Entities;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace Core.EntityFrameworkCore.Repositories
 {
@@ -23,6 +27,57 @@ namespace Core.EntityFrameworkCore.Repositories
             DbContext = dbContext ?? throw new Exception("repository could not work without dbContext");
             DbSet = dbContext.Set<TEntity>();
             (unitOfWork as EfCoreUnitOfWork)?.RegisterCoreDbContext(dbContext);
+        }
+
+        public void ChangeConnection(string connection, string schema)
+        {
+            DbContext.Database.GetDbConnection().ConnectionString = connection;
+            ChangeSchema(schema);
+        }
+
+        public void ChangeDatabase(string database, string schema)
+        {
+            if (string.IsNullOrEmpty(database))
+            {
+                throw new ArgumentNullException(nameof(database));
+            }
+            var connection = DbContext.Database.GetDbConnection();
+            if (connection.State.HasFlag(ConnectionState.Open))
+            {
+                connection.ChangeDatabase(database);
+            }
+            else
+            {
+                var connectionString = Regex.Replace(connection.ConnectionString.Replace(" ", ""), @"(?<=[Dd]atabase=)\w+(?=;)", database, RegexOptions.Singleline);
+                connection.ConnectionString = connectionString;
+            }
+            ChangeSchema(schema);
+        }
+
+        public void ChangeSchema(string schema)
+        {
+            var model = (Model)DbContext.Model;
+            if (model.IsReadonly)
+                return;
+            var items = DbContext.Model.GetEntityTypes();
+            foreach (var item in items)
+            {
+                if (item is IMutableEntityType entityType)
+                {
+                    entityType.SetSchema(schema);
+                }
+            }
+        }
+
+        public void ChangeTable(string tableName)
+        {
+            var model = (Model)DbContext.Model;
+            if (model.IsReadonly)
+                return;
+            if (DbContext.Model.FindEntityType(typeof(TEntity)) is IMutableEntityType relational)
+            {
+                relational.SetTableName(tableName);
+            }
         }
 
         public IQueryable<TEntity> GetQueryable()

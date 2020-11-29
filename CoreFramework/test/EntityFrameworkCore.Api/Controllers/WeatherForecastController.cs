@@ -26,10 +26,12 @@ namespace EntityFrameworkCore.Api.Controllers
 
         public WeatherForecastController(ILogger<WeatherForecastController> logger,
            IRepository<Student> repository,
+           CustomerDbContext customerDbContext,
             IUnitOfWork unitOfWork)
         {
             _logger = logger;
             _repository = repository;
+            _repository.InitialDbContext(customerDbContext);
             _unitOfWork = unitOfWork;
         }
 
@@ -47,10 +49,17 @@ namespace EntityFrameworkCore.Api.Controllers
         }
 
         [HttpGet("add")]
-        public async Task<string> Add()
+        public async Task<string> Add(int i)
         {
+            if (i % 2 == 0)
+            {
+                _repository.ChangeDatabase("customer","dbo");
+            }
+            else
+            {
+                _repository.ChangeDatabase("customer1", "dbo");
+            }
             var student = new Student("张三", 23);
-            student.AddEvent(new AddStudentEvent { AggregateRootId = student.Id });
             _repository.Add(student);
             await _unitOfWork.CommitAsync();
             return "ok";

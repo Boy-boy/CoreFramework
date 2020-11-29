@@ -19,14 +19,20 @@ namespace Core.EntityFrameworkCore.Repositories
     public class Repository<TEntity> : IRepository<TEntity>
         where TEntity : class, IEntity
     {
-        protected readonly DbContext DbContext;
-        protected readonly DbSet<TEntity> DbSet;
+        private readonly IUnitOfWork _unitOfWork;
+        protected DbContext DbContext;
+        protected DbSet<TEntity> DbSet;
 
-        public Repository(DbContext dbContext, IUnitOfWork unitOfWork)
+        public Repository(IUnitOfWork unitOfWork)
         {
-            DbContext = dbContext ?? throw new Exception("repository could not work without dbContext");
-            DbSet = dbContext.Set<TEntity>();
-            (unitOfWork as EfCoreUnitOfWork)?.RegisterCoreDbContext(dbContext);
+            _unitOfWork = unitOfWork;
+        }
+
+        public void InitialDbContext(object dbContext)
+        {
+            DbContext = dbContext as DbContext ?? throw new Exception("repository could not work without dbContext");
+            DbSet = DbContext.Set<TEntity>();
+            (_unitOfWork as EfCoreUnitOfWork)?.RegisterCoreDbContext(DbContext);
         }
 
         public void ChangeConnection(string connection, string schema)
@@ -228,8 +234,8 @@ namespace Core.EntityFrameworkCore.Repositories
     public class Repository<TEntity, TKey> : Repository<TEntity>, IRepository<TEntity, TKey>
         where TEntity : class, IEntity<TKey>
     {
-        public Repository(DbContext dbContext, IUnitOfWork unitOfWork)
-        : base(dbContext, unitOfWork)
+        public Repository(IUnitOfWork unitOfWork)
+        : base(unitOfWork)
         {
         }
 

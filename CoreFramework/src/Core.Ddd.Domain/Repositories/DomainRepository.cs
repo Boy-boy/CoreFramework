@@ -13,9 +13,10 @@ namespace Core.Ddd.Domain.Repositories
     {
         private readonly IRepository<TAggregateRoot> _repository;
 
-        public DomainRepository(IRepository<TAggregateRoot> repository)
+        public DomainRepository(IRepository<TAggregateRoot> repository, object dbContext)
         {
             _repository = repository;
+            _repository.InitialDbContext(dbContext);
         }
 
         public void Add(IEnumerable<TAggregateRoot> entities)
@@ -146,8 +147,8 @@ namespace Core.Ddd.Domain.Repositories
     {
         private readonly IRepository<TAggregateRoot, TKey> _repository;
 
-        public DomainRepository(IRepository<TAggregateRoot, TKey> repository)
-        : base(repository)
+        public DomainRepository(IRepository<TAggregateRoot, TKey> repository,object dbContext)
+        : base(repository, dbContext)
         {
             _repository = repository;
         }

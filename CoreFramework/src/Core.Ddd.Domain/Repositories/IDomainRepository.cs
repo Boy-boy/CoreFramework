@@ -16,6 +16,7 @@ namespace Core.Ddd.Domain.Repositories
         where TAggregateRoot : class, IEntity
     {
         void ChangeConnection(string connection, string schema);
+
         void ChangeDatabase(string database, string schema);
 
         void ChangeSchema(string schema);
@@ -71,7 +72,7 @@ namespace Core.Ddd.Domain.Repositories
             CancellationToken cancellationToken = default);
     }
 
-    public interface IDomainRepository<TEntity, TKey> : IRepository<TEntity>
+    public interface IDomainRepository<TEntity, in TKey> : IDomainRepository<TEntity>
         where TEntity : class, IEntity<TKey>
     {
         void Remove(TKey key);

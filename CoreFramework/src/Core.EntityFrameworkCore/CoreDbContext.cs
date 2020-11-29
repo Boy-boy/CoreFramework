@@ -1,18 +1,18 @@
 ﻿using Core.Ddd.Domain.Entities;
 using Core.Ddd.Domain.Events;
+using Core.EventBus.Abstraction;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Core.EventBus.Abstraction;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using Microsoft.Extensions.DependencyInjection;
+using Core.EntityFrameworkCore.Sharding;
 
 namespace Core.EntityFrameworkCore
 {
-    public class CoreDbContext : DbContext
+    public class CoreDbContext : CoreShardingDbContext
     {
         public CoreDbContext(DbContextOptions options)
             : base(options)
@@ -28,22 +28,20 @@ namespace Core.EntityFrameworkCore
 
         public override int SaveChanges(bool acceptAllChangesOnSuccess)
         {
-            FinalizeModel();
             var events = GetDomainEvents();
             TrackingEventEntities(events);
             var result = base.SaveChanges(acceptAllChangesOnSuccess);
-            EntityChangeEvent?.PublishAggregateRootEvents(events);
+            EntityChangeEvent.PublishAggregateRootEvents(events);
             return result;
         }
 
         public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess,
             CancellationToken cancellationToken = default)
         {
-            FinalizeModel();
             var events = GetDomainEvents();
             TrackingEventEntities(events);
             var result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
-            EntityChangeEvent?.PublishAggregateRootEvents(events);
+            EntityChangeEvent.PublishAggregateRootEvents(events);
             return result;
         }
 
@@ -76,13 +74,5 @@ namespace Core.EntityFrameworkCore
             EntityChangeEvent = null;
         }
 
-        private void FinalizeModel()
-        {
-            var model = (Model)Model;
-            if (model.IsReadonly == false)
-            {
-                model.FinalizeModel();
-            }
-        }
     }
 }

@@ -1,7 +1,7 @@
-﻿using Core.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using System;
+using Core.EntityFrameworkCore.Sharding;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -27,7 +27,7 @@ namespace Microsoft.Extensions.DependencyInjection
             return serviceCollection.AddDbContext<TContextService, TContextImplementation>(options =>
             {
                 var extension = (options.Options.FindExtension<CoreOptionsExtension>() ?? new CoreOptionsExtension())
-                    .WithReplacedService(typeof(IModelSource), typeof(CoreModelSource));
+                    .WithReplacedService(typeof(IModelSource), typeof(CoreDbContextModelSource));
                 ((IDbContextOptionsBuilderInfrastructure)options).AddOrUpdateExtension(extension);
                 optionsAction?.Invoke(options);
             }, contextLifetime, optionsLifetime);

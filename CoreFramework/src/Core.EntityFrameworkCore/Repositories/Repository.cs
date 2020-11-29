@@ -12,6 +12,7 @@ using System.Linq.Expressions;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Core.EntityFrameworkCore.Sharding;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace Core.EntityFrameworkCore.Repositories
@@ -63,7 +64,7 @@ namespace Core.EntityFrameworkCore.Repositories
         public void ChangeSchema(string schema)
         {
             var model = (Model)DbContext.Model;
-            if (model.IsReadonly)
+            if (model.ValidateModelIsReadonly())
                 return;
             var items = DbContext.Model.GetEntityTypes();
             foreach (var item in items)
@@ -78,7 +79,7 @@ namespace Core.EntityFrameworkCore.Repositories
         public void ChangeTable(string tableName)
         {
             var model = (Model)DbContext.Model;
-            if (model.IsReadonly)
+            if (model.ValidateModelIsReadonly())
                 return;
             if (DbContext.Model.FindEntityType(typeof(TEntity)) is IMutableEntityType relational)
             {

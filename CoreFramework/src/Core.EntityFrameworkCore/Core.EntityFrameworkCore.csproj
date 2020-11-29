@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Core.Ddd.Domain\Core.Ddd.Domain.csproj" />
+    <ProjectReference Include="..\Core.EntityFrameworkCore.Sharding\Core.EntityFrameworkCore.Sharding.csproj" />
     <ProjectReference Include="..\Core.Json\Core.Json.csproj" />
     <ProjectReference Include="..\Core.Uow\Core.Uow.csproj" />
   </ItemGroup>

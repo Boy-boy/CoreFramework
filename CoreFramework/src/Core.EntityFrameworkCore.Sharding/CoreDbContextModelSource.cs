@@ -3,13 +3,13 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions.Infrastructure;
 
-namespace Core.EntityFrameworkCore
+namespace Core.EntityFrameworkCore.Sharding
 {
-    public class CoreModelSource : IModelSource
+    public class CoreDbContextModelSource : IModelSource
     {
         private readonly ModelSourceDependencies _dependencies;
 
-        public CoreModelSource(ModelSourceDependencies dependencies)
+        public CoreDbContextModelSource(ModelSourceDependencies dependencies)
         {
             _dependencies = dependencies;
         }

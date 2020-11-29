@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Core.EventBus\Core.EventBus.csproj" />
+    <ProjectReference Include="..\Core.Json\Core.Json.csproj" />
   </ItemGroup>
 
 </Project>

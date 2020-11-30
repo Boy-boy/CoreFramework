@@ -1,5 +1,7 @@
 [TOC]
 
+
+
 # 核心框架使用手册
 
 ## 框架描述
@@ -68,7 +70,7 @@
         public override void ConfigureServices(ServiceCollectionContext context)
         {    
          //方式一
-         context.Services.Configure<ElasticClientFactoryOptions>(Configuration.GetSection("ElasticClient"));
+          context.Services.Configure<ElasticClientFactoryOptions>(Configuration.GetSection("ElasticClient"));
          //方式二
           context.Services.AddElasticClientFactory("自定义名称"，options=>{
            options.UserName="";
@@ -126,7 +128,7 @@ public class DemoEsRepository : ElasticSearchRepositories<自定义类型>, IDem
 
         public override void PreConfigureServices(ServiceCollectionContext context)
         {
-     context.Services.Configure<EventBusOptions>(options =>
+         context.Services.Configure<EventBusOptions>(options =>
             {
              //若是订阅服务，添加自动扫描程序集，则自动注入Handler
                 options.AutoRegistrarHandlersAssemblies = new[] { typeof(StartupModule).Assembly };
@@ -161,6 +163,43 @@ public class DemoEsRepository : ElasticSearchRepositories<自定义类型>, IDem
       "virtualHost": "/"
     }
   }
+
+#### entityFraworkCore
+
+```c#
+    [DependsOn(typeof(CoreEfCoreModule))]
+    public class StartupModule : CoreModuleBase
+    {
+        public StartupModule(IConfiguration configuration)
+        {
+            Configuration = configuration;
+        }
+
+        public IConfiguration Configuration { get; }
+        public override void ConfigureServices(ServiceCollectionContext context)
+        {
+            context.Services.AddControllers();
+            
+            //实现动态配置dbContext的信息，如：TableName，Schema等
+            //若要实现动态配置，自定义的DbContext（CustomerDbContext）需继承CoreShardingDbContext
+            context.Services.AddShardingDbContext<CustomerDbContext>(options =>
+             {
+                 options.UseSqlServer(Configuration.GetConnectionString("Customer"));
+             });
+        }
+
+        public override void Configure(ApplicationBuilderContext context)
+        {
+        }
+    }
+```
+
+描述：若想发送领域事件，自定义的DbContextCustomerDbContext需继承CoreDbContext，且添加自己的eventbus，如：
+
+```
+[DependsOn(      
+        typeof(CoreEventBusRabbitMqModule))]
+```
 
 
 

@@ -1,10 +1,20 @@
+- [核心框架使用手册](#核心框架使用手册)
+  - [框架描述](#框架描述)
+  - [框架使用描述](#框架使用描述)
+  - [使用方式](#使用方式)
+    - [模块化](#模块化)
+      - [模块化](#模块化-1)
+      - [elasticSearch](#elasticsearch)
+      - [eventbus](#eventbus)
+        - [RabbitMq](#rabbitmq)
+      - [entityFraworkCore](#entityfraworkcore)
+    - [直接依赖](#直接依赖)
+      - [elasticSearch](#elasticsearch-1)
+      - [eventbus](#eventbus-1)
+        - [RabbitMq](#rabbitmq-1)
+
+
 # 核心框架使用手册
-
-[TOC]
-
----
-
-
 
 ## 框架描述
 

@@ -1,3 +1,5 @@
+# 核心框架使用手册
+
 - [核心框架使用手册](#核心框架使用手册)
   - [框架描述](#框架描述)
   - [框架使用描述](#框架使用描述)
@@ -12,9 +14,6 @@
       - [elasticSearch](#elasticsearch-1)
       - [eventbus](#eventbus-1)
         - [RabbitMq](#rabbitmq-1)
-
-
-# 核心框架使用手册
 
 ## 框架描述
 

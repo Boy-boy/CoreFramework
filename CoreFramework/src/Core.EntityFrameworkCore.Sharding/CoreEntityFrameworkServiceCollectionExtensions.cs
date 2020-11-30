@@ -7,17 +7,17 @@ namespace Microsoft.Extensions.DependencyInjection
 {
     public static class CoreEntityFrameworkServiceCollectionExtensions
     {
-        public static IServiceCollection AddDbContextSharding<TContext>(
+        public static IServiceCollection AddShardingDbContext<TContext>(
            this IServiceCollection serviceCollection,
             Action<DbContextOptionsBuilder> optionsAction = null,
             ServiceLifetime contextLifetime = ServiceLifetime.Scoped,
             ServiceLifetime optionsLifetime = ServiceLifetime.Scoped)
             where TContext : DbContext
         {
-            return AddDbContextSharding<TContext, TContext>(serviceCollection, optionsAction, contextLifetime, optionsLifetime);
+            return AddShardingDbContext<TContext, TContext>(serviceCollection, optionsAction, contextLifetime, optionsLifetime);
         }
 
-        public static IServiceCollection AddDbContextSharding<TContextService, TContextImplementation>(
+        public static IServiceCollection AddShardingDbContext<TContextService, TContextImplementation>(
             this IServiceCollection serviceCollection,
             Action<DbContextOptionsBuilder> optionsAction = null,
             ServiceLifetime contextLifetime = ServiceLifetime.Scoped,

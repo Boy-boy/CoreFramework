@@ -7,9 +7,10 @@
     <Product />
     <Description>asp net core basic framework</Description>
     <PackageProjectUrl>https://github.com/Boy-boy/CoreFramework</PackageProjectUrl>
-    <AssemblyVersion>3.1.9.0</AssemblyVersion>
-    <FileVersion>3.1.9.0</FileVersion>
-    <Version>3.1.9</Version>
+    <AssemblyVersion>3.1.9.1</AssemblyVersion>
+    <FileVersion>3.1.9.1</FileVersion>
+    <Version>3.1.9.1</Version>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>

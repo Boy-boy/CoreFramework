@@ -55,7 +55,7 @@ namespace Core.EntityFrameworkCore.Repositories
             }
             else
             {
-                var connectionString = Regex.Replace(connection.ConnectionString.Replace(" ", ""), @"(?<=[Dd]atabase=)\w+(?=;)", database, RegexOptions.Singleline);
+                var connectionString = Regex.Replace(connection.ConnectionString, @"(?<=[Dd]atabase=)\w+(?=;)", database, RegexOptions.Singleline);
                 connection.ConnectionString = connectionString;
             }
             ChangeSchema(schema);

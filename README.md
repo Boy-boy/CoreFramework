@@ -113,7 +113,7 @@ public class DemoEsRepository : ElasticSearchRepositories<自定义类型>, IDem
    }
 ```
 
-在appsetting.json配置Rabbitmq
+在appsetting.json配置ElasticClient
 
  "ElasticClient": {
     "UserName": "elastic",
@@ -273,8 +273,8 @@ public class Startup
                 .AddEventBus(options=>{
                  //若是订阅服务，添加自动扫描程序集，则自动注入Handler
                 options.AutoRegistrarHandlersAssemblies = new[] { typeof(StartupModule).Assembly };
-                })
-                .AutoRegistrarHandlers(options.AutoRegistrarHandlersAssemblies);
+                });
+             
            
             services.AddEventBusRabbitMq(options=>{
                 //配置发布交换器，可不配置

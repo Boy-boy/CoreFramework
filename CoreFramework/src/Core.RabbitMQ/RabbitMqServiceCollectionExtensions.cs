@@ -3,7 +3,7 @@ using System;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
-    public static class RabbitMqCollectionExtensions
+    public static class RabbitMqServiceCollectionExtensions
     {
         public static IServiceCollection AddRabbitMq(this IServiceCollection services, Action<RabbitMqOptions> configureOptions = null)
         {

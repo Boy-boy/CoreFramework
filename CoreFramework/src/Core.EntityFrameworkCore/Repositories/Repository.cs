@@ -38,52 +38,33 @@ namespace Core.EntityFrameworkCore.Repositories
 
         public void ChangeConnection(string connection, string schema)
         {
-            DbContext.Database.GetDbConnection().ConnectionString = connection;
-            ChangeSchema(schema);
+            if (DbContext is CoreShardingDbContext coreShardingDbContext)
+            {
+                coreShardingDbContext.ChangeConnection(connection, schema);
+            }
         }
 
         public void ChangeDatabase(string database, string schema)
         {
-            if (string.IsNullOrEmpty(database))
+            if (DbContext is CoreShardingDbContext coreShardingDbContext)
             {
-                throw new ArgumentNullException(nameof(database));
+                coreShardingDbContext.ChangeDatabase(database, schema);
             }
-            var connection = DbContext.Database.GetDbConnection();
-            if (connection.State.HasFlag(ConnectionState.Open))
-            {
-                connection.ChangeDatabase(database);
-            }
-            else
-            {
-                var connectionString = Regex.Replace(connection.ConnectionString, @"(?<=[Dd]atabase=)\w+(?=;)", database, RegexOptions.Singleline);
-                connection.ConnectionString = connectionString;
-            }
-            ChangeSchema(schema);
         }
 
         public void ChangeSchema(string schema)
         {
-            var model = (Model)DbContext.Model;
-            if (model.ValidateModelIsReadonly())
-                return;
-            var items = DbContext.Model.GetEntityTypes();
-            foreach (var item in items)
+            if (DbContext is CoreShardingDbContext coreShardingDbContext)
             {
-                if (item is IMutableEntityType entityType)
-                {
-                    entityType.SetSchema(schema);
-                }
+                coreShardingDbContext.ChangeSchema<TEntity>(schema);
             }
         }
 
         public void ChangeTable(string tableName)
         {
-            var model = (Model)DbContext.Model;
-            if (model.ValidateModelIsReadonly())
-                return;
-            if (DbContext.Model.FindEntityType(typeof(TEntity)) is IMutableEntityType relational)
+            if (DbContext is CoreShardingDbContext coreShardingDbContext)
             {
-                relational.SetTableName(tableName);
+                coreShardingDbContext.ChangeTable<TEntity>(tableName);
             }
         }
 

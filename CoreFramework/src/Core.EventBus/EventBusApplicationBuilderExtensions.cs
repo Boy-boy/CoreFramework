@@ -9,7 +9,7 @@ using Microsoft.Extensions.Options;
 
 namespace Core.EventBus
 {
-    public static class EventBusAppBuilderExtensions
+    public static class EventBusApplicationBuilderExtensions
     {
         public static IApplicationBuilder UseEventBus(
             this IApplicationBuilder app)

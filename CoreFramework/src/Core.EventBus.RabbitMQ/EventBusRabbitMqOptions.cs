@@ -17,14 +17,14 @@ namespace Core.EventBus.RabbitMQ
         }
 
 
-        public EventBusRabbitMqOptions AddPublishConfigure(Action<RabbitMqPublishConfigure> configureOptions)
+        public EventBusRabbitMqOptions AddPublishConfigure(Action<RabbitMqPublishConfigure> configureOptions = null)
         {
             if (configureOptions == null) return this;
             configureOptions.Invoke(RabbitMqPublishConfigure);
             return this;
         }
 
-        public EventBusRabbitMqOptions AddSubscribeConfigures(Action<List<RabbitMqSubscribeConfigure>> configureOptions)
+        public EventBusRabbitMqOptions AddSubscribeConfigures(Action<List<RabbitMqSubscribeConfigure>> configureOptions = null)
         {
             if (configureOptions == null) return this;
             configureOptions.Invoke(RabbitSubscribeConfigures);

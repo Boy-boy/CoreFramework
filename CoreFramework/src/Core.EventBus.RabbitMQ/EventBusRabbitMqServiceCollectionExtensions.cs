@@ -4,7 +4,7 @@ using System;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
-    public static class EventBusRabbitMqCollectionExtensions
+    public static class EventBusRabbitMqServiceCollectionExtensions
     {
         public static IServiceCollection AddEventBusRabbitMq(this IServiceCollection services, Action<EventBusRabbitMqOptions> configure=null)
         {

@@ -163,7 +163,7 @@ public class DemoEsRepository : ElasticSearchRepositories<自定义类型>, IDem
         }
     }
 ```
-
+```json
 2.在appsetting.json配置Rabbitmq
 
  "RabbitMq": {
@@ -175,6 +175,7 @@ public class DemoEsRepository : ElasticSearchRepositories<自定义类型>, IDem
       "virtualHost": "/"
     }
   }
+  ```
 
 #### entityFraworkCore
 

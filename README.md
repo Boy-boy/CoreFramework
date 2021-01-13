@@ -112,7 +112,7 @@ public class DemoEsRepository : ElasticSearchRepositories<自定义类型>, IDem
         }
    }
 ```
-
+```json
 在appsetting.json配置ElasticClient
 
  "ElasticClient": {
@@ -120,6 +120,7 @@ public class DemoEsRepository : ElasticSearchRepositories<自定义类型>, IDem
     "PassWord": "septnet",
     "Urls":[""]
   },
+  ```
 
 #### eventbus
 

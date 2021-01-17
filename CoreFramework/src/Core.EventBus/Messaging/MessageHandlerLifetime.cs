@@ -1,4 +1,4 @@
-﻿namespace Core.EventBus.Messaging
+﻿namespace Core.Messaging
 {
     public enum MessageHandlerLifetime
     {

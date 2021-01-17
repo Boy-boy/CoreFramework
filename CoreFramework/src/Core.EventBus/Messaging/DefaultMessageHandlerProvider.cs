@@ -4,7 +4,7 @@ using System.Linq;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Core.EventBus.Messaging.Impl
+namespace Core.Messaging
 {
     public class DefaultMessageHandlerProvider : IMessageHandlerProvider
     {
@@ -17,9 +17,13 @@ namespace Core.EventBus.Messaging.Impl
             _handlerDict = new Dictionary<Type, IList<IMessageHandlerWrapper>>();
         }
 
-        public IEnumerable<IMessageHandlerWrapper> GetMessageHandlers(Type messageType)
+        public IEnumerable<IMessageHandlerWrapper> GetHandlers(Type messageType)
         {
-            throw new NotImplementedException();
+            return _handlerDict.ContainsKey(messageType)
+                ? _handlerDict[messageType]
+                    .OrderByDescending(x => x.HandlerPriority)
+                    .ToList()
+                : new List<IMessageHandlerWrapper>();
         }
 
         public void Initialize(params Assembly[] assemblies)
@@ -30,16 +34,17 @@ namespace Core.EventBus.Messaging.Impl
                 .ToList();
             foreach (var handlerType in handlerTypes)
             {
-                RegisterHandler(handlerType);
+                RegisterBaseHandler(handlerType);
             }
         }
 
-        private void RegisterHandler(Type handlerType)
+        private void RegisterBaseHandler(Type handlerType)
         {
             var baseHandlerTypes = handlerType
                 .GetInterfaces()
                 .Where(t =>
                 t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IMessageHandler<>));
+            baseHandlerTypes = baseHandlerTypes.Distinct();
             foreach (var baseHandlerType in baseHandlerTypes)
             {
                 var messageType = baseHandlerType.GenericTypeArguments.Single();
@@ -49,14 +54,19 @@ namespace Core.EventBus.Messaging.Impl
                     handlers = new List<IMessageHandlerWrapper>();
                     _handlerDict.Add(messageType, handlers);
                 }
+                if (handlers.Any(handlerWrapper => handlerWrapper.HandlerType == baseHandlerType))
+                {
+                    throw new ArgumentException(
+                        $"Handler Type {baseHandlerType.Name} already registered for '{messageType.Name}'");
+                }
                 var handlerWrapperType = GetHandlerWrapperImplementationType(baseHandlerType);
-                handlers.Add(Activator.CreateInstance(handlerWrapperType, _serviceScopeFactory, baseHandlerType) as IMessageHandlerWrapper);
+                handlers.Add(Activator.CreateInstance(handlerWrapperType, _serviceScopeFactory, handlerType, baseHandlerType) as IMessageHandlerWrapper);
             }
         }
 
-        private Type GetHandlerWrapperImplementationType(Type handlerInterfaceType)
+        private Type GetHandlerWrapperImplementationType(Type baseHandlerType)
         {
-            return typeof(MessageHandlerWrapper<>).MakeGenericType(handlerInterfaceType.GetGenericArguments().Single());
+            return typeof(MessageHandlerWrapper<>).MakeGenericType(baseHandlerType.GetGenericArguments().Single());
         }
     }
 }

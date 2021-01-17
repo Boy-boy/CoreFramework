@@ -1,29 +1,38 @@
-﻿using System;
+﻿using Microsoft.Extensions.DependencyInjection;
+using System;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
 
-namespace Core.EventBus.Messaging
+namespace Core.Messaging
 {
     public class MessageHandlerWrapper<TMessage> : IMessageHandlerWrapper
         where TMessage : class, IMessage
     {
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly IMessageHandler<TMessage> _handler;
+        private readonly Type _handlerType;
         private readonly Type _baseHandlerType;
 
 
         public MessageHandlerWrapper(
             IServiceScopeFactory serviceScopeFactory,
+            Type handlerType,
             Type baseHandlerType)
         {
             _serviceScopeFactory = serviceScopeFactory;
+            _handlerType = handlerType;
             _baseHandlerType = baseHandlerType;
-
-            if (MessageHandlerLifetimeAttribute.GetHandlerLifetime(baseHandlerType) == MessageHandlerLifetime.Singleton)
+            HandlerPriority = MessageHandlerPriorityAttribute.GetPriority(typeof(TMessage), _handlerType);
+            if (MessageHandlerLifetimeAttribute.GetHandlerLifetime(_handlerType) == MessageHandlerLifetime.Singleton)
             {
                 _handler = GetIocMessageHandler();
             }
         }
+
+        public Type HandlerType => _handlerType;
+
+        public Type BaseHandlerType => _baseHandlerType;
+
+        public int HandlerPriority { get; }
 
         public Task HandlerAsync(IMessage message)
         {

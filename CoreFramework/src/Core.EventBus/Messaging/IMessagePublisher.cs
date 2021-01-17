@@ -2,9 +2,8 @@
 
 namespace Core.Messaging
 {
-    public interface IMessagePublisher<in TMessage>
-    where TMessage : class, IMessage
+    public interface IMessagePublisher
     {
-        Task PublishAsync(TMessage message);
+        Task PublishAsync(IMessage message);
     }
 }

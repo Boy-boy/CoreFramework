@@ -26,42 +26,81 @@ namespace Core.Messaging
                 : new List<IMessageHandlerWrapper>();
         }
 
-        public void Initialize(params Assembly[] assemblies)
+        public void AddHandler(Type messageType, Type handlerType)
         {
-            if (assemblies == null) return;
-            var handlerTypes = assemblies.SelectMany(a => a.DefinedTypes)
-                .Where(t => typeof(IMessageHandler).GetTypeInfo().IsAssignableFrom(t))
-                .ToList();
-            foreach (var handlerType in handlerTypes)
+            var baseHandlerTypes = GetBaseHandlerTypes(handlerType);
+            foreach (var baseHandlerType in baseHandlerTypes)
             {
-                RegisterBaseHandler(handlerType);
+                var messageType1 = baseHandlerType.GenericTypeArguments.Single();
+                if (messageType != messageType1) continue;
+                RegisterMessageHandlerWrapper(messageType, handlerType, baseHandlerType);
             }
         }
 
-        private void RegisterBaseHandler(Type handlerType)
+        public void RemoveHandler(Type messageType, Type handlerType)
+        {
+            var baseHandlerTypes = GetBaseHandlerTypes(handlerType);
+            foreach (var baseHandlerType in baseHandlerTypes)
+            {
+                var messageType1 = baseHandlerType.GenericTypeArguments.Single();
+                if (messageType != messageType1) continue;
+                if (!_handlerDict.TryGetValue(messageType, out var handlers)) continue;
+                if (handlers.All(handlerWrapper => handlerWrapper.BaseHandlerType != baseHandlerType)) continue;
+                handlers = handlers.Where(x => x.BaseHandlerType != baseHandlerType).ToList();
+                if (handlers.Count == 0)
+                {
+                    _handlerDict.Remove(messageType);
+                }
+            }
+        }
+
+        public void Initialize(params Assembly[] assemblies)
+        {
+            var handlerTypes = GetHandlerTypes(assemblies);
+            foreach (var handlerType in handlerTypes)
+            {
+                var baseHandlerTypes = GetBaseHandlerTypes(handlerType);
+                foreach (var baseHandlerType in baseHandlerTypes)
+                {
+                    var messageType = baseHandlerType.GenericTypeArguments.Single();
+                    RegisterMessageHandlerWrapper(messageType, handlerType, baseHandlerType);
+                }
+            }
+        }
+
+        private IEnumerable<Type> GetHandlerTypes(Assembly[] assemblies)
+        {
+            if (assemblies == null || assemblies.Length == 0)
+                return new List<Type>();
+            return assemblies.SelectMany(a => a.DefinedTypes)
+                .Where(t => typeof(IMessageHandler).GetTypeInfo().IsAssignableFrom(t))
+                .ToList();
+        }
+
+        private IEnumerable<Type> GetBaseHandlerTypes(Type handlerType)
         {
             var baseHandlerTypes = handlerType
                 .GetInterfaces()
                 .Where(t =>
-                t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IMessageHandler<>));
+                    t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IMessageHandler<>));
             baseHandlerTypes = baseHandlerTypes.Distinct();
-            foreach (var baseHandlerType in baseHandlerTypes)
-            {
-                var messageType = baseHandlerType.GenericTypeArguments.Single();
+            return baseHandlerTypes;
+        }
 
-                if (!_handlerDict.TryGetValue(messageType, out var handlers))
-                {
-                    handlers = new List<IMessageHandlerWrapper>();
-                    _handlerDict.Add(messageType, handlers);
-                }
-                if (handlers.Any(handlerWrapper => handlerWrapper.HandlerType == baseHandlerType))
-                {
-                    throw new ArgumentException(
-                        $"Handler Type {baseHandlerType.Name} already registered for '{messageType.Name}'");
-                }
-                var handlerWrapperType = GetHandlerWrapperImplementationType(baseHandlerType);
-                handlers.Add(Activator.CreateInstance(handlerWrapperType, _serviceScopeFactory, handlerType, baseHandlerType) as IMessageHandlerWrapper);
+        private void RegisterMessageHandlerWrapper(Type messageType, Type handlerType, Type baseHandlerType)
+        {
+            if (!_handlerDict.TryGetValue(messageType, out var handlers))
+            {
+                handlers = new List<IMessageHandlerWrapper>();
+                _handlerDict.Add(messageType, handlers);
             }
+            if (handlers.Any(handlerWrapper => handlerWrapper.BaseHandlerType == baseHandlerType))
+            {
+                throw new ArgumentException(
+                    $"Handler Type {baseHandlerType.Name} already registered for '{messageType.Name}'");
+            }
+            var handlerWrapperType = GetHandlerWrapperImplementationType(baseHandlerType);
+            handlers.Add(Activator.CreateInstance(handlerWrapperType, _serviceScopeFactory, handlerType, baseHandlerType) as IMessageHandlerWrapper);
         }
 
         private Type GetHandlerWrapperImplementationType(Type baseHandlerType)

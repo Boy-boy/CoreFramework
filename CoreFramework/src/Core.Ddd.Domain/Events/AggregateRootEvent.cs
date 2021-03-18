@@ -2,7 +2,7 @@
 
 namespace Core.Ddd.Domain.Events
 {
-    public class AggregateRootEvent: IntegrationEvent
+    public class AggregateRootEvent: Message
     {
     }
 }

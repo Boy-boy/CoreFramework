@@ -3,9 +3,10 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <Description>asp net core basic framework</Description>
-    <Version>3.1.9</Version>
+    <Version>3.1.9.11</Version>
     <Authors>gaobo</Authors>
     <PackageProjectUrl>https://github.com/Boy-boy/CoreFramework</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>

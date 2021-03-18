@@ -2,11 +2,12 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Version>3.1.9</Version>
+    <Version>3.1.9.11</Version>
     <Authors>gaobo</Authors>
     <Company>gaobo</Company>
     <Description>asp net core basic framework</Description>
     <PackageProjectUrl>https://github.com/Boy-boy/CoreFramework</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>

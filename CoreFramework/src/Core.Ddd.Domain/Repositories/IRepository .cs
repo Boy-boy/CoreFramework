@@ -17,14 +17,6 @@ namespace Core.Ddd.Domain.Repositories
     {
         void InitialDbContext(object dbContext);
 
-        void ChangeConnection(string connection, string schema);
-
-        void ChangeDatabase(string database, string schema);
-
-        void ChangeSchema(string schema);
-
-        void ChangeTable(string tableName);
-
         IQueryable<TEntity> GetQueryable();
 
         void Add(IEnumerable<TEntity> entities);

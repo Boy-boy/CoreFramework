@@ -17,12 +17,26 @@ namespace SubscriptionApi
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddApplicationManager<StartupModule>();
+            #region eventbus使用方式一
+            //services.AddEventBus(options => options.AutoRegistrarHandlersAssemblies = new[] { typeof(Startup).Assembly })
+            //    .AddRabbitMq(options =>
+            //    {
+            //        //配置消息对应的Exchange和Queue（若不配置，则使用默认的）
+            //        options.AddSubscribeConfigures(configureOptions =>
+            //        {
+            //            configureOptions.Add(new RabbitMqSubscribeConfigure(typeof(CustomerEvent),RabbitMqConst.DefaultExchangeName,RabbitMqConst.DefaultQueueName));
+            //        });
+            //    });
+            //services.Configure<RabbitMqOptions>(Configuration.GetSection("RabbitMq"));
+            //services.AddRabbitMq();
+            #endregion
+
+            services.ConfigureServiceCollection<StartupModule>();
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
-            app.InitializationApplicationBuilder();
+            app.BuildApplicationBuilder();
         }
     }
 }

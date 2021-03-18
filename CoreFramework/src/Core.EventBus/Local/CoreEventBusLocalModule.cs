@@ -4,11 +4,12 @@ using Core.Modularity.Attribute;
 namespace Core.EventBus.Local
 {
     [DependsOn(typeof(CoreEventBusModule))]
-    public class CoreEventBusLocalModule:CoreModuleBase
+    public class CoreEventBusLocalModule : CoreModuleBase
     {
         public override void ConfigureServices(ServiceCollectionContext context)
         {
-            context.Services.AddLocal();
+            context.Items.TryGetValue(nameof(EventBusBuilder), out var eventBusBuilder);
+            ((EventBusBuilder)eventBusBuilder).AddLocalMq();
         }
     }
 }

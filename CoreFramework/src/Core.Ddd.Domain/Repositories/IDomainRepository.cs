@@ -15,14 +15,6 @@ namespace Core.Ddd.Domain.Repositories
     public interface IDomainRepository<TAggregateRoot>
         where TAggregateRoot : class, IEntity
     {
-        void ChangeConnection(string connection, string schema);
-
-        void ChangeDatabase(string database, string schema);
-
-        void ChangeSchema(string schema);
-
-        void ChangeTable(string tableName);
-
         IQueryable<TAggregateRoot> GetQueryable();
 
         void Add(IEnumerable<TAggregateRoot> entities);

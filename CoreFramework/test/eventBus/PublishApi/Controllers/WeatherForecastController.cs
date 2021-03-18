@@ -1,10 +1,12 @@
-﻿using Core.EventBus.Abstraction;
+﻿using Core.EventBus;
+using Core.EventBus.Transaction;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
+using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Configuration;
+using PublishApi.Event;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using PublishApi.Event;
 
 namespace PublishApi.Controllers
 {
@@ -17,23 +19,30 @@ namespace PublishApi.Controllers
             "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
         };
 
-        private readonly ILogger<WeatherForecastController> _logger;
-        private readonly IEventBus _eventBus;
+        private readonly IMessagePublisher _publisher;
+        private readonly IConfiguration _configuration;
+        private readonly ITransactionAccessor _transactionAccessor;
 
-        public WeatherForecastController(ILogger<WeatherForecastController> logger, IEventBus eventBus)
+        public WeatherForecastController(
+            IMessagePublisher publisher,
+            IConfiguration configuration,
+            ITransactionAccessor transactionAccessor)
         {
-            _logger = logger;
-            _eventBus = eventBus;
+            _publisher = publisher;
+            _configuration = configuration;
+            _transactionAccessor = transactionAccessor;
         }
 
         [HttpGet]
         public IEnumerable<WeatherForecast> Get()
         {
-            for (int i = 0; i < 1000; i++)
+            var connection = new SqlConnection(_configuration.GetConnectionString("customer"));
+            connection.BeginTransaction(_publisher);
+            for (int i = 0; i < 10; i++)
             {
-                _eventBus.Publish(new CustomerEvent());
+                _publisher.PublishAsync(new CustomerEvent());
             }
-
+            _transactionAccessor.Transaction?.Commit();
             var rng = new Random();
             return Enumerable.Range(1, 5).Select(index => new WeatherForecast
             {

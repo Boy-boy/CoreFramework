@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace Core.Messaging
+namespace Core.EventBus
 {
     public interface IMessage
     {

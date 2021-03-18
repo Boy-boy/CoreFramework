@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Linq;
 
-namespace Core.Messaging
+namespace Core.EventBus
 {
     [AttributeUsage(AttributeTargets.Class)]
     public class MessageNameAttribute : Attribute

@@ -7,7 +7,7 @@ namespace Core.Modularity
 {
     public static class CoreFrameworkApplicationBuilderExtensions
     {
-        public static void InitializationApplicationBuilder(this IApplicationBuilder app)
+        public static void BuildApplicationBuilder(this IApplicationBuilder app)
         {
             var application = app.ApplicationServices.GetRequiredService<ICoreApplicationManager>();
             application.Configure(app);

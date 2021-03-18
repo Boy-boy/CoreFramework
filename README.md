@@ -14,6 +14,7 @@
       - [elasticSearch](#elasticsearch-1)
       - [eventbus](#eventbus-1)
         - [RabbitMq](#rabbitmq-1)
+      - [entityFraworkCore](#entityfraworkcore-1)
 
 ## 框架描述
 
@@ -30,16 +31,16 @@
 #### 模块化
 
 ```c#
- public class Startup
+    public class Startup
     {
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddApplicationManager<StartupModule>();
+            services.ConfigureServiceCollection<StartupModule>();
         }
 
         public void Configure(IApplicationBuilder app)
         {
-            app.InitializationApplicationBuilder();
+            app.BuildApplicationBuilder();
         }
     }
 ```
@@ -82,6 +83,7 @@
         {    
          //方式一
           context.Services.Configure<ElasticClientFactoryOptions>(Configuration.GetSection("ElasticClient"));
+          
          //方式二
           context.Services.AddElasticClientFactory("自定义名称"，options=>{
            options.UserName="";
@@ -90,10 +92,6 @@
            options.DefaultIndex="";
            options.ElasticClientLifeTime=TimeSpan.FromHours(24)//默认不小于1小时
           });
-        }
-
-        public override void Configure(ApplicationBuilderContext context)
-        {   
         }
     }
 ```
@@ -104,13 +102,13 @@
      //自定义查询方法
   }
 
-public class DemoEsRepository : ElasticSearchRepositories<自定义类型>, IDemoEsRepository
-    {
-        public ComputeApplyEsRepository(IElasticClientFactory elasticClientFactory)
-        : base(elasticClientFactory,elasticClientName:"该名称须跟注入的名称匹配")
-        {
-        }
-   }
+  public class DemoEsRepository : ElasticSearchRepositories<自定义类型>, IDemoEsRepository
+  {
+      public ComputeApplyEsRepository(IElasticClientFactory elasticClientFactory)
+      : base(elasticClientFactory,elasticClientName:"该名称须跟注入的名称匹配   ")
+      {
+      }
+  }
 ```
 ```json
 在appsetting.json配置ElasticClient
@@ -118,9 +116,10 @@ public class DemoEsRepository : ElasticSearchRepositories<自定义类型>, IDem
  "ElasticClient": {
     "UserName": "elastic",
     "PassWord": "septnet",
-    "Urls":[""]
+    "Urls":[""],
+    "DefaultIndex":"elastic_search_default_index"
   },
-  ```
+```
 
 #### eventbus
 
@@ -128,7 +127,8 @@ public class DemoEsRepository : ElasticSearchRepositories<自定义类型>, IDem
 
 ```c#
 [DependsOn(      
-        typeof(CoreEventBusRabbitMqModule))]
+         typeof(CoreEventBusRabbitMqModule),
+         typeof(CoreEventBusSqlServerModule))]
     public class StartupModule : CoreModuleBase
     {
         public StartupModule(IConfiguration configuration)
@@ -137,35 +137,35 @@ public class DemoEsRepository : ElasticSearchRepositories<自定义类型>, IDem
         }
 
         public IConfiguration Configuration { get; }
-
-        public override void PreConfigureServices(ServiceCollectionContext context)
-        {
-         context.Services.Configure<EventBusOptions>(options =>
-            {
-             //若是订阅服务，添加自动扫描程序集，则自动注入Handler
-                options.AutoRegistrarHandlersAssemblies = new[] { typeof(StartupModule).Assembly };
-            });
-        }
-
+      
         public override void ConfigureServices(ServiceCollectionContext context)
         {    
-         context.Services.Configure<EventBusRabbitMqOptions>(options =>
+          context.Services.Configure<EventBusRabbitMqOptions>(options =>
             {
                //配置发布交换器，可不配置
                 options.AddPublishConfigure();
                 //配置订阅交换器和队列，可不配置
                 options.AddSubscribeConfigures();
             });
-        }
-
-        public override void Configure(ApplicationBuilderContext context)
-        {   
+                                  
+           //若基于本地消息表存储event，需配置      
+           context.Services.Configure<EventBusSqlServerOptions>(options =>
+            {
+                //配置Connection（必须）
+                options.ConnectionString = Configuration.GetConnectionString("customer");
+            });
+            
+            //若该服务是订阅服务，则需配置以下代码
+            context.Services.TryRegistrarMessageHandlers(new[] { typeof(StartupModule).Assembly });
+            context.Services.Configure<EventBusOptions>(options =>
+            {
+                options.AutoRegistrarHandlersAssemblies = new[] { typeof(StartupModule).Assembly };
+            });          
         }
     }
 ```
 ```json
 2.在appsetting.json配置Rabbitmq
-
  "RabbitMq": {
     "Connection": {
       "hostName": "127.0.0.1",
@@ -175,7 +175,7 @@ public class DemoEsRepository : ElasticSearchRepositories<自定义类型>, IDem
       "virtualHost": "/"
     }
   }
-  ```
+```
 
 #### entityFraworkCore
 
@@ -192,26 +192,21 @@ public class DemoEsRepository : ElasticSearchRepositories<自定义类型>, IDem
         public override void ConfigureServices(ServiceCollectionContext context)
         {
             context.Services.AddControllers();
-            
-            //实现动态配置dbContext的信息，如：TableName，Schema等
-            //若要实现动态配置，自定义的DbContext（CustomerDbContext）需继承CoreShardingDbContext
-            context.Services.AddShardingDbContext<CustomerDbContext>(options =>
+                    
+            context.Services.AddDbContext<CustomerDbContext>(options =>
              {
                  options.UseSqlServer(Configuration.GetConnectionString("Customer"));
              });
         }
-
-        public override void Configure(ApplicationBuilderContext context)
-        {
-        }
     }
 ```
 
-描述：若想发送领域事件，自定义的DbContextCustomerDbContext需继承CoreDbContext，且添加自己的eventbus，如：
+描述：若想发送领域事件，自定义的DbContext需继承CoreDbContext，且添加自己的eventbus，如：
 
 ```
 [DependsOn(      
-        typeof(CoreEventBusRabbitMqModule))]
+        typeof(CoreEventBusRabbitMqModule),
+         typeof(CoreEventBusSqlServerModule))]
 ```
 
 
@@ -244,11 +239,7 @@ public class DemoEsRepository : ElasticSearchRepositories<自定义类型>, IDem
            options.ElasticClientLifeTime=TimeSpan.FromHours(24)//默认不小于1小时
           });
                   
-        }
-       
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
-        {
-        }
+        }   
     }
 ```
 
@@ -268,31 +259,46 @@ public class Startup
 
         public void ConfigureServices(IServiceCollection services)
         {
+           //若是订阅服务，添加自动扫描程序集，则自动注入Handler到ServiceCollection中       
+           services.AddEventBus(options => 
+                    {
+                        //若是订阅服务，添加自动扫描程序集
+                        options.AutoRegistrarHandlersAssemblies = new[] { typeof(Startup).Assembly }
+                    })
+                   .AddRabbitMq(options =>
+                    {
+                        //配置消息对应的Exchange（若不配置，则使用默认的）
+                        options.AddPublishConfigure(configureOptions =>
+                        {
+                            configureOptions.ExchangeName = RabbitMqConst.DefaultExchangeName;
+                        });
+                    })
+                    .AddSqlServer(options =>
+                     {
+                         options.ConnectionString = Configuration.GetConnectionString("customer");
+                     });
             services.Configure<RabbitMqOptions>(Configuration.GetSection("RabbitMq"));
-            context.Services.AddRabbitMq();
-            
-            context.Services
-                .AddEventBus(options=>{
-                 //若是订阅服务，添加自动扫描程序集，则自动注入Handler
-                options.AutoRegistrarHandlersAssemblies = new[] { typeof(StartupModule).Assembly };
-                });
-             
-           
-            services.AddEventBusRabbitMq(options=>{
-                //配置发布交换器，可不配置
-                options.AddPublishConfigure();
-                //配置订阅交换器和队列，可不配置
-                options.AddSubscribeConfigures();
-            });
-            
-            
-        }
-       
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+            services.AddRabbitMq();
+        }      
+    }
+```
+
+#### entityFraworkCore
+
+```c#
+   public class Startup
+    {
+        public Startup(IConfiguration configuration)
         {
-         //若是订阅服务，添加自动扫描程序集，则自动注入Handler
-           app.UseEventBus();
+            Configuration = configuration;
         }
+
+        public IConfiguration Configuration { get; }
+
+        public void ConfigureServices(IServiceCollection services)
+        {
+          services.AddEntityFrameworkRepository();
+        }   
     }
 ```
 

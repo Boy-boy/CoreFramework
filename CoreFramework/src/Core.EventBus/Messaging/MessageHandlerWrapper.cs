@@ -1,8 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using System;
-using System.Threading.Tasks;
 
-namespace Core.Messaging
+namespace Core.EventBus
 {
     public class MessageHandlerWrapper<TMessage> : IMessageHandlerWrapper
         where TMessage : class, IMessage
@@ -12,7 +11,7 @@ namespace Core.Messaging
         private readonly Type _handlerType;
         private readonly Type _baseHandlerType;
 
-
+        public MessageHandlerWrapper(){}
         public MessageHandlerWrapper(
             IServiceScopeFactory serviceScopeFactory,
             Type handlerType,
@@ -28,18 +27,13 @@ namespace Core.Messaging
             }
         }
 
+        public IMessageHandler Handler => _handler ?? GetIocMessageHandler();
+
         public Type HandlerType => _handlerType;
 
         public Type BaseHandlerType => _baseHandlerType;
 
         public int HandlerPriority { get; }
-
-        public Task HandlerAsync(IMessage message)
-        {
-            return _handler != null
-                ? _handler.HandAsync(message as TMessage)
-                : GetIocMessageHandler().HandAsync(message as TMessage);
-        }
 
         private IMessageHandler<TMessage> GetIocMessageHandler()
         {

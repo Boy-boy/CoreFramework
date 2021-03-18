@@ -4,7 +4,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <Description>asp net core basic framework</Description>
     <Authors>gaobo</Authors>
-    <Version>3.1.9.4</Version>
+    <Version>3.1.9.11</Version>
     <PackageProjectUrl>https://github.com/Boy-boy/CoreFramework</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
@@ -16,7 +16,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Core.Ddd.Domain\Core.Ddd.Domain.csproj" />
-    <ProjectReference Include="..\Core.EntityFrameworkCore.Sharding\Core.EntityFrameworkCore.Sharding.csproj" />
     <ProjectReference Include="..\Core.Json\Core.Json.csproj" />
     <ProjectReference Include="..\Core.Uow\Core.Uow.csproj" />
   </ItemGroup>

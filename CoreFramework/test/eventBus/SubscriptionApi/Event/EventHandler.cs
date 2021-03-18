@@ -1,15 +1,15 @@
-﻿using Core.EventBus.Abstraction;
+﻿using Core.EventBus;
 using System;
 using System.Threading.Tasks;
 
 namespace SubscriptionApi.Event
 {
-    public class EventHandler : IIntegrationEventHandler<CustomerEvent>
+    public class EventHandler : IMessageHandler<CustomerEvent>
     {
-        public Task Handle(CustomerEvent @event)
+        public Task HandAsync(CustomerEvent message)
         {
-           Console.WriteLine(@event.Id);
-           return Task.CompletedTask;
+            Console.WriteLine(message.Id);
+            return Task.CompletedTask;
         }
     }
 }

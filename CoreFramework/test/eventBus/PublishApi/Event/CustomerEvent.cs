@@ -2,8 +2,8 @@
 
 namespace PublishApi.Event
 {
-    [EventName("customer")]
-    public class CustomerEvent:IntegrationEvent
+    [MessageName("customer")]
+    public class CustomerEvent:Message
     {
     }
 }

@@ -84,23 +84,6 @@ namespace Core.Ddd.Domain.Repositories
             return _repository.FindAsync(expression, cancellationToken);
         }
 
-        public void ChangeConnection(string connection, string schema)
-        {
-            _repository.ChangeConnection(connection, schema);
-        }
-        public void ChangeDatabase(string database, string schema)
-        {
-            _repository.ChangeDatabase(database, schema);
-        }
-
-        public void ChangeSchema(string schema)
-        {
-            _repository.ChangeSchema(schema);
-        }
-        public void ChangeTable(string tableName)
-        {
-            _repository.ChangeTable(tableName);
-        }
         public IQueryable<TAggregateRoot> GetQueryable()
         {
             return _repository.GetQueryable();

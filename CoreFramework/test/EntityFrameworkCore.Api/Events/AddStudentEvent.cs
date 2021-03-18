@@ -3,7 +3,7 @@ using Core.EventBus;
 
 namespace EntityFrameworkCore.Api.Events
 {
-    [EventName("customer")]
+    [MessageName("customer")]
     public class AddStudentEvent: AggregateRootEvent
     {
         public string AggregateRootId{ get; set; }

@@ -1,21 +1,18 @@
-﻿using System;
-using System.Linq;
-using Core.Modularity.Abstraction;
-using Microsoft.Extensions.Configuration;
+﻿using Core.Modularity.Abstraction;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
+using System;
 
 namespace Core.Modularity
 {
     public static class CoreFrameworkServiceCollectionExtensions
     {
-        public static void AddApplicationManager<T>(this IServiceCollection service)
+        public static void ConfigureServiceCollection<T>(this IServiceCollection service)
         where T : ICoreModule
         {
-            AddApplicationManager(service, typeof(T));
+            ConfigureServiceCollection(service, typeof(T));
         }
 
-        public static void AddApplicationManager(this IServiceCollection service, Type startupModuleType)
+        public static void ConfigureServiceCollection(this IServiceCollection service, Type startupModuleType)
         {
             CoreApplicationManagerFactory.CreateCoreApplication(startupModuleType, service);
         }

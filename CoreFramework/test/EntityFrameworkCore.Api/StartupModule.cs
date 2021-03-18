@@ -1,4 +1,6 @@
 ﻿using Core.EntityFrameworkCore;
+using Core.EventBus.RabbitMQ;
+using Core.EventBus.SqlServer;
 using Core.Modularity;
 using Core.Modularity.Attribute;
 using Microsoft.AspNetCore.Builder;
@@ -9,7 +11,9 @@ using Microsoft.Extensions.Hosting;
 
 namespace EntityFrameworkCore.Api
 {
-    [DependsOn(typeof(CoreEfCoreModule))]
+    [DependsOn(typeof(CoreEfCoreModule),
+        typeof(CoreEventBusRabbitMqModule)
+       /* typeof(CoreEventBusSqlServerModule)*/)]
     public class StartupModule : CoreModuleBase
     {
         public StartupModule(IConfiguration configuration)
@@ -18,13 +22,14 @@ namespace EntityFrameworkCore.Api
         }
 
         public IConfiguration Configuration { get; }
+
         public override void ConfigureServices(ServiceCollectionContext context)
         {
             context.Services.AddControllers();
-            context.Services.AddShardingDbContext<CustomerDbContext>(options =>
-             {
-                 options.UseSqlServer(Configuration.GetConnectionString("Customer"));
-             });
+            context.Services.AddDbContext<CustomerDbContext>(options =>
+            {
+                options.UseSqlServer(Configuration.GetConnectionString("customer"));
+            });
         }
 
         public override void Configure(ApplicationBuilderContext context)

@@ -1,9 +1,10 @@
 ﻿using System.Threading.Tasks;
 
-namespace Core.Messaging
+namespace Core.EventBus
 {
     public interface IMessagePublisher
     {
-        Task PublishAsync(IMessage message);
+        Task PublishAsync<T>(T message)
+            where T: class, IMessage;
     }
 }

@@ -1,11 +1,10 @@
 ﻿using System;
-using System.Threading.Tasks;
 
-namespace Core.Messaging
+namespace Core.EventBus
 {
     public interface IMessageHandlerWrapper
     {
-        Task HandlerAsync(IMessage message);
+        IMessageHandler Handler { get; }
 
         Type HandlerType { get; }
 

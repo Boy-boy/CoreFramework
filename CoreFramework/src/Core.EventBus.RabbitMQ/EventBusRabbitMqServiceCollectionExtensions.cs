@@ -1,17 +1,18 @@
-﻿using Core.EventBus.Abstraction;
-using Core.EventBus.RabbitMQ;
+﻿using Core.EventBus.RabbitMQ;
+using Core.EventBus;
 using System;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
     public static class EventBusRabbitMqServiceCollectionExtensions
     {
-        public static IServiceCollection AddEventBusRabbitMq(this IServiceCollection services, Action<EventBusRabbitMqOptions> configure=null)
+        public static EventBusBuilder AddRabbitMq(this EventBusBuilder builder, Action<EventBusRabbitMqOptions> options = null)
         {
-            services.AddSingleton<IEventBus, EventBusRabbitMq>();
-            if (configure == null) return services;
-            services.Configure(configure);
-            return services;
+            builder.Service.AddSingleton<IMessagePublisher, RabbitMqMessagePublisher>();
+            builder.Service.AddSingleton<IMessageSubscribe, RabbitMqMessageSubscribe>();
+            if (options == null) return builder;
+            builder.Service.Configure(options);
+            return builder;
         }
     }
 }

@@ -3,17 +3,12 @@ using Core.Ddd.Domain.Repositories;
 using Core.EntityFrameworkCore.UnitOfWork;
 using Core.Uow;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata;
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Linq;
 using System.Linq.Expressions;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using Core.EntityFrameworkCore.Sharding;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace Core.EntityFrameworkCore.Repositories
 {
@@ -21,7 +16,7 @@ namespace Core.EntityFrameworkCore.Repositories
         where TEntity : class, IEntity
     {
         private readonly IUnitOfWork _unitOfWork;
-        protected DbContext DbContext;
+        public DbContext DbContext;
         protected DbSet<TEntity> DbSet;
 
         public Repository(IUnitOfWork unitOfWork)
@@ -34,38 +29,6 @@ namespace Core.EntityFrameworkCore.Repositories
             DbContext = dbContext as DbContext ?? throw new Exception("failed to initialize db context,repository could not work without dbContext");
             DbSet = DbContext.Set<TEntity>();
             (_unitOfWork as EfCoreUnitOfWork)?.RegisterCoreDbContext(DbContext);
-        }
-
-        public void ChangeConnection(string connection, string schema)
-        {
-            if (DbContext is CoreShardingDbContext coreShardingDbContext)
-            {
-                coreShardingDbContext.ChangeConnection(connection, schema);
-            }
-        }
-
-        public void ChangeDatabase(string database, string schema)
-        {
-            if (DbContext is CoreShardingDbContext coreShardingDbContext)
-            {
-                coreShardingDbContext.ChangeDatabase(database, schema);
-            }
-        }
-
-        public void ChangeSchema(string schema)
-        {
-            if (DbContext is CoreShardingDbContext coreShardingDbContext)
-            {
-                coreShardingDbContext.ChangeSchema<TEntity>(schema);
-            }
-        }
-
-        public void ChangeTable(string tableName)
-        {
-            if (DbContext is CoreShardingDbContext coreShardingDbContext)
-            {
-                coreShardingDbContext.ChangeTable<TEntity>(tableName);
-            }
         }
 
         public IQueryable<TEntity> GetQueryable()

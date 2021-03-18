@@ -1,14 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace Core.Messaging
+namespace Core.EventBus
 {
     public interface IMessageHandlerProvider
     {
-        IEnumerable<IMessageHandlerWrapper> GetHandlers(Type messageType);
+        IEnumerable<IMessageHandler> GetHandlers<TMessage>()
+            where TMessage:class,IMessage;
 
-        void AddHandler(Type messageType, Type handlerType);
-
-        void RemoveHandler(Type messageType, Type handlerType);
+        IEnumerable<IMessageHandler> GetHandlers(Type messageType);
     }
 }

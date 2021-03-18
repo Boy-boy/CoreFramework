@@ -1,14 +1,14 @@
-﻿using Core.EventBus.Abstraction;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 
 namespace Core.EventBus.Local
 {
     public static class EventBusLocalCollectionExtensions
     {
-        public static IServiceCollection AddLocal(this IServiceCollection services)
+        public static EventBusBuilder AddLocalMq(this EventBusBuilder builder)
         {
-            services.AddSingleton<IEventBus, EventBusLocal>();
-            return services;
+            builder.Service.AddSingleton<IMessagePublisher, LocalMessagePublisher>();
+            builder.Service.AddSingleton<IMessageSubscribe, LocalMessageSubscribe>();
+            return builder;
         }
     }
 }

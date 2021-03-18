@@ -75,6 +75,11 @@ namespace Core.ElasticSearch
 
         public void Dispose()
         {
+            if (_elasticClients == null || _elasticClients.Count <= 0) return;
+            foreach (var clientTrackingEntry in _elasticClients.Values)
+            {
+                clientTrackingEntry.Value.StopExpiryTimer();
+            }
             _elasticClients.Clear();
         }
     }

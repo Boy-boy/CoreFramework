@@ -5,17 +5,15 @@ namespace Core.EventBus.RabbitMQ
 {
     public class EventBusRabbitMqOptions
     {
-        public RabbitMqPublishConfigure RabbitMqPublishConfigure { get; set; }
+        public RabbitMqPublishConfigure RabbitMqPublishConfigure { get; }
 
-
-        public List<RabbitMqSubscribeConfigure> RabbitSubscribeConfigures { get; set; }
+        public List<RabbitMqSubscribeConfigure> RabbitSubscribeConfigures { get; }
 
         public EventBusRabbitMqOptions()
         {
             RabbitMqPublishConfigure = new RabbitMqPublishConfigure();
             RabbitSubscribeConfigures = new List<RabbitMqSubscribeConfigure>();
         }
-
 
         public EventBusRabbitMqOptions AddPublishConfigure(Action<RabbitMqPublishConfigure> configureOptions = null)
         {

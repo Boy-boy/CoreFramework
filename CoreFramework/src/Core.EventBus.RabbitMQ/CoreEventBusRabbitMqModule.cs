@@ -5,12 +5,15 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Core.EventBus.RabbitMQ
 {
-    [DependsOn(typeof(CoreEventBusModule), typeof(CoreRabbitMqModule))]
+    [DependsOn(
+        typeof(CoreEventBusModule),
+        typeof(CoreRabbitMqModule))]
     public class CoreEventBusRabbitMqModule : CoreModuleBase
     {
         public override void ConfigureServices(ServiceCollectionContext context)
         {
-            context.Services.AddEventBusRabbitMq();
+            context.Items.TryGetValue(nameof(EventBusBuilder), out var eventBusBuilder);
+            ((EventBusBuilder)eventBusBuilder).AddRabbitMq();
         }
     }
 }

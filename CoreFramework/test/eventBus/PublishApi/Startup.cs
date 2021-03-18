@@ -15,15 +15,33 @@ namespace PublishApi
 
         public IConfiguration Configuration { get; }
 
-      
+
         public void ConfigureServices(IServiceCollection services)
-        { 
-            services.AddApplicationManager<StartupModule>();
+        {
+            #region eventbus使用方式一
+            //services.AddEventBus()
+            //    .AddRabbitMq(options =>
+            //    {
+            //        //配置消息对应的Exchange（若不配置，则使用默认的）
+            //        options.AddPublishConfigure(configureOptions =>
+            //        {
+            //            configureOptions.ExchangeName = RabbitMqConst.DefaultExchangeName;
+            //        });
+            //    })
+            //    .AddSqlServer(options =>
+            //    {
+            //        options.ConnectionString = Configuration.GetConnectionString("customer");
+            //    });
+            //services.Configure<RabbitMqOptions>(Configuration.GetSection("RabbitMq"));
+            //services.AddRabbitMq();
+            #endregion
+
+            services.ConfigureServiceCollection<StartupModule>();
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
-            app.InitializationApplicationBuilder();
+            app.BuildApplicationBuilder();
         }
     }
 }

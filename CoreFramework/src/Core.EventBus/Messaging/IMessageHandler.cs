@@ -1,6 +1,6 @@
 ﻿using System.Threading.Tasks;
 
-namespace Core.Messaging
+namespace Core.EventBus
 {
     public interface IMessageHandler
     {

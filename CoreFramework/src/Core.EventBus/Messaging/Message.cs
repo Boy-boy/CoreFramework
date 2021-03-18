@@ -2,7 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 
-namespace Core.Messaging
+namespace Core.EventBus
 {
     public class Message : IMessage
     {

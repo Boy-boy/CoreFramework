@@ -1,6 +1,6 @@
 ﻿using Core.Ddd.Domain.Entities;
-using Core.Ddd.Domain.Events;
-using Core.EventBus.Abstraction;
+using Core.EventBus;
+using Core.EventBus.Transaction;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,30 +8,48 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Core.EntityFrameworkCore.Sharding;
 
 namespace Core.EntityFrameworkCore
 {
-    public class CoreDbContext : CoreShardingDbContext
+    public class CoreDbContext : DbContext
     {
         public CoreDbContext(DbContextOptions options)
             : base(options)
         {
             var serviceProvider = options.FindExtension<CoreOptionsExtension>().ApplicationServiceProvider;
-            var eventBus = serviceProvider.GetService<IEventBus>();
-            EntityChangeEvent = new EntityChangeEventPublish(eventBus);
+            MessagePublisher = serviceProvider.GetService<IMessagePublisher>();
         }
-
-        protected EntityChangeEventPublish EntityChangeEvent { get; set; }
-
-        public DbSet<Event> Events { get; set; }
+        private IMessagePublisher MessagePublisher { get; }
 
         public override int SaveChanges(bool acceptAllChangesOnSuccess)
         {
             var events = GetDomainEvents();
-            TrackingEventEntities(events);
-            var result = base.SaveChanges(acceptAllChangesOnSuccess);
-            EntityChangeEvent.PublishAggregateRootEvents(events);
+            var result = events.Count;
+            if (events.Count > 0 && MessagePublisher != null)
+            {
+                using (var transaction = (TransactionBase)Database.BeginTransaction(MessagePublisher))
+                {
+                    if (transaction == null)
+                    {
+                        result = base.SaveChanges(acceptAllChangesOnSuccess);
+                        foreach (var item in events)
+                        {
+                            MessagePublisher.PublishAsync(item).GetAwaiter().GetResult();
+                        }
+                    }
+                    else
+                    {
+                        foreach (var item in events)
+                        {
+                            MessagePublisher.PublishAsync(item).GetAwaiter().GetResult();
+                        }
+                        result += base.SaveChanges(acceptAllChangesOnSuccess);
+                        transaction.Commit();
+                    }
+                }
+                return result;
+            }
+            result = base.SaveChanges(acceptAllChangesOnSuccess);
             return result;
         }
 
@@ -39,15 +57,38 @@ namespace Core.EntityFrameworkCore
             CancellationToken cancellationToken = default)
         {
             var events = GetDomainEvents();
-            TrackingEventEntities(events);
-            var result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
-            EntityChangeEvent.PublishAggregateRootEvents(events);
+            var result = events.Count;
+            if (events.Count > 0 && MessagePublisher != null)
+            {
+                using (var transaction = (TransactionBase)Database.BeginTransaction(MessagePublisher))
+                {
+                    if (transaction == null)
+                    {
+                        result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+                        foreach (var item in events)
+                        {
+                            await MessagePublisher.PublishAsync(item);
+                        }
+                    }
+                    else
+                    {
+                        foreach (var item in events)
+                        {
+                            await MessagePublisher.PublishAsync(item);
+                        }
+                        result += await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+                        await transaction.CommitAsync(cancellationToken);
+                    }
+                }
+                return result;
+            }
+            result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
             return result;
         }
 
-        protected virtual List<AggregateRootEvent> GetDomainEvents()
+        protected virtual List<IMessage> GetDomainEvents()
         {
-            var events = new List<AggregateRootEvent>();
+            var events = new List<IMessage>();
             foreach (var entry in ChangeTracker.Entries().ToList())
             {
                 if (!(entry.Entity is AggregateRoot domainEntity)) continue;
@@ -58,21 +99,5 @@ namespace Core.EntityFrameworkCore
             }
             return events;
         }
-
-        private void TrackingEventEntities(List<AggregateRootEvent> events)
-        {
-            events = events ?? new List<AggregateRootEvent>();
-            foreach (var @event in events)
-            {
-                Add(new Event(@event));
-            }
-        }
-
-        public override void Dispose()
-        {
-            base.Dispose();
-            EntityChangeEvent = null;
-        }
-
     }
 }

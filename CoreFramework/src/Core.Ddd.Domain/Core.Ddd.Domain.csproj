@@ -7,15 +7,14 @@
     <Product />
     <Description>asp net core basic framework</Description>
     <PackageProjectUrl>https://github.com/Boy-boy/CoreFramework</PackageProjectUrl>
-    <AssemblyVersion>3.1.9.1</AssemblyVersion>
-    <FileVersion>3.1.9.1</FileVersion>
-    <Version>3.1.9.1</Version>
+    <AssemblyVersion>3.1.9.11</AssemblyVersion>
+    <FileVersion>3.1.9.11</FileVersion>
+    <Version>3.1.9.11</Version>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Core.EventBus\Core.EventBus.csproj" />
-    <ProjectReference Include="..\Core.Json\Core.Json.csproj" />
   </ItemGroup>
 
 </Project>

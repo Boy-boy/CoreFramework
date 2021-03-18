@@ -9,20 +9,19 @@ using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace Core.EntityFrameworkCore.Sharding
 {
-    public class CoreShardingDbContext : DbContext
+    public class CoreShardingDbContext : CoreDbContext
     {
         public CoreShardingDbContext(DbContextOptions options)
             : base(options)
         {
         }
 
-        public void ChangeConnection(string connection, string schema)
+        public void ChangeConnection(string connection)
         {
             Database.GetDbConnection().ConnectionString = connection;
-            ChangeAllSchema(schema);
         }
 
-        public void ChangeDatabase(string database, string schema)
+        public void ChangeDatabase(string database)
         {
             if (string.IsNullOrEmpty(database))
             {
@@ -38,7 +37,6 @@ namespace Core.EntityFrameworkCore.Sharding
                 var connectionString = Regex.Replace(connection.ConnectionString, @"(?<=[Dd]atabase=)\w+(?=;)", database, RegexOptions.Singleline);
                 connection.ConnectionString = connectionString;
             }
-            ChangeAllSchema(schema);
         }
 
         public void ChangeAllSchema(string schema)

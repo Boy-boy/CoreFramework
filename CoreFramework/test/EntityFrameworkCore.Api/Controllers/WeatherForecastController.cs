@@ -51,15 +51,8 @@ namespace EntityFrameworkCore.Api.Controllers
         [HttpGet("add")]
         public async Task<string> Add(int i)
         {
-            if (i % 2 == 0)
-            {
-                _repository.ChangeDatabase("customer","dbo");
-            }
-            else
-            {
-                _repository.ChangeDatabase("customer1", "dbo");
-            }
-            var student = new Student("张三", 23);
+            var student = new Student("张三", 24);
+            student.AddEvent(new AddStudentEvent{AggregateRootId = student.Id});
             _repository.Add(student);
             await _unitOfWork.CommitAsync();
             return "ok";

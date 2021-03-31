@@ -43,7 +43,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Core.EntityFrameworkCore.Sh
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Core.EventBus.SqlServer", "src\Core.EventBus.SqlServer\Core.EventBus.SqlServer.csproj", "{2B1A2B4B-89B1-4621-BC1E-1FC5C0AC4409}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.EventBus.Mysql", "src\Core.EventBus.Mysql\Core.EventBus.Mysql.csproj", "{0268C65F-803A-4021-A815-17876599FA3E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Core.EventBus.Mysql", "src\Core.EventBus.Mysql\Core.EventBus.Mysql.csproj", "{0268C65F-803A-4021-A815-17876599FA3E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.EventBus.PostgreSql", "src\Core.EventBus.PostgreSql\Core.EventBus.PostgreSql.csproj", "{7B7883C4-2233-4760-8C40-B0DD9330E117}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -119,6 +121,10 @@ Global
 		{0268C65F-803A-4021-A815-17876599FA3E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0268C65F-803A-4021-A815-17876599FA3E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0268C65F-803A-4021-A815-17876599FA3E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7B7883C4-2233-4760-8C40-B0DD9330E117}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7B7883C4-2233-4760-8C40-B0DD9330E117}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7B7883C4-2233-4760-8C40-B0DD9330E117}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7B7883C4-2233-4760-8C40-B0DD9330E117}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -143,6 +149,7 @@ Global
 		{98EB7C35-1A86-4483-827F-AD0E32042F5B} = {03EFE65F-3027-40EA-A790-7C8D31C11E18}
 		{2B1A2B4B-89B1-4621-BC1E-1FC5C0AC4409} = {03EFE65F-3027-40EA-A790-7C8D31C11E18}
 		{0268C65F-803A-4021-A815-17876599FA3E} = {03EFE65F-3027-40EA-A790-7C8D31C11E18}
+		{7B7883C4-2233-4760-8C40-B0DD9330E117} = {03EFE65F-3027-40EA-A790-7C8D31C11E18}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {67653D37-9D27-4AD4-9F01-DB21CA3B5835}

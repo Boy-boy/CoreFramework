@@ -1,5 +1,6 @@
 ﻿using Core.Uow;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,10 +20,10 @@ namespace Core.EntityFrameworkCore.UnitOfWork
             DbContexts.ForEach(dbContext => dbContext.SaveChanges());
         }
 
-        public Task CommitAsync()
+        public Task CommitAsync(CancellationToken cancellationToken = default)
         {
             var tasks = new List<Task<int>>();
-            DbContexts.ForEach(dbContext => tasks.Add(dbContext.SaveChangesAsync()));
+            DbContexts.ForEach(dbContext => tasks.Add(dbContext.SaveChangesAsync(cancellationToken)));
             return Task.WhenAll(tasks);
         }
 

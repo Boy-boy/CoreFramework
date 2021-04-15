@@ -189,6 +189,12 @@
         }
 
         public IConfiguration Configuration { get; }
+        
+        public override void PreConfigureServices(ServiceCollectionContext context)
+        {
+            context.Items.Add(nameof(CustomerDbContext), typeof(CustomerDbContext));     
+        }
+        
         public override void ConfigureServices(ServiceCollectionContext context)
         {
             context.Services.AddControllers();
@@ -297,7 +303,19 @@ public class Startup
 
         public void ConfigureServices(IServiceCollection services)
         {
-          services.AddEntityFrameworkRepository();
+         //方式一
+          services.AddDbContextAndEfRepositories<CustomerDbContext>(options =>
+          {
+              options.UseInMemoryDatabase("customer");
+          });
+          
+          //方式二
+           services.AddDbContext<CustomerDbContext>(options =>
+          {
+              options.UseInMemoryDatabase("customer");
+          })
+          .AddEfRepositories<CustomerDbContext>()
+          .AddUnitOfWork();
         }   
     }
 ```

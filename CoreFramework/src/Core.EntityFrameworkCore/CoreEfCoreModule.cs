@@ -1,4 +1,7 @@
-﻿using Core.Modularity;
+﻿using System;
+using System.Linq;
+using Core.Modularity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Core.EntityFrameworkCore
@@ -7,7 +10,16 @@ namespace Core.EntityFrameworkCore
     {
         public override void ConfigureServices(ServiceCollectionContext context)
         {
-            context.Services.AddEntityFrameworkRepository();
+            var dbContextTypes = context.Items.Values
+                .Select(value => value as Type)
+                .Where(value => typeof(DbContext).IsAssignableFrom(value))
+                .Distinct()
+                .ToList();
+            dbContextTypes.ForEach(dbContextType =>
+            {
+                context.Services.AddEfRepositories(dbContextType);
+            });
+            context.Services.AddUnitOfWork();
         }
     }
 }

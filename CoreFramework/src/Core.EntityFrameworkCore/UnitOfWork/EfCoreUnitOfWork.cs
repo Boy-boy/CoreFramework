@@ -14,7 +14,7 @@ namespace Core.EntityFrameworkCore.UnitOfWork
         {
             DbContexts = new List<DbContext>(); ;
         }
-
+        
         public void Commit()
         {
             DbContexts.ForEach(dbContext => dbContext.SaveChanges());

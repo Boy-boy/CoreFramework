@@ -3,6 +3,7 @@ using Core.EventBus.RabbitMQ;
 using Core.EventBus.SqlServer;
 using Core.Modularity;
 using Core.Modularity.Attribute;
+using EntityFrameworkCore.Api.Entities;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -23,13 +24,26 @@ namespace EntityFrameworkCore.Api
 
         public IConfiguration Configuration { get; }
 
+        public override void PreConfigureServices(ServiceCollectionContext context)
+        {
+            context.Items.Add(nameof(CustomerDbContext), typeof(CustomerDbContext));
+
+            //方式一
+            context.Services.AddDbContext<CustomerDbContext>(options =>
+            {
+                options.UseInMemoryDatabase("customer");
+            });
+        }
+
         public override void ConfigureServices(ServiceCollectionContext context)
         {
             context.Services.AddControllers();
-            context.Services.AddDbContext<CustomerDbContext>(options =>
-            {
-                options.UseSqlServer(Configuration.GetConnectionString("customer"));
-            });
+
+            //方式二
+            //context.Services.AddDbContextAndEfRepositories<CustomerDbContext>(options =>
+            //{
+            //    options.UseInMemoryDatabase("customer");
+            //});
         }
 
         public override void Configure(ApplicationBuilderContext context)

@@ -7,10 +7,10 @@ namespace Core.EntityFrameworkCore.Repositories
 {
     public static class QueryableExtensions
     {
-        public static IQueryable<TEntity> IfWhere<TEntity>(this IQueryable<TEntity> queryable, Expression<Func<TEntity, bool>> expression, bool hasValue)
+        public static IQueryable<TEntity> Where<TEntity>(this IQueryable<TEntity> queryable, Expression<Func<TEntity, bool>> predicate, bool applyPredicate)
             where TEntity : IEntity
         {
-            return hasValue ? queryable.Where(expression) : queryable;
+            return applyPredicate ? queryable.Where(predicate) : queryable;
         }
     }
 }

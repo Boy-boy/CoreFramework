@@ -15,8 +15,6 @@ namespace Core.Ddd.Domain.Repositories
     public interface IRepository<TEntity> : IRepository
         where TEntity : class, IEntity
     {
-        void InitialDbContext(object dbContext);
-
         IQueryable<TEntity> GetQueryable();
 
         void Add(IEnumerable<TEntity> entities);

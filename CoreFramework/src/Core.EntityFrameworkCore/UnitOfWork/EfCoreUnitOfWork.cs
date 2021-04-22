@@ -1,38 +1,30 @@
 ﻿using Core.Uow;
-using System.Collections.Generic;
+using Microsoft.EntityFrameworkCore;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
 
 namespace Core.EntityFrameworkCore.UnitOfWork
 {
-    public class EfCoreUnitOfWork : IUnitOfWork
+    public class EfCoreUnitOfWork<TDbContext> : IUnitOfWork
+    where TDbContext : DbContext
     {
-        public List<DbContext> DbContexts { get; }
+        private readonly TDbContext _dbContext;
 
-        public EfCoreUnitOfWork()
+        public EfCoreUnitOfWork(TDbContext dbContext)
         {
-            DbContexts = new List<DbContext>(); ;
+            _dbContext = dbContext;
         }
-        
+
+        public TDbContext DbContext => _dbContext;
+
         public void Commit()
         {
-            DbContexts.ForEach(dbContext => dbContext.SaveChanges());
+            _dbContext.SaveChanges();
         }
 
         public Task CommitAsync(CancellationToken cancellationToken = default)
         {
-            var tasks = new List<Task<int>>();
-            DbContexts.ForEach(dbContext => tasks.Add(dbContext.SaveChangesAsync(cancellationToken)));
-            return Task.WhenAll(tasks);
-        }
-
-        public void RegisterCoreDbContext(DbContext coreDbContext)
-        {
-            if (!DbContexts.Exists(dbCtx => dbCtx.Equals(coreDbContext)))
-            {
-                DbContexts.Add(coreDbContext);
-            }
+            return _dbContext.SaveChangesAsync(cancellationToken);
         }
     }
 }

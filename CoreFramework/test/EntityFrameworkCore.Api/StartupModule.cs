@@ -26,24 +26,34 @@ namespace EntityFrameworkCore.Api
 
         public override void PreConfigureServices(ServiceCollectionContext context)
         {
-            context.Items.Add(nameof(CustomerDbContext), typeof(CustomerDbContext));
-
             //方式一
-            context.Services.AddDbContext<CustomerDbContext>(options =>
-            {
-                options.UseInMemoryDatabase("customer");
-            });
+            context.Items.Add(nameof(CustomerDbContext), typeof(CustomerDbContext));
         }
 
         public override void ConfigureServices(ServiceCollectionContext context)
         {
             context.Services.AddControllers();
 
+            //方式一
+            context.Services.AddDbContext<CustomerDbContext>(options =>
+            {
+                options.UseInMemoryDatabase("customer");
+            });
+
             //方式二
-            //context.Services.AddDbContextAndEfRepositories<CustomerDbContext>(options =>
+            //context.Services
+            //    .AddDbContextAndEfRepositories<CustomerDbContext>(options =>
             //{
             //    options.UseInMemoryDatabase("customer");
             //});
+
+            //方式三
+            //context.Services
+            //    .AddDbContext<CustomerDbContext>(options =>
+            //{
+            //    options.UseInMemoryDatabase("customer");
+            //})
+            //    .AddRepositories<CustomerDbContext>();
         }
 
         public override void Configure(ApplicationBuilderContext context)

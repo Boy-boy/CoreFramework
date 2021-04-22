@@ -16,15 +16,15 @@ namespace EntityFrameworkCore.Api.Controllers
     {
         private readonly ILogger<WeatherForecastController> _logger;
         private readonly IRepository<Student> _repository;
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly IUnitOfWorkManager _unitOfWorkManager;
 
         public WeatherForecastController(ILogger<WeatherForecastController> logger,
            IRepository<Student> repository,
-           IUnitOfWork unitOfWork)
+           IUnitOfWorkManager unitOfWorkManager)
         {
             _logger = logger;
             _repository = repository;
-            _unitOfWork = unitOfWork;
+            _unitOfWorkManager = unitOfWorkManager;
         }
 
         [HttpGet]
@@ -39,7 +39,7 @@ namespace EntityFrameworkCore.Api.Controllers
             var student = new Student("张三", 24);
             student.AddEvent(new AddStudentEvent { AggregateRootId = student.Id });
             _repository.Add(student);
-            await _unitOfWork.CommitAsync();
+            await _unitOfWorkManager[typeof(CustomerDbContext).FullName].CommitAsync();
             return await _repository.FindAsync(s => s.Id == student.Id);
         }
 

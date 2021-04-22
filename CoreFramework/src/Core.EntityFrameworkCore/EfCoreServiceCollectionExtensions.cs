@@ -1,8 +1,6 @@
 ﻿using Core.Ddd.Domain.Entities;
 using Core.Ddd.Domain.Repositories;
 using Core.EntityFrameworkCore.Repositories;
-using Core.EntityFrameworkCore.UnitOfWork;
-using Core.Uow;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using System;
@@ -20,24 +18,17 @@ namespace Microsoft.Extensions.DependencyInjection
             where TDbContext : DbContext
         {
             services.AddDbContext<TDbContext>(optionsAction)
-                .AddEfRepositories<TDbContext>()
-                .AddUnitOfWork();
+                .AddRepositories<TDbContext>();
             return services;
         }
 
-        public static IServiceCollection AddUnitOfWork(this IServiceCollection services)
-        {
-            services.TryAddScoped(typeof(IUnitOfWork), typeof(EfCoreUnitOfWork));
-            return services;
-        }
-
-        public static IServiceCollection AddEfRepositories<TDbContext>(this IServiceCollection services)
+        public static IServiceCollection AddRepositories<TDbContext>(this IServiceCollection services)
           where TDbContext : DbContext
         {
-            return services.AddEfRepositories(typeof(TDbContext));
+            return services.AddRepositories(typeof(TDbContext));
         }
 
-        public static IServiceCollection AddEfRepositories(this IServiceCollection services, Type dbContextType)
+        public static IServiceCollection AddRepositories(this IServiceCollection services, Type dbContextType)
         {
             if (!typeof(DbContext).IsAssignableFrom(dbContextType))
                 throw new ArgumentException($"parameter type error,the type must inherit from [{nameof(DbContext)}]");
@@ -45,19 +36,19 @@ namespace Microsoft.Extensions.DependencyInjection
             var entityTypes = GetEntityTypes(dbContextType);
             foreach (var entityType in entityTypes)
             {
-                services.AddEfRepository(entityType, dbContextType);
+                services.AddRepositories(entityType, dbContextType);
             }
             return services;
         }
 
-        public static IServiceCollection AddEfRepository<TEntity, TDbContext>(this IServiceCollection services)
+        public static IServiceCollection AddRepositories<TEntity, TDbContext>(this IServiceCollection services)
             where TEntity : class, IEntity
             where TDbContext : DbContext
         {
-            return services.AddEfRepository(typeof(TEntity), typeof(TDbContext));
+            return services.AddRepositories(typeof(TEntity), typeof(TDbContext));
         }
 
-        public static IServiceCollection AddEfRepository(this IServiceCollection services, Type entityType, Type dbContextType)
+        public static IServiceCollection AddRepositories(this IServiceCollection services, Type entityType, Type dbContextType)
         {
             if (!typeof(IEntity).IsAssignableFrom(entityType))
                 throw new ArgumentException($"parameter type error,the type must inherit from [{nameof(IEntity)}]");

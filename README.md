@@ -307,7 +307,7 @@ public class Startup
           services.AddDbContextAndEfRepositories<CustomerDbContext>(options =>
           {
               options.UseInMemoryDatabase("customer");
-          });
+          }) .AddUnitOfWork();
           
           //方式二
            services.AddDbContext<CustomerDbContext>(options =>

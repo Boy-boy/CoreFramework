@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Core.EntityFrameworkCore.UnitOfWork;
 using Core.Uow;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Core.EntityFrameworkCore.Repositories
 {
@@ -20,11 +21,17 @@ namespace Core.EntityFrameworkCore.Repositories
         private readonly DbContext _dbContext;
         private readonly DbSet<TEntity> _dbSet;
 
-        public EfCoreRepository(TDbContext dbContext, IUnitOfWork unitOfWork)
+        public EfCoreRepository(IServiceProvider serviceProvider, IUnitOfWorkManager unitOfWorkManager)
         {
-            _dbContext = dbContext;
-            _dbSet = dbContext.Set<TEntity>();
-            (unitOfWork as EfCoreUnitOfWork)?.RegisterCoreDbContext(dbContext);
+            if (!unitOfWorkManager.TryGetUnitOfWork(typeof(TDbContext).FullName, out var unitOfWork))
+            {
+                var unitOfWorkType = typeof(EfCoreUnitOfWork<>).MakeGenericType(typeof(TDbContext));
+                unitOfWork = (IUnitOfWork)ActivatorUtilities.CreateInstance(serviceProvider, unitOfWorkType);
+                unitOfWorkManager.TryAddUnitOfWork(typeof(TDbContext).FullName, unitOfWork);
+            }
+            var unitOfWork1 = (EfCoreUnitOfWork<TDbContext>)unitOfWork;
+            _dbContext = unitOfWork1.DbContext;
+            _dbSet = unitOfWork1.DbContext.Set<TEntity>();
         }
 
         public DbContext GetDbContext()
@@ -186,8 +193,8 @@ namespace Core.EntityFrameworkCore.Repositories
         where TDbContext : DbContext
         where TEntity : class, IEntity<TKey>
     {
-        public EfCoreRepository(TDbContext dbContext,IUnitOfWork unitOfWork)
-        : base(dbContext, unitOfWork)
+        public EfCoreRepository(IServiceProvider serviceProvider, IUnitOfWorkManager unitOfWorkManager)
+        : base(serviceProvider, unitOfWorkManager)
         {
         }
 

@@ -23,11 +23,12 @@ namespace Core.EntityFrameworkCore.Repositories
 
         public EfCoreRepository(IServiceProvider serviceProvider, IUnitOfWorkManager unitOfWorkManager)
         {
-            if (!unitOfWorkManager.TryGetUnitOfWork(typeof(TDbContext).FullName, out var unitOfWork))
+            var dbContextName = DbContextNameAttribute.GetNameOrDefault(typeof(TDbContext));
+            if (!unitOfWorkManager.TryGetUnitOfWork(dbContextName, out var unitOfWork))
             {
                 var unitOfWorkType = typeof(EfCoreUnitOfWork<>).MakeGenericType(typeof(TDbContext));
                 unitOfWork = (IUnitOfWork)ActivatorUtilities.CreateInstance(serviceProvider, unitOfWorkType);
-                unitOfWorkManager.TryAddUnitOfWork(typeof(TDbContext).FullName, unitOfWork);
+                unitOfWorkManager.TryAddUnitOfWork(dbContextName, unitOfWork);
             }
             var unitOfWork1 = (EfCoreUnitOfWork<TDbContext>)unitOfWork;
             _dbContext = unitOfWork1.DbContext;

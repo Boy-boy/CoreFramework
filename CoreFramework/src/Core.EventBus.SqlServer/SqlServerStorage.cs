@@ -31,9 +31,14 @@ namespace Core.EventBus.SqlServer
         {
             if (cancellationToken.IsCancellationRequested) return;
             var sql = $@"
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = '{_options.Value.PublishMessageTableName}')
+IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = '{_options.Value.DbSchema}')
 BEGIN
-CREATE TABLE [{_options.Value.PublishMessageTableName}](
+	EXEC('CREATE SCHEMA [{_options.Value.DbSchema}]')
+END;
+
+IF OBJECT_ID(N'{GetTableName()}',N'U') IS NULL
+BEGIN
+CREATE TABLE [{GetTableName()}](
 	[Id] [varchar](200) NOT NULL PRIMARY KEY,
     [Version] [int] NOT NULL,
 	[MessageType] [text] NOT NULL,
@@ -42,10 +47,10 @@ CREATE TABLE [{_options.Value.PublishMessageTableName}](
 	[UtcTime] [datetime2](6) NOT NULL
 	)
 END;";
-            using (var connection = new SqlConnection(_options.Value.ConnectionString))
+            using (var connection = new SqlConnection(_options.Value.DbConnectionStr))
                 connection.ExecuteNonQuery(sql);
 
-            _logger.LogInformation($"initial message table successfully. table name is [{_options.Value.PublishMessageTableName}]");
+            _logger.LogInformation($"initial message table successfully. table name is [{GetTableName()}]");
             await Task.CompletedTask;
         }
 
@@ -66,14 +71,14 @@ END;";
                 new SqlParameter("@UtcTime", message.UtcTime)
             };
 
-            var sql = $@"INSERT INTO {_options.Value.PublishMessageTableName} ([Id],[Version],[MessageType],[MessageData],[CreateTime],[UtcTime]) 
+            var sql = $@"INSERT INTO {GetTableName()} ([Id],[Version],[MessageType],[MessageData],[CreateTime],[UtcTime]) 
 VALUES (@id,@Version,@MessageType,@MessageData,@CreateTime,@UtcTime);";
 
             if (dbTransaction == null)
             {
-                using var connection = new SqlConnection(_options.Value.ConnectionString);
+                using var connection = new SqlConnection(_options.Value.DbConnectionStr);
                 connection.ExecuteNonQuery(sql, sqlParams: sqlParams);
-                _logger.LogInformation($"insert message in {_options.Value.PublishMessageTableName} table successfully. messageId={message.Id}");
+                _logger.LogInformation($"insert message in {GetTableName()} table successfully. messageId={message.Id}");
             }
             else
             {
@@ -90,6 +95,11 @@ VALUES (@id,@Version,@MessageType,@MessageData,@CreateTime,@UtcTime);";
                 var conn = dbTrans?.Connection;
                 conn?.ExecuteNonQuery(sql, dbTrans, sqlParams);
             }
+        }
+
+        public virtual string GetTableName()
+        {
+            return $"{_options.Value.DbSchema}.{_options.Value.TableName}";
         }
     }
 }

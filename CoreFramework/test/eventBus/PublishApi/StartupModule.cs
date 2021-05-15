@@ -36,7 +36,7 @@ namespace PublishApi
             context.Services.Configure<EventBusSqlServerOptions>(options =>
             {
                 //配置Connection（必须）
-                options.ConnectionString = Configuration.GetConnectionString("customer");
+                options.DbConnectionStr = Configuration.GetConnectionString("customer");
             });
         }
 

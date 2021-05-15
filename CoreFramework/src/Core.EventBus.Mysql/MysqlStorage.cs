@@ -31,7 +31,7 @@ namespace Core.EventBus.Mysql
         {
             if (cancellationToken.IsCancellationRequested) return;
             var sql = $@"
-CREATE TABLE IF NOT EXISTS `{_options.Value.PublishMessageTableName}` (
+CREATE TABLE IF NOT EXISTS {_options.Value.TableName} (
   `Id` VARCHAR(200) NOT NULL,
   `Version` INT NOT NULL,
   `MessageType` TEXT NOT NULL,
@@ -41,10 +41,10 @@ CREATE TABLE IF NOT EXISTS `{_options.Value.PublishMessageTableName}` (
    PRIMARY KEY (`Id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
 
-            using (var connection = new MySqlConnection(_options.Value.ConnectionString))
+            using (var connection = new MySqlConnection(_options.Value.DbConnectionStr))
                 connection.ExecuteNonQuery(sql);
 
-            _logger.LogInformation($"initial message table successfully. table name is [{_options.Value.PublishMessageTableName}]");
+            _logger.LogInformation($"initial message table successfully. table name is [{_options.Value.TableName}]");
             await Task.CompletedTask;
         }
 
@@ -65,14 +65,14 @@ CREATE TABLE IF NOT EXISTS `{_options.Value.PublishMessageTableName}` (
                 new MySqlParameter("@UtcTime", message.UtcTime)
             };
 
-            var sql = $@"INSERT INTO {_options.Value.PublishMessageTableName} (`Id`,`Version`,`MessageType`,`MessageData`,`CreateTime`,`UtcTime`) 
+            var sql = $@"INSERT INTO {_options.Value.TableName} (`Id`,`Version`,`MessageType`,`MessageData`,`CreateTime`,`UtcTime`) 
 VALUES (@id,@Version,@MessageType,@MessageData,@CreateTime,@UtcTime);";
 
             if (dbTransaction == null)
             {
-                using var connection = new MySqlConnection(_options.Value.ConnectionString);
+                using var connection = new MySqlConnection(_options.Value.DbConnectionStr);
                 connection.ExecuteNonQuery(sql, sqlParams: sqlParams);
-                _logger.LogInformation($"insert message in {_options.Value.PublishMessageTableName} table successfully. messageId={message.Id}");
+                _logger.LogInformation($"insert message in {_options.Value.TableName} table successfully. messageId={message.Id}");
             }
             else
             {

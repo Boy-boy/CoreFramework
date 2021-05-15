@@ -2,8 +2,14 @@
 {
     public class EventBusMysqlOptions
     {
-        public string ConnectionString { get; set; }
+        /// <summary>
+        /// 数据库连接字符串
+        /// </summary>
+        public string DbConnectionStr { get; set; }
 
-        public string PublishMessageTableName { get; set; } = "EventBusPublishMessage";
+        /// <summary>
+        /// 若数据库不存在table，即创建新的table
+        /// </summary>
+        public string TableName { get; set; } = "PublishMessage";
     }
 }

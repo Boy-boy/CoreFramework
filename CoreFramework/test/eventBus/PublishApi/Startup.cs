@@ -30,7 +30,7 @@ namespace PublishApi
             //    })
             //    .AddSqlServer(options =>
             //    {
-            //        options.ConnectionString = Configuration.GetConnectionString("customer");
+            //        options.DbConnectionStr = Configuration.GetConnectionString("customer");
             //    });
             //services.Configure<RabbitMqOptions>(Configuration.GetSection("RabbitMq"));
             //services.AddRabbitMq();

@@ -31,7 +31,9 @@ namespace Core.EventBus.PostgreSql
         {
             if (cancellationToken.IsCancellationRequested) return;
             var sql = $@"
-CREATE TABLE IF NOT EXISTS {_options.Value.PublishMessageTableName} (
+CREATE SCHEMA IF NOT EXISTS {_options.Value.DbSchema};
+
+CREATE TABLE IF NOT EXISTS {GetTableName()} (
   Id VARCHAR(200) NOT NULL,
   Version INT NOT NULL,
   MessageType TEXT NOT NULL,
@@ -41,10 +43,10 @@ CREATE TABLE IF NOT EXISTS {_options.Value.PublishMessageTableName} (
   PRIMARY KEY (Id)
 );";
 
-            using (var connection = new NpgsqlConnection(_options.Value.ConnectionString))
+            using (var connection = new NpgsqlConnection(_options.Value.DbConnectionStr))
                 connection.ExecuteNonQuery(sql);
 
-            _logger.LogInformation($"initial message table successfully. table name is [{_options.Value.PublishMessageTableName}]");
+            _logger.LogInformation($"initial message table successfully. table name is [{GetTableName()}]");
             await Task.CompletedTask;
         }
 
@@ -65,14 +67,14 @@ CREATE TABLE IF NOT EXISTS {_options.Value.PublishMessageTableName} (
                 new NpgsqlParameter("@UtcTime", message.UtcTime)
             };
 
-            var sql = $@"INSERT INTO {_options.Value.PublishMessageTableName} (Id,Version,MessageType,MessageData,CreateTime,UtcTime) 
+            var sql = $@"INSERT INTO {GetTableName()} (Id,Version,MessageType,MessageData,CreateTime,UtcTime) 
 VALUES (@id,@Version,@MessageType,@MessageData,@CreateTime,@UtcTime);";
 
             if (dbTransaction == null)
             {
-                using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
+                using var connection = new NpgsqlConnection(_options.Value.DbConnectionStr);
                 connection.ExecuteNonQuery(sql, sqlParams: sqlParams);
-                _logger.LogInformation($"insert message in {_options.Value.PublishMessageTableName} table successfully. messageId={message.Id}");
+                _logger.LogInformation($"insert message in {GetTableName()} table successfully. messageId={message.Id}");
             }
             else
             {
@@ -89,6 +91,11 @@ VALUES (@id,@Version,@MessageType,@MessageData,@CreateTime,@UtcTime);";
                 var conn = dbTrans?.Connection;
                 conn?.ExecuteNonQuery(sql, dbTrans, sqlParams);
             }
+        }
+
+        public virtual string GetTableName()
+        {
+            return $"{_options.Value.DbSchema}.{_options.Value.TableName}";
         }
     }
 }

@@ -30,7 +30,7 @@ namespace Core.Redis
             _options = options;
             _logger = logger;
             TryConnection();
-            _timer = new Timer(TimerCallback, this, TimeSpan.FromSeconds(options.CurrentValue.ConnectionHealthCheck), Timeout.InfiniteTimeSpan);
+            _timer = new Timer(TimerCallback, this, TimeSpan.FromSeconds(options.CurrentValue.ConnectionHealthCheck), TimeSpan.FromSeconds(options.CurrentValue.ConnectionHealthCheck));
 
             options.OnChange((option, str) =>
             {

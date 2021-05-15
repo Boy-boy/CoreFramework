@@ -10,11 +10,13 @@
       - [eventbus](#eventbus)
         - [RabbitMq](#rabbitmq)
       - [entityFraworkCore](#entityfraworkcore)
+      - [dbConfiguration](#dbConfiguration)
     - [直接依赖](#直接依赖)
       - [elasticSearch](#elasticsearch-1)
       - [eventbus](#eventbus-1)
         - [RabbitMq](#rabbitmq-1)
       - [entityFraworkCore](#entityfraworkcore-1)
+      - [dbConfiguration](#dbConfiguration-1)
 
 ## 框架描述
 
@@ -215,6 +217,46 @@
          typeof(CoreEventBusSqlServerModule))]
 ```
 
+#### dbConfiguration
+```c#
+ public static IHostBuilder CreateHostBuilder(string[] args) =>
+            Host.CreateDefaultBuilder(args)
+                .ConfigureAppConfiguration((context, builder) =>
+                {
+                    //添加数据库配置文件，例如PostgreSql，Mysql，SqlServer
+                    builder.AddPostgreSqlConfigure(actionOptions =>
+                    {
+                        actionOptions.DbConnectionStr = "Host=47.101.70.119;Port=5432;Database=customer;Username=postgres;Password=123456";
+                        actionOptions.ReloadDelay = 1000;
+                    });
+                })
+                .ConfigureWebHostDefaults(webBuilder =>
+                {
+                    webBuilder.UseStartup<Startup>();
+                });
+```
+```c#
+    [DependsOn(typeof(CoreConfigurationModule))]
+    public class StartupModule : CoreModuleBase
+    {
+        public StartupModule(IConfiguration configuration)
+        {
+            Configuration = configuration;
+        }
+
+        public IConfiguration Configuration { get; }
+        
+        public override void PreConfigureServices(ServiceCollectionContext context)
+        {
+        }
+        
+        public override void ConfigureServices(ServiceCollectionContext context)
+        {
+            context.Services.AddControllers();              
+        }
+    }
+```
+
 
 
 ### 直接依赖
@@ -316,6 +358,43 @@ public class Startup
           })
           .AddEfRepositories<CustomerDbContext>()
           .AddUnitOfWork();
+        }   
+    }
+```
+
+#### dbConfiguration
+```c#
+ public static IHostBuilder CreateHostBuilder(string[] args) =>
+            Host.CreateDefaultBuilder(args)
+                .ConfigureAppConfiguration((context, builder) =>
+                {
+                    //添加数据库配置文件，例如PostgreSql，Mysql，SqlServer
+                    builder.AddPostgreSqlConfigure(actionOptions =>
+                    {
+                        actionOptions.DbConnectionStr = "Host=47.101.70.119;Port=5432;Database=customer;Username=postgres;Password=123456";
+                        actionOptions.ReloadDelay = 1000;
+                    });
+                })
+                .ConfigureWebHostDefaults(webBuilder =>
+                {
+                    webBuilder.UseStartup<Startup>();
+                });
+```
+
+```c#
+   public class Startup
+    {
+        public Startup(IConfiguration configuration)
+        {
+            Configuration = configuration;
+        }
+
+        public IConfiguration Configuration { get; }
+
+        public void ConfigureServices(IServiceCollection services)
+        {
+         //方式一
+          services.AddDbConfiguration();      
         }   
     }
 ```

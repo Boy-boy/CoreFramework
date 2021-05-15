@@ -14,6 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Core.Configuration.PostgreSql\Core.Configuration.PostgreSql.csproj" />
     <ProjectReference Include="..\..\src\Core.EntityFrameworkCore\Core.EntityFrameworkCore.csproj" />
     <ProjectReference Include="..\..\src\Core.EventBus.RabbitMQ\Core.EventBus.RabbitMQ.csproj" />
     <ProjectReference Include="..\..\src\Core.EventBus.SqlServer\Core.EventBus.SqlServer.csproj" />

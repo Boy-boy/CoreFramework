@@ -17,5 +17,11 @@ namespace Core.EventBus.SqlServer
                 builder.Service.Configure(options);
             return builder;
         }
+
+        public static EventBusOptions AddSqlServer(this EventBusOptions options, Action<EventBusSqlServerOptions> actionOptions)
+        {
+            options.AddExtensions(new EventBusSqlServerOptionsExtensions(actionOptions));
+            return options;
+        }
     }
 }

@@ -10,5 +10,11 @@ namespace Core.EventBus.Local
             builder.Service.AddSingleton<IMessageSubscribe, LocalMessageSubscribe>();
             return builder;
         }
+
+        public static EventBusOptions AddLocalMq(this EventBusOptions options)
+        {
+            options.AddExtensions(new EventBusLocalOptionsExtensions());
+            return options;
+        }
     }
 }

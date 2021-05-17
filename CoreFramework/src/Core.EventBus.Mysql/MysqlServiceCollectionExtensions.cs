@@ -17,5 +17,11 @@ namespace Core.EventBus.Mysql
                 builder.Service.Configure(options);
             return builder;
         }
+
+        public static EventBusOptions AddMysql(this EventBusOptions options, Action<EventBusMysqlOptions> actionOptions)
+        {
+            options.AddExtensions(new EventBusMysqlOptionsExtensions(actionOptions));
+            return options;
+        }
     }
 }

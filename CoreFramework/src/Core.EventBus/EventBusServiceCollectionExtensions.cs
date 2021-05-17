@@ -20,6 +20,10 @@ namespace Microsoft.Extensions.DependencyInjection
                 return new EventBusBuilder(services);
             var options = new EventBusOptions();
             configureOptions.Invoke(options);
+            foreach (var extension in options.Extensions)
+            {
+                extension.AddServices(services);
+            }
             services.TryRegistrarMessageHandlers(options.AutoRegistrarHandlersAssemblies);
             services.Configure(configureOptions);
 

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Core.RabbitMQ;
 
 namespace Core.EventBus.RabbitMQ
 {
@@ -8,6 +9,8 @@ namespace Core.EventBus.RabbitMQ
         public RabbitMqPublishConfigure RabbitMqPublishConfigure { get; }
 
         public List<RabbitMqSubscribeConfigure> RabbitSubscribeConfigures { get; }
+
+        public Action<RabbitMqOptions> RabbitMqOptions { get; set; }
 
         public EventBusRabbitMqOptions()
         {

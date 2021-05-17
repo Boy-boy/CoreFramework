@@ -307,6 +307,8 @@ public class Startup
 
         public void ConfigureServices(IServiceCollection services)
         {
+            //TODO:推荐使用方式二
+           #region eventbus使用方式一
            //若是订阅服务，添加自动扫描程序集，则自动注入Handler到ServiceCollection中       
            services.AddEventBus(options => 
                     {
@@ -327,6 +329,28 @@ public class Startup
                      });
             services.Configure<RabbitMqOptions>(Configuration.GetSection("RabbitMq"));
             services.AddRabbitMq();
+            #endregion
+
+            #region eventbus使用方式二
+            //services.AddEventBus(options =>
+            //{
+            //    options.AutoRegistrarHandlersAssemblies = new[] {typeof(Startup).Assembly},
+            //    options.AddRabbitMq(actionOptions =>
+            //    {
+            //        //配置消息对应的Exchange和Queue（若不配置，则使用默认的）
+            //        actionOptions.AddSubscribeConfigures(configureOptions =>
+            //        {
+            //            configureOptions.Add(new RabbitMqSubscribeConfigure(typeof(CustomerEvent),
+            //                RabbitMqConst.DefaultExchangeName, RabbitMqConst.DefaultQueueName));
+            //        });
+            //        //配置rabbitMq的连接地址
+            //        actionOptions.RabbitMqOptions = rabbitOptions =>
+            //        {
+            //            rabbitOptions.Connection=new RabbitMqConnectionConfigure();
+            //        };
+            //    });
+            //});
+            #endregion
         }      
     }
 ```

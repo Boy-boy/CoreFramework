@@ -17,5 +17,11 @@ namespace Core.EventBus.PostgreSql
                 builder.Service.Configure(options);
             return builder;
         }
+
+        public static EventBusOptions AddPostgreSql(this EventBusOptions options, Action<EventBusPostgreSqlOptions> actionOptions)
+        {
+            options.AddExtensions(new EventBusPostgreSqlOptionsExtensions(actionOptions));
+            return options;
+        }
     }
 }

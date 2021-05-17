@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Version>3.1.9.11</Version>
+    <Version>3.1.9.12</Version>
     <Authors>gaobo</Authors>
     <Description>asp net core basic framework</Description>
     <Product>Core.ElasticSearch</Product>

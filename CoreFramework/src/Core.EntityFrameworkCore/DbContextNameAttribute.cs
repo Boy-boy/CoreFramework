@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace Core.EntityFrameworkCore
 {
-    public class DbContextNameAttribute
+    public class DbContextNameAttribute:Attribute
     {
         public virtual string Name { get; }
 

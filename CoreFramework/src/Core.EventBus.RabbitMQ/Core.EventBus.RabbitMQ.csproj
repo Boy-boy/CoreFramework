@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <Description>asp net core basic framework</Description>
-    <Version>3.1.9.11</Version>
+    <Version>3.1.9.12</Version>
     <Authors>gaobo</Authors>
     <Company>gaobo</Company>
     <PackageProjectUrl>https://github.com/Boy-boy/CoreFramework</PackageProjectUrl>

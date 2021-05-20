@@ -98,6 +98,23 @@ namespace Core.Ddd.Domain.Repositories
             return _repository.PageFindAsync(pageIndex, pageSize, expression, cancellationToken);
         }
 
+        public (IEnumerable<TAggregateRoot> DataQueryable, int Total) PageFind(
+             int pageIndex,
+             int pageSize,
+             IQueryable<TAggregateRoot> queryable)
+        {
+            return _repository.PageFind(pageIndex, pageSize, queryable);
+        }
+
+        public Task<(Task<List<TAggregateRoot>> DataQueryable, Task<int>)> PageFindAsync(
+              int pageIndex,
+              int pageSize,
+              IQueryable<TAggregateRoot> queryable,
+              CancellationToken cancellationToken = default)
+        {
+            return _repository.PageFindAsync(pageIndex, pageSize, queryable, cancellationToken);
+        }
+
         public void Reload(TAggregateRoot entity)
         {
             _repository.Reload(entity);

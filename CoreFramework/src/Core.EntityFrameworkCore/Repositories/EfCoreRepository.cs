@@ -131,12 +131,15 @@ namespace Core.EntityFrameworkCore.Repositories
                 throw new ArgumentException("InvalidPageCount");
             }
 
-            var query = _dbSet.Skip(pageIndex * pageSize).Take(pageSize);
+            var query = _dbSet.AsQueryable();
             if (expression != null)
             {
                 query = query.Where(expression);
             }
-            return (query.ToList(), query.Count());
+
+            var total = query.Count();
+            var list = query.Skip(pageIndex * pageSize).Take(pageSize).ToList();
+            return (list, total);
         }
 
         public Task<(Task<List<TEntity>> DataQueryable, Task<int>)> PageFindAsync(
@@ -154,12 +157,53 @@ namespace Core.EntityFrameworkCore.Repositories
             {
                 throw new ArgumentException("InvalidPageCount");
             }
-            var query = _dbSet.Skip(pageIndex * pageSize).Take(pageSize);
+            var query = _dbSet.AsQueryable();
             if (expression != null)
             {
                 query = query.Where(expression);
             }
-            return Task.FromResult((query.ToListAsync(cancellationToken), query.CountAsync(cancellationToken)));
+            var total = query.CountAsync(cancellationToken);
+            var list = query.Skip(pageIndex * pageSize).Take(pageSize).ToListAsync(cancellationToken);
+            return Task.FromResult((list, total));
+        }
+
+        public (IEnumerable<TEntity> DataQueryable, int Total) PageFind(
+             int pageIndex,
+             int pageSize,
+             IQueryable<TEntity> queryable)
+        {
+            if (pageIndex < 0)
+            {
+                throw new ArgumentException("InvalidPageIndex");
+            }
+
+            if (pageSize <= 0)
+            {
+                throw new ArgumentException("InvalidPageCount");
+            }
+            var total = queryable.Count();
+            var list = queryable.Skip(pageIndex * pageSize).Take(pageSize).ToList();
+            return (list, total);
+        }
+
+        public Task<(Task<List<TEntity>> DataQueryable, Task<int>)> PageFindAsync(
+              int pageIndex,
+              int pageSize,
+              IQueryable<TEntity> queryable,
+              CancellationToken cancellationToken = default)
+        {
+            if (pageIndex < 0)
+            {
+                throw new ArgumentException("InvalidPageIndex");
+            }
+
+            if (pageSize <= 0)
+            {
+                throw new ArgumentException("InvalidPageCount");
+            }
+            var total = queryable.CountAsync(cancellationToken);
+            var list = queryable.Skip(pageIndex * pageSize).Take(pageSize).ToListAsync(cancellationToken);
+            return Task.FromResult((list, total));
         }
 
         public void Reload(TEntity entity)

@@ -62,6 +62,17 @@ namespace Core.Ddd.Domain.Repositories
             int pageSize,
             Expression<Func<TAggregateRoot, bool>> expression,
             CancellationToken cancellationToken = default);
+
+        (IEnumerable<TAggregateRoot> DataQueryable, int Total) PageFind(
+            int pageIndex,
+            int pageSize,
+            IQueryable<TAggregateRoot> queryable);
+
+        Task<(Task<List<TAggregateRoot>> DataQueryable, Task<int>)> PageFindAsync(
+            int pageIndex,
+            int pageSize,
+            IQueryable<TAggregateRoot> queryable,
+            CancellationToken cancellationToken = default);
     }
 
     public interface IDomainRepository<TEntity, in TKey> : IDomainRepository<TEntity>

@@ -88,17 +88,17 @@ namespace Core.Ddd.Domain.Repositories
             return _repository.GetQueryable();
         }
 
-        public (IEnumerable<TAggregateRoot> DataQueryable, int Total) PageFind(int pageIndex, int pageSize, Expression<Func<TAggregateRoot, bool>> expression)
+        public (IEnumerable<TAggregateRoot> DataEnumerable, int Total) PageFind(int pageIndex, int pageSize, Expression<Func<TAggregateRoot, bool>> expression)
         {
             return _repository.PageFind(pageIndex, pageSize, expression);
         }
 
-        public Task<(IEnumerable<TAggregateRoot> DataQueryable, int)> PageFindAsync(int pageIndex, int pageSize, Expression<Func<TAggregateRoot, bool>> expression, CancellationToken cancellationToken = default)
+        public Task<(IEnumerable<TAggregateRoot> DataEnumerable, int Total)> PageFindAsync(int pageIndex, int pageSize, Expression<Func<TAggregateRoot, bool>> expression, CancellationToken cancellationToken = default)
         {
             return _repository.PageFindAsync(pageIndex, pageSize, expression, cancellationToken);
         }
 
-        public (IEnumerable<TAggregateRoot> DataQueryable, int Total) PageFind(
+        public (IEnumerable<TAggregateRoot> DataEnumerable, int Total) PageFind(
              int pageIndex,
              int pageSize,
              IQueryable<TAggregateRoot> queryable)
@@ -106,7 +106,7 @@ namespace Core.Ddd.Domain.Repositories
             return _repository.PageFind(pageIndex, pageSize, queryable);
         }
 
-        public Task<(IEnumerable<TAggregateRoot> DataQueryable, int)> PageFindAsync(
+        public Task<(IEnumerable<TAggregateRoot> DataEnumerable, int Total)> PageFindAsync(
               int pageIndex,
               int pageSize,
               IQueryable<TAggregateRoot> queryable,

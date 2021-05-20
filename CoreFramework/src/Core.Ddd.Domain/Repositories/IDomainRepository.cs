@@ -52,23 +52,23 @@ namespace Core.Ddd.Domain.Repositories
 
         void Update(TAggregateRoot entity);
 
-        (IEnumerable<TAggregateRoot> DataQueryable, int Total) PageFind(
+        (IEnumerable<TAggregateRoot> DataEnumerable, int Total) PageFind(
             int pageIndex,
             int pageSize,
             Expression<Func<TAggregateRoot, bool>> expression);
 
-        Task<(IEnumerable<TAggregateRoot> DataQueryable, int)> PageFindAsync(
+        Task<(IEnumerable<TAggregateRoot> DataEnumerable, int Total)> PageFindAsync(
             int pageIndex,
             int pageSize,
             Expression<Func<TAggregateRoot, bool>> expression,
             CancellationToken cancellationToken = default);
 
-        (IEnumerable<TAggregateRoot> DataQueryable, int Total) PageFind(
+        (IEnumerable<TAggregateRoot> DataEnumerable, int Total) PageFind(
             int pageIndex,
             int pageSize,
             IQueryable<TAggregateRoot> queryable);
 
-        Task<(IEnumerable<TAggregateRoot> DataQueryable, int)> PageFindAsync(
+        Task<(IEnumerable<TAggregateRoot> DataEnumerable, int Total)> PageFindAsync(
             int pageIndex,
             int pageSize,
             IQueryable<TAggregateRoot> queryable,

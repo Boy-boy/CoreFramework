@@ -52,24 +52,24 @@ namespace Core.Ddd.Domain.Repositories
 
         void Update(TEntity entity);
 
-        (IEnumerable<TEntity> DataQueryable, int Total) PageFind(
+        (IEnumerable<TEntity> DataEnumerable, int Total) PageFind(
             int pageIndex,
             int pageSize,
             Expression<Func<TEntity, bool>> expression);
 
-        Task<(IEnumerable<TEntity> DataQueryable, int)> PageFindAsync(
+        Task<(IEnumerable<TEntity> DataEnumerable, int Total)> PageFindAsync(
             int pageIndex,
             int pageSize,
             Expression<Func<TEntity, bool>> expression,
              CancellationToken cancellationToken = default);
 
 
-        (IEnumerable<TEntity> DataQueryable, int Total) PageFind(
+        (IEnumerable<TEntity> DataEnumerable, int Total) PageFind(
             int pageIndex,
             int pageSize,
             IQueryable<TEntity> queryable);
 
-        Task<(IEnumerable<TEntity> DataQueryable, int)> PageFindAsync(
+        Task<(IEnumerable<TEntity> DataEnumerable, int Total)> PageFindAsync(
             int pageIndex,
             int pageSize,
             IQueryable<TEntity> queryable,

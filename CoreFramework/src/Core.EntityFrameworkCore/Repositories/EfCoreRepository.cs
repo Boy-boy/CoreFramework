@@ -116,7 +116,7 @@ namespace Core.EntityFrameworkCore.Repositories
             return _dbSet.Where(expression).ToListAsync(cancellationToken);
         }
 
-        public (IEnumerable<TEntity> DataQueryable, int Total) PageFind(
+        public (IEnumerable<TEntity> DataEnumerable, int Total) PageFind(
             int pageIndex,
             int pageSize,
             Expression<Func<TEntity, bool>> expression)
@@ -142,7 +142,7 @@ namespace Core.EntityFrameworkCore.Repositories
             return (list, total);
         }
 
-        public async Task<(IEnumerable<TEntity> DataQueryable, int)> PageFindAsync(
+        public async Task<(IEnumerable<TEntity> DataEnumerable, int Total)> PageFindAsync(
             int pageIndex,
             int pageSize,
             Expression<Func<TEntity, bool>> expression,
@@ -167,7 +167,7 @@ namespace Core.EntityFrameworkCore.Repositories
             return await Task.FromResult((list, total));
         }
 
-        public (IEnumerable<TEntity> DataQueryable, int Total) PageFind(
+        public (IEnumerable<TEntity> DataEnumerable, int Total) PageFind(
              int pageIndex,
              int pageSize,
              IQueryable<TEntity> queryable)
@@ -186,7 +186,7 @@ namespace Core.EntityFrameworkCore.Repositories
             return (list, total);
         }
 
-        public async Task<(IEnumerable<TEntity> DataQueryable, int)> PageFindAsync(
+        public async Task<(IEnumerable<TEntity> DataEnumerable, int Total)> PageFindAsync(
               int pageIndex,
               int pageSize,
               IQueryable<TEntity> queryable,

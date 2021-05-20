@@ -142,7 +142,7 @@ namespace Core.EntityFrameworkCore.Repositories
             return (list, total);
         }
 
-        public Task<(Task<List<TEntity>> DataQueryable, Task<int>)> PageFindAsync(
+        public async Task<(IEnumerable<TEntity> DataQueryable, int)> PageFindAsync(
             int pageIndex,
             int pageSize,
             Expression<Func<TEntity, bool>> expression,
@@ -162,9 +162,9 @@ namespace Core.EntityFrameworkCore.Repositories
             {
                 query = query.Where(expression);
             }
-            var total = query.CountAsync(cancellationToken);
-            var list = query.Skip(pageIndex * pageSize).Take(pageSize).ToListAsync(cancellationToken);
-            return Task.FromResult((list, total));
+            var total = await query.CountAsync(cancellationToken);
+            var list = await query.Skip(pageIndex * pageSize).Take(pageSize).ToListAsync(cancellationToken);
+            return await Task.FromResult((list, total));
         }
 
         public (IEnumerable<TEntity> DataQueryable, int Total) PageFind(
@@ -186,7 +186,7 @@ namespace Core.EntityFrameworkCore.Repositories
             return (list, total);
         }
 
-        public Task<(Task<List<TEntity>> DataQueryable, Task<int>)> PageFindAsync(
+        public async Task<(IEnumerable<TEntity> DataQueryable, int)> PageFindAsync(
               int pageIndex,
               int pageSize,
               IQueryable<TEntity> queryable,
@@ -201,9 +201,9 @@ namespace Core.EntityFrameworkCore.Repositories
             {
                 throw new ArgumentException("InvalidPageCount");
             }
-            var total = queryable.CountAsync(cancellationToken);
-            var list = queryable.Skip(pageIndex * pageSize).Take(pageSize).ToListAsync(cancellationToken);
-            return Task.FromResult((list, total));
+            var total = await queryable.CountAsync(cancellationToken);
+            var list = await queryable.Skip(pageIndex * pageSize).Take(pageSize).ToListAsync(cancellationToken);
+            return await Task.FromResult((list, total));
         }
 
         public void Reload(TEntity entity)

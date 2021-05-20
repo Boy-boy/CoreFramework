@@ -57,7 +57,7 @@ namespace Core.Ddd.Domain.Repositories
             int pageSize,
             Expression<Func<TEntity, bool>> expression);
 
-        Task<(Task<List<TEntity>> DataQueryable, Task<int>)> PageFindAsync(
+        Task<(IEnumerable<TEntity> DataQueryable, int)> PageFindAsync(
             int pageIndex,
             int pageSize,
             Expression<Func<TEntity, bool>> expression,
@@ -69,7 +69,7 @@ namespace Core.Ddd.Domain.Repositories
             int pageSize,
             IQueryable<TEntity> queryable);
 
-        Task<(Task<List<TEntity>> DataQueryable, Task<int>)> PageFindAsync(
+        Task<(IEnumerable<TEntity> DataQueryable, int)> PageFindAsync(
             int pageIndex,
             int pageSize,
             IQueryable<TEntity> queryable,

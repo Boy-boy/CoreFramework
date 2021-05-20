@@ -93,7 +93,7 @@ namespace Core.Ddd.Domain.Repositories
             return _repository.PageFind(pageIndex, pageSize, expression);
         }
 
-        public Task<(Task<List<TAggregateRoot>> DataQueryable, Task<int>)> PageFindAsync(int pageIndex, int pageSize, Expression<Func<TAggregateRoot, bool>> expression, CancellationToken cancellationToken = default)
+        public Task<(IEnumerable<TAggregateRoot> DataQueryable, int)> PageFindAsync(int pageIndex, int pageSize, Expression<Func<TAggregateRoot, bool>> expression, CancellationToken cancellationToken = default)
         {
             return _repository.PageFindAsync(pageIndex, pageSize, expression, cancellationToken);
         }
@@ -106,7 +106,7 @@ namespace Core.Ddd.Domain.Repositories
             return _repository.PageFind(pageIndex, pageSize, queryable);
         }
 
-        public Task<(Task<List<TAggregateRoot>> DataQueryable, Task<int>)> PageFindAsync(
+        public Task<(IEnumerable<TAggregateRoot> DataQueryable, int)> PageFindAsync(
               int pageIndex,
               int pageSize,
               IQueryable<TAggregateRoot> queryable,

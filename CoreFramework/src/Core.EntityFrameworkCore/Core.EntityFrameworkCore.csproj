@@ -4,7 +4,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <Description>asp net core basic framework</Description>
     <Authors>gaobo</Authors>
-    <Version>3.1.9.16</Version>
+    <Version>3.1.9.17</Version>
     <PackageProjectUrl>https://github.com/Boy-boy/CoreFramework</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>

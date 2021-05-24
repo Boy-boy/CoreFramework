@@ -51,13 +51,15 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Core.Redis", "src\Core.Redi
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Core.HttpClient", "src\Core.HttpClient\Core.HttpClient.csproj", "{D6CC434F-EE42-4010-AC45-1D7058C985C4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.Configuration", "src\Core.Configuration\Core.Configuration.csproj", "{FDB1B0B4-B3AD-4869-85FC-E3DB7631D59D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Core.Configuration", "src\Core.Configuration\Core.Configuration.csproj", "{FDB1B0B4-B3AD-4869-85FC-E3DB7631D59D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.Configuration.SqlServer", "src\Core.Configuration.SqlServer\Core.Configuration.SqlServer.csproj", "{0D5DA185-D8ED-4A38-8695-60995E50B05F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Core.Configuration.SqlServer", "src\Core.Configuration.SqlServer\Core.Configuration.SqlServer.csproj", "{0D5DA185-D8ED-4A38-8695-60995E50B05F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.Configuration.PostgreSql", "src\Core.Configuration.PostgreSql\Core.Configuration.PostgreSql.csproj", "{45A1E634-1FF9-4E1C-9925-635DDB7EA833}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Core.Configuration.PostgreSql", "src\Core.Configuration.PostgreSql\Core.Configuration.PostgreSql.csproj", "{45A1E634-1FF9-4E1C-9925-635DDB7EA833}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.Configuration.MySql", "src\Core.Configuration.MySql\Core.Configuration.MySql.csproj", "{3C818274-1DDA-4D03-960C-B0963468AA91}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Core.Configuration.MySql", "src\Core.Configuration.MySql\Core.Configuration.MySql.csproj", "{3C818274-1DDA-4D03-960C-B0963468AA91}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.AspNetCore", "src\Core.AspNetCore\Core.AspNetCore.csproj", "{8786C3FF-82F9-4BCC-9BAB-40B1132B57BE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -161,6 +163,10 @@ Global
 		{3C818274-1DDA-4D03-960C-B0963468AA91}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3C818274-1DDA-4D03-960C-B0963468AA91}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3C818274-1DDA-4D03-960C-B0963468AA91}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8786C3FF-82F9-4BCC-9BAB-40B1132B57BE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8786C3FF-82F9-4BCC-9BAB-40B1132B57BE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8786C3FF-82F9-4BCC-9BAB-40B1132B57BE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8786C3FF-82F9-4BCC-9BAB-40B1132B57BE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -192,6 +198,7 @@ Global
 		{0D5DA185-D8ED-4A38-8695-60995E50B05F} = {03EFE65F-3027-40EA-A790-7C8D31C11E18}
 		{45A1E634-1FF9-4E1C-9925-635DDB7EA833} = {03EFE65F-3027-40EA-A790-7C8D31C11E18}
 		{3C818274-1DDA-4D03-960C-B0963468AA91} = {03EFE65F-3027-40EA-A790-7C8D31C11E18}
+		{8786C3FF-82F9-4BCC-9BAB-40B1132B57BE} = {03EFE65F-3027-40EA-A790-7C8D31C11E18}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {67653D37-9D27-4AD4-9F01-DB21CA3B5835}

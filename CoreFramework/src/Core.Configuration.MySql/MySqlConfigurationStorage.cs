@@ -37,7 +37,11 @@ VALUES (@Id,@Key,@Value,@Description,@CreateTime,@UpdateTime,@UtcTime,@IsDeleted
             using (var connection = new MySqlConnection(_source.DbConnectionStr))
                 connection.ExecuteNonQuery(sql, sqlParams);
 
-            Events.Enqueue(new Event(EventType.Add, message.Key, message.Value));
+            var events = new List<Event>
+            {
+                new Event(EventType.Add, message.Key, message.Value)
+            };
+            InvokeEvent(events);
             await Task.CompletedTask;
         }
 
@@ -58,7 +62,11 @@ WHERE `Id`=@Id";
             using (var connection = new MySqlConnection(_source.DbConnectionStr))
                 connection.ExecuteNonQuery(sql, sqlParams);
 
-            Events.Enqueue(new Event(EventType.Update, message.Key, message.Value));
+            var events = new List<Event>
+            {
+                new Event(EventType.Update, message.Key, message.Value)
+            };
+            InvokeEvent(events);
             await Task.CompletedTask;
         }
 
@@ -76,7 +84,11 @@ WHERE `Id`=@Id";
             using (var connection = new MySqlConnection(_source.DbConnectionStr))
                 connection.ExecuteNonQuery(sql, sqlParams);
 
-            Events.Enqueue(new Event(EventType.Deleted, message.Key, message.Value));
+            var events = new List<Event>
+            {
+                new Event(EventType.Deleted, message.Key, message.Value)
+            };
+            InvokeEvent(events);
             await Task.CompletedTask;
         }
 

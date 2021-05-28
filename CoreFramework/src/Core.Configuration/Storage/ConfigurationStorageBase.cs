@@ -1,6 +1,6 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -8,7 +8,7 @@ namespace Core.Configuration.Storage
 {
     public abstract class ConfigurationStorageBase : IConfigurationStorage
     {
-        public static ConcurrentQueue<Event> Events = new ConcurrentQueue<Event>();
+        public event Action<List<Event>> Event;
 
         public abstract Task InitializeAsync(CancellationToken cancellationToken = default);
 
@@ -21,6 +21,13 @@ namespace Core.Configuration.Storage
         public abstract Task UpdateAsync(ConfigurationMessage message, CancellationToken cancellationToken = default);
 
         public abstract Task DeletedAsync(string id, CancellationToken cancellationToken = default);
+
+        protected void InvokeEvent(List<Event> events)
+        {
+            if (events == null || !events.Any())
+                return;
+            Event?.Invoke(events);
+        }
     }
 
     public class Event
@@ -36,6 +43,13 @@ namespace Core.Configuration.Storage
         public string Key { get; set; }
 
         public string Value { get; set; }
+
+        public bool IsDelete => EventType == EventType.Deleted;
+
+        public bool IsAdd => EventType == EventType.Add;
+
+        public bool IsUpdate => EventType == EventType.Update;
+
     }
 
     public enum EventType

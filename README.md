@@ -227,7 +227,6 @@
                     builder.AddPostgreSqlConfigure(actionOptions =>
                     {
                         actionOptions.DbConnectionStr = "Host=47.101.70.119;Port=5432;Database=customer;Username=postgres;Password=123456";
-                        actionOptions.ReloadDelay = 1000;
                     });
                 })
                 .ConfigureWebHostDefaults(webBuilder =>
@@ -396,7 +395,6 @@ public class Startup
                     builder.AddPostgreSqlConfigure(actionOptions =>
                     {
                         actionOptions.DbConnectionStr = "Host=47.101.70.119;Port=5432;Database=customer;Username=postgres;Password=123456";
-                        actionOptions.ReloadDelay = 1000;
                     });
                 })
                 .ConfigureWebHostDefaults(webBuilder =>

@@ -5,14 +5,33 @@ namespace Core.Threading.Tasks
     public class ConcurrentOptions
     {
         /// <summary>
-        /// 最大并发量,默认为10
+        /// 最小并发数
         /// </summary>
-        public int MaxConcurrentSize { get; set; } = 10;
+        private readonly int _minimumConcurrentCount = 1;
 
         /// <summary>
-        /// 达到最大并发数，开始挂起，默认挂起20毫秒
+        /// 默认并发数
         /// </summary>
-        public int SleepMillisecond { get; set; } = 20;
+        private int _defaultConcurrentCount = 10;
+
+        /// <summary>
+        /// 最大并发量,默认为10
+        /// </summary>
+        public int MaxConcurrentCount
+        {
+            get => _defaultConcurrentCount;
+            set
+            {
+                if (value < _minimumConcurrentCount)
+                    throw new ArgumentException(nameof(value));
+                _defaultConcurrentCount = value;
+            }
+        }
+
+        /// <summary>
+        /// 达到最大并发数，在指定时间间隔整数秒，若在这段时间内没有接收到信号则跳过等待继续执行
+        /// </summary>
+        public int SecondsTimeout { get; set; } = 60;
 
         /// <summary>
         /// 任务结果生命周期，默认24小时

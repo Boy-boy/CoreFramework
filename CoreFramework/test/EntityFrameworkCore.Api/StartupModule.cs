@@ -1,4 +1,5 @@
-﻿using Core.EntityFrameworkCore;
+﻿using Core.Configuration.Dashboard;
+using Core.EntityFrameworkCore;
 using Core.EventBus.RabbitMQ;
 using Core.EventBus.SqlServer;
 using Core.Modularity;
@@ -12,8 +13,8 @@ using Microsoft.Extensions.Hosting;
 
 namespace EntityFrameworkCore.Api
 {
-    [DependsOn(typeof(CoreEfCoreModule),
-        typeof(CoreEventBusRabbitMqModule)
+    [DependsOn(typeof(CoreEfCoreModule)
+       /*,typeof(CoreEventBusRabbitMqModule)*/
        /* typeof(CoreEventBusSqlServerModule)*/)]
     public class StartupModule : CoreModuleBase
     {
@@ -38,6 +39,11 @@ namespace EntityFrameworkCore.Api
             context.Services.AddDbContext<CustomerDbContext>(options =>
             {
                 options.UseInMemoryDatabase("customer");
+            });
+
+            context.Services.AddDbConfiguration(options =>
+            {
+                options.AddDashboard(actionOptions => { });
             });
 
             //方式二
@@ -71,6 +77,7 @@ namespace EntityFrameworkCore.Api
 
             app.UseEndpoints(endpoints =>
             {
+                endpoints.MapDbConfigurationDashboard();
                 endpoints.MapControllers();
             });
         }

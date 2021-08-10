@@ -16,9 +16,9 @@ namespace Core.Configuration.MySql
             _source = source;
         }
 
-        public override async Task AddAsync(ConfigurationMessage message, CancellationToken cancellationToken = default)
+        public override async Task<int> AddAsync(ConfigurationMessage message, CancellationToken cancellationToken = default)
         {
-            if (cancellationToken.IsCancellationRequested) return;
+            if (cancellationToken.IsCancellationRequested) return 0;
             object[] sqlParams =
             {
                 new MySqlParameter("@Id", message.Id),
@@ -34,18 +34,19 @@ namespace Core.Configuration.MySql
             var sql = $@"INSERT INTO {GetTableName()} (`Id`,`Key`,`Value`,`Description`,`CreateTime`,`UpdateTime`,`UtcTime`,`IsDeleted`) 
 VALUES (@Id,@Key,@Value,@Description,@CreateTime,@UpdateTime,@UtcTime,@IsDeleted);";
 
-            using (var connection = new MySqlConnection(_source.DbConnectionStr))
-                connection.ExecuteNonQuery(sql, sqlParams);
+            using var connection = new MySqlConnection(_source.DbConnectionStr);
+            var executeRows = connection.ExecuteNonQuery(sql, sqlParams);
 
+            if (executeRows <= 0) return executeRows;
             var events = new List<Event>
             {
                 new Event(EventType.Add, message.Key, message.Value)
             };
             InvokeEvent(events);
-            await Task.CompletedTask;
+            return await Task.FromResult(executeRows);
         }
 
-        public override async Task UpdateAsync(ConfigurationMessage message, CancellationToken cancellationToken = default)
+        public override async Task<int> UpdateAsync(ConfigurationMessage message, CancellationToken cancellationToken = default)
         {
             object[] sqlParams =
             {
@@ -59,18 +60,19 @@ VALUES (@Id,@Key,@Value,@Description,@CreateTime,@UpdateTime,@UtcTime,@IsDeleted
 SET `Key`=@Key,`Value`=@Value,`Description`=@Description,`UpdateTime`=@UpdateTime
 WHERE `Id`=@Id";
 
-            using (var connection = new MySqlConnection(_source.DbConnectionStr))
-                connection.ExecuteNonQuery(sql, sqlParams);
+            using var connection = new MySqlConnection(_source.DbConnectionStr);
+            var executeRows = connection.ExecuteNonQuery(sql, sqlParams);
 
+            if (executeRows <= 0) return executeRows;
             var events = new List<Event>
             {
                 new Event(EventType.Update, message.Key, message.Value)
             };
             InvokeEvent(events);
-            await Task.CompletedTask;
+            return await Task.FromResult(executeRows);
         }
 
-        public override async Task DeletedAsync(string id, CancellationToken cancellationToken = default)
+        public override async Task<int> DeletedAsync(string id, CancellationToken cancellationToken = default)
         {
             var message = await GetAsync(id, cancellationToken);
             object[] sqlParams =
@@ -81,15 +83,16 @@ WHERE `Id`=@Id";
             };
             var sql = $@"UPDATE {GetTableName()} SET `IsDeleted`=@IsDeleted,`UpdateTime`=@UpdateTime  WHERE `Id`=@Id";
 
-            using (var connection = new MySqlConnection(_source.DbConnectionStr))
-                connection.ExecuteNonQuery(sql, sqlParams);
+            using var connection = new MySqlConnection(_source.DbConnectionStr);
+            var executeRows = connection.ExecuteNonQuery(sql, sqlParams);
 
+            if (executeRows <= 0) return executeRows;
             var events = new List<Event>
             {
                 new Event(EventType.Deleted, message.Key, message.Value)
             };
             InvokeEvent(events);
-            await Task.CompletedTask;
+            return await Task.FromResult(executeRows);
         }
 
         public override async Task<ConfigurationMessage> GetAsync(string id, CancellationToken cancellationToken = default)
@@ -155,7 +158,7 @@ WHERE `Id`=@Id";
             var sql = $@"
 CREATE TABLE IF NOT EXISTS {GetTableName()} (
   `Id` VARCHAR(200) NOT NULL,
-  `Key` VARCHAR(200) NOT NULL,
+  `Key` VARCHAR(200) NOT NULL UNIQUE,
   `Value` TEXT NOT NULL,
   `Description` TEXT NULL,
   `CreateTime` DATETIME(6) NOT NULL,

@@ -12,10 +12,10 @@ namespace Core.Configuration.Storage
 
         Task<List<ConfigurationMessage>> GetAsync(CancellationToken cancellationToken = default);
 
-        Task AddAsync(ConfigurationMessage message, CancellationToken cancellationToken = default);
+        Task<int> AddAsync(ConfigurationMessage message, CancellationToken cancellationToken = default);
 
-        Task UpdateAsync(ConfigurationMessage message, CancellationToken cancellationToken = default);
+        Task<int> UpdateAsync(ConfigurationMessage message, CancellationToken cancellationToken = default);
 
-        Task DeletedAsync(string id, CancellationToken cancellationToken = default);
+        Task<int> DeletedAsync(string id, CancellationToken cancellationToken = default);
     }
 }

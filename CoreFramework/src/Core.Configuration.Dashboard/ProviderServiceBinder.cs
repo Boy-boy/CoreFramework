@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Threading;
 
 namespace Core.Configuration.Dashboard
 {
@@ -18,7 +19,7 @@ namespace Core.Configuration.Dashboard
         {
             var (invoker, metadata) = CreateModelCore<ServerMethod<TService, TRequest, TResponse>>(
                 method.Name, method.HttpMetadata,
-                new[] { typeof(TRequest) });
+                new[] { typeof(TRequest),typeof(CancellationToken) });
 
             _context.AddMethod(method, metadata, invoker);
         }

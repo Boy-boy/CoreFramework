@@ -12,6 +12,8 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
 
     <ProjectReference Include="..\Core.Configuration\Core.Configuration.csproj" />
+
+    <ProjectReference Include="..\Core.Json\Core.Json.csproj" />
   </ItemGroup>
 
 </Project>

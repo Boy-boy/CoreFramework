@@ -16,11 +16,11 @@ namespace Core.Configuration.Storage
 
         public abstract Task<List<ConfigurationMessage>> GetAsync(CancellationToken cancellationToken = default);
 
-        public abstract Task AddAsync(ConfigurationMessage message, CancellationToken cancellationToken = default);
+        public abstract Task<int> AddAsync(ConfigurationMessage message, CancellationToken cancellationToken = default);
 
-        public abstract Task UpdateAsync(ConfigurationMessage message, CancellationToken cancellationToken = default);
+        public abstract Task<int> UpdateAsync(ConfigurationMessage message, CancellationToken cancellationToken = default);
 
-        public abstract Task DeletedAsync(string id, CancellationToken cancellationToken = default);
+        public abstract Task<int> DeletedAsync(string id, CancellationToken cancellationToken = default);
 
         protected void InvokeEvent(List<Event> events)
         {

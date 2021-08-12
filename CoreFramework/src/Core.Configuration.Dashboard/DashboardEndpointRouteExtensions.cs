@@ -10,7 +10,7 @@ namespace Core.Configuration.Dashboard
         {
             if (builder == null)
                 throw new ArgumentNullException(nameof(builder));
-            builder.ServiceProvider.GetRequiredService<ServiceRouteBuilder<DashboardService>>().Build(builder);
+            builder.ServiceProvider.GetRequiredService<ServiceRouteBuilder>().Build(builder);
         }
     }
 }

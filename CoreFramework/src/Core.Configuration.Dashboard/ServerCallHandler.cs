@@ -1,38 +1,83 @@
-﻿using System;
-using System.IO;
-using System.Text;
-using System.Threading.Tasks;
-using Core.Json.Newtonsoft;
+﻿using Core.Json.Newtonsoft;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using System;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Core.Configuration.Dashboard
 {
-    public class ServerCallHandler<TService, TRequest, TResponse>
+    public class ServerCallHandler<TService>
     {
-        private readonly ServerMethod<TService, TRequest, TResponse> _invoker;
+        private readonly Method<TService> _method;
 
         private static readonly Lazy<ObjectFactory> ObjectFactory = new Lazy<ObjectFactory>(() => ActivatorUtilities.CreateFactory(typeof(TService), Type.EmptyTypes));
 
-
-        public ServerCallHandler(ServerMethod<TService, TRequest, TResponse> invoker)
+        public ServerCallHandler(Method<TService> method)
         {
-            _invoker = invoker;
+            _method = method;
         }
 
         public async Task HandleCallAsync(HttpContext httpContext)
         {
-            httpContext.Request.EnableBuffering();
-            httpContext.Request.Body.Position = 0;
-            var streamReader = new StreamReader(httpContext.Request.Body);
-            var body = await streamReader.ReadToEndAsync();
-
-            var service = CreateService(httpContext.RequestServices);
-            var request = body.ToObject<TRequest>();
-            var result = await _invoker.Invoke(service, request, httpContext.RequestAborted);
-
-            await httpContext.Response.WriteAsync("", Encoding.UTF8, httpContext.RequestAborted);
-            httpContext.Request.Body.Position = 0;
+            var httpMethod = httpContext.Request.Method;
+            switch (httpMethod)
+            {
+                case "GET" when httpMethod == _method.HttpMetadata:
+                    {
+                        var service = CreateService(httpContext.RequestServices);
+                        if (_method.MethodParameter != null)
+                        {
+                            var request = httpContext.Request.Query.FirstOrDefault();
+                            _method.MethodInvoke.Invoke(service, new object[]
+                            {
+                                    request.Value.ToString(),
+                                    httpContext,
+                                    httpContext.RequestAborted
+                            });
+                        }
+                        else
+                        {
+                            _method.MethodInvoke.Invoke(service, new object[]
+                            {
+                                    httpContext,
+                                    httpContext.RequestAborted
+                            });
+                        }
+                        break;
+                    }
+                case "POST" when httpMethod == _method.HttpMetadata:
+                    {
+                        var service = CreateService(httpContext.RequestServices);
+                        if (_method.MethodParameter != null)
+                        {
+                            httpContext.Request.EnableBuffering();
+                            httpContext.Request.Body.Position = 0;
+                            var streamReader = new StreamReader(httpContext.Request.Body);
+                            var body = streamReader.ReadToEndAsync().GetAwaiter().GetResult();
+                            var request = body.ToObject(_method.MethodParameter);
+                            _method.MethodInvoke.Invoke(service, new[]
+                             {
+                                   request,
+                                   httpContext,
+                                   httpContext.RequestAborted
+                                 });
+                            httpContext.Request.Body.Position = 0;
+                        }
+                        else
+                        {
+                            _method.MethodInvoke.Invoke(service, new object[]
+                             {
+                                     httpContext,
+                                     httpContext.RequestAborted
+                             });
+                        }
+                        break;
+                    }
+                default:
+                    throw new Exception("暂且只支持GET和POST请求");
+            }
             await Task.CompletedTask;
         }
 

@@ -8,7 +8,7 @@ namespace Core.Configuration.Storage
     {
         Task InitializeAsync(CancellationToken cancellationToken = default);
 
-        Task<ConfigurationMessage> GetAsync(string id, CancellationToken cancellationToken = default);
+        Task<List<ConfigurationMessage>> GetAsync(string id, string key, CancellationToken cancellationToken = default);
 
         Task<List<ConfigurationMessage>> GetAsync(CancellationToken cancellationToken = default);
 

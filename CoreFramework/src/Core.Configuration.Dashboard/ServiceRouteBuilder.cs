@@ -4,21 +4,14 @@ using System.Collections.Generic;
 
 namespace Core.Configuration.Dashboard
 {
-    public class ServiceRouteBuilder<TService> where TService : class
+    public class ServiceRouteBuilder
     {
-        private readonly IEnumerable<IServiceMethodProvider<TService>> _serviceMethodProviders;
-
-        public ServiceRouteBuilder(IEnumerable<IServiceMethodProvider<TService>> serviceMethodProviders)
-        {
-            _serviceMethodProviders = serviceMethodProviders;
-        }
-
         internal List<IEndpointConventionBuilder> Build(
             IEndpointRouteBuilder endpointRouteBuilder)
         {
-            var context = new ServiceMethodProviderContext<TService>();
-            foreach (var serviceMethodProvider in _serviceMethodProviders)
-                serviceMethodProvider.OnServiceMethodDiscovery(context);
+            var context = new ServiceMethodProviderContext<DashboardActionRoute>();
+            var actionRouteProvider = new DashboardActionRouteProvider();
+            actionRouteProvider.OnServiceMethodDiscovery(context);
 
             var conventionBuilderList = new List<IEndpointConventionBuilder>();
             if (context.Methods.Count <= 0) return conventionBuilderList;

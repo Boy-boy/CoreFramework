@@ -1,13 +1,22 @@
-﻿namespace Core.Configuration.Dashboard
+﻿using System;
+using System.Collections.Generic;
+using System.Reflection;
+
+namespace Core.Configuration.Dashboard
 {
     public interface IMethod
     {
-        string ServiceName { get; }
+        string MethodName { get; }
 
-        string Name { get; }
-
-        string FullName { get; }
+        Type MethodParameter { get; }
 
         string HttpMetadata { get; }
+
+        string RouteTemplate { get; }
+
+        List<object> MethodMetadata { get; }
+
+        MethodInfo MethodInvoke { get; }
     }
+
 }

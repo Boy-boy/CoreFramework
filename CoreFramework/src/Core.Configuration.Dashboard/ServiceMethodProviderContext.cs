@@ -11,10 +11,10 @@ namespace Core.Configuration.Dashboard
         }
         internal List<MethodModel> Methods { get; }
 
-        public void AddMethod<TRequest, TResponse>(Method<TRequest, TResponse> method, IList<object> metadata, ServerMethod<TService, TRequest, TResponse> invoker)
+        public void AddMethod(Method<TService> method)
         {
-            var callHandler = new ServerCallHandler<TService, TRequest, TResponse>(invoker);
-            var methodModel = new MethodModel(RoutePatternFactory.Parse(method.FullName), metadata, callHandler.HandleCallAsync);
+            var callHandler = new ServerCallHandler<TService>(method);
+            var methodModel = new MethodModel(RoutePatternFactory.Parse(method.RouteTemplate), method.MethodMetadata, callHandler.HandleCallAsync);
             Methods.Add(methodModel);
         }
     }

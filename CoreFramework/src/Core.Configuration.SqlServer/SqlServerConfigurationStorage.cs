@@ -2,6 +2,8 @@
 using Core.Configuration.Storage;
 using Microsoft.Data.SqlClient;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -74,7 +76,7 @@ WHERE [Id]=@Id";
 
         public override async Task<int> DeletedAsync(string id, CancellationToken cancellationToken = default)
         {
-            var message = await GetAsync(id, cancellationToken);
+            var messages = await GetAsync(id, null, cancellationToken);
             object[] sqlParams =
             {
                 new SqlParameter("@Id", id),
@@ -87,6 +89,9 @@ WHERE [Id]=@Id";
             var executeRows = connection.ExecuteNonQuery(sql, sqlParams);
 
             if (executeRows <= 0) return executeRows;
+
+            var message = messages.FirstOrDefault(m => m.Id == id);
+            if (message == null) return executeRows;
             var events = new List<Event>
             {
                 new Event(EventType.Deleted, message.Key, message.Value)
@@ -95,21 +100,32 @@ WHERE [Id]=@Id";
             return await Task.FromResult(executeRows);
         }
 
-        public override async Task<ConfigurationMessage> GetAsync(string id, CancellationToken cancellationToken = default)
+        public override async Task<List<ConfigurationMessage>> GetAsync(string id, string key, CancellationToken cancellationToken = default)
         {
-            var result = new ConfigurationMessage();
+            var result = new List<ConfigurationMessage>();
             if (cancellationToken.IsCancellationRequested) return result;
-            object[] sqlParams =
+            var sqlParams = new List<object>()
             {
-                new SqlParameter("@Id", id),
                 new SqlParameter("@IsDeleted", false)
             };
-            var sql = $@"SELECT * FROM {GetTableName()} WHERE [Id]=@Id AND [IsDeleted]=@IsDeleted";
+            var sqlWhere = new StringBuilder("WHERE [IsDeleted]=@IsDeleted ");
+            if (!string.IsNullOrEmpty(id))
+            {
+                sqlWhere = sqlWhere.Append("AND [Id]=@Id ");
+                sqlParams.Add(new SqlParameter("@Id", id));
+            }
+            if (!string.IsNullOrEmpty(key))
+            {
+                sqlWhere = sqlWhere.Append("AND [Key] LIKE @Key ");
+                sqlParams.Add(new SqlParameter("@Key", key));
+            }
+
+            var sql = $@"SELECT * FROM {GetTableName()} {sqlWhere}";
             using var connection = new SqlConnection(_source.DbConnectionStr);
-            var reader = connection.ExecuteQuery(sql, sqlParams);
+            var reader = connection.ExecuteQuery(sql, sqlParams.ToArray());
             while (reader.Read())
             {
-                result = new ConfigurationMessage
+                result.Add(new ConfigurationMessage
                 {
                     Id = reader["Id"].ToString(),
                     Key = reader["Key"].ToString(),
@@ -119,7 +135,7 @@ WHERE [Id]=@Id";
                     UpdateTime = Convert.ToDateTime(reader["UpdateTime"].ToString()),
                     UtcTime = Convert.ToDateTime(reader["UtcTime"].ToString()),
                     IsDeleted = Convert.ToBoolean(reader["IsDeleted"].ToString())
-                };
+                });
             }
             return await Task.FromResult(result);
         }

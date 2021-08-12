@@ -12,7 +12,7 @@ namespace Core.Configuration.Storage
 
         public abstract Task InitializeAsync(CancellationToken cancellationToken = default);
 
-        public abstract Task<ConfigurationMessage> GetAsync(string id, CancellationToken cancellationToken = default);
+        public abstract Task<List<ConfigurationMessage>> GetAsync(string id, string key, CancellationToken cancellationToken = default);
 
         public abstract Task<List<ConfigurationMessage>> GetAsync(CancellationToken cancellationToken = default);
 

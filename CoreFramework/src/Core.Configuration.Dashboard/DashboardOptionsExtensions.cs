@@ -18,8 +18,7 @@ namespace Core.Configuration.Dashboard
             _options?.Invoke(option);
             services.AddSingleton(option);
 
-            services.TryAddSingleton(typeof(ServiceRouteBuilder<>));
-            services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IServiceMethodProvider<>), typeof(DashboardServiceMethodProvider<>)));
+            services.TryAddSingleton(typeof(ServiceRouteBuilder));
         }
     }
 }

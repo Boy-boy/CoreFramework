@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using Core.Configuration.Storage;
 
 namespace Core.Configuration.PostgreSql
 {
@@ -14,7 +13,7 @@ namespace Core.Configuration.PostgreSql
         public override void Load()
         {
             Data = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            var configurations = Storage.GetAsync().Result;
+            var configurations = Storage.GetAsync(Source.Environment).Result;
             foreach (var configuration in configurations)
             {
                 if (Data.ContainsKey(configuration.Key))

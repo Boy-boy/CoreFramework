@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Routing.Patterns;
 
 namespace Core.Configuration.Dashboard
 {
-    public class ServiceMethodProviderContext<TService> where TService : class
+    public class ServiceMethodProviderContext
     {
         public ServiceMethodProviderContext()
         {
@@ -11,7 +11,7 @@ namespace Core.Configuration.Dashboard
         }
         internal List<MethodModel> Methods { get; }
 
-        public void AddMethod(Method<TService> method)
+        public void AddMethod<TService>(Method<TService> method) where TService : class
         {
             var callHandler = new ServerCallHandler<TService>(method);
             var methodModel = new MethodModel(RoutePatternFactory.Parse(method.RouteTemplate), method.MethodMetadata, callHandler.HandleCallAsync);

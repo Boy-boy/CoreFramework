@@ -75,8 +75,31 @@ namespace Core.Configuration.Dashboard
                         }
                         break;
                     }
+                case "DELETE" when httpMethod == _method.HttpMetadata:
+                    {
+                        var service = CreateService(httpContext.RequestServices);
+                        if (_method.MethodParameter != null)
+                        {
+                            var request = httpContext.Request.Query.FirstOrDefault();
+                            _method.MethodInvoke.Invoke(service, new object[]
+                            {
+                            request.Value.ToString(),
+                            httpContext,
+                            httpContext.RequestAborted
+                            });
+                        }
+                        else
+                        {
+                            _method.MethodInvoke.Invoke(service, new object[]
+                            {
+                            httpContext,
+                            httpContext.RequestAborted
+                            });
+                        }
+                        break;
+                    }
                 default:
-                    throw new Exception("暂且只支持GET和POST请求");
+                    throw new Exception("暂且只支持GET,POST,DELETE请求");
             }
             await Task.CompletedTask;
         }

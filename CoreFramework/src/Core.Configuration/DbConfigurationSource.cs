@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading;
+using Core.Configuration.Storage;
 using Microsoft.Extensions.Configuration;
 
 namespace Core.Configuration
@@ -24,6 +25,11 @@ namespace Core.Configuration
         /// 若数据库不存在table，即创建新的table
         /// </summary>
         public string TableName { get; set; } = "sys_configuration";
+
+        /// <summary>
+        /// 环境（develop,test,product）
+        /// </summary>
+        public string Environment { get; set; } = Environments.Product;
 
         /// <summary>
         /// 间隔多久同步table数据，默认60分钟一次,最低不可低于1分钟

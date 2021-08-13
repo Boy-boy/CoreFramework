@@ -1,14 +1,16 @@
 ﻿namespace Core.Configuration.Dashboard
 {
-    public class DashboardActionRouteProvider
+    public class DashboardActionRouteProvider : IDashboardRouteProvider
     {
-        public void OnServiceMethodDiscovery(ServiceMethodProviderContext<DashboardActionRoute> context)
+        public ServiceMethodProviderContext OnServiceMethodDiscovery()
         {
+            var context = new ServiceMethodProviderContext();
             var methods = DashboardActionRoute.GetMethods();
             foreach (var method in methods)
             {
                 context.AddMethod(method);
             }
+            return context;
         }
     }
 }

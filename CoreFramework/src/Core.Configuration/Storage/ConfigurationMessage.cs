@@ -4,21 +4,12 @@ namespace Core.Configuration.Storage
 {
     public class ConfigurationMessage
     {
-        public ConfigurationMessage(){}
-        public ConfigurationMessage(string key,string value,string description)
-        {
-            Id = Guid.NewGuid().ToString();
-            Key = key;
-            Value = value;
-            Description = description;
-            CreateTime = UpdateTime= DateTime.Now;
-            UtcTime = DateTime.UtcNow;
-        }
+        public int Id { get; set; }
 
-        public string Id { get; set; }
+        public string Environment { get; set; } = Environments.Product;
 
         public string Key { get; set; }
-        
+
         public string Value { get; set; }
 
         public string Description { get; set; }
@@ -28,7 +19,12 @@ namespace Core.Configuration.Storage
         public DateTime UpdateTime { get; set; }
 
         public DateTime UtcTime { get; set; }
+    }
 
-        public bool IsDeleted { get; set; } = false;
+    public static class Environments
+    {
+        public static readonly string Develop = "develop";
+        public static readonly string Test = "test";
+        public static readonly string Product = "product";
     }
 }

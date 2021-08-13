@@ -13,7 +13,7 @@ namespace Core.Configuration.SqlServer
         public override void Load()
         {
             Data = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            var configurations = Storage.GetAsync().Result;
+            var configurations = Storage.GetAsync(Source.Environment).Result;
             foreach (var configuration in configurations)
             {
                 if (Data.ContainsKey(configuration.Key))

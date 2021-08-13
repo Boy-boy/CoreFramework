@@ -13,7 +13,7 @@ namespace Core.Configuration.MySql
         public override void Load()
         {
             Data = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            var configurations = Storage.GetAsync().GetAwaiter().GetResult();
+            var configurations = Storage.GetAsync(Source.Environment).GetAwaiter().GetResult();
             foreach (var configuration in configurations)
             {
                 if (Data.ContainsKey(configuration.Key))

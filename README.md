@@ -250,8 +250,21 @@
         }
         
         public override void ConfigureServices(ServiceCollectionContext context)
+        {       
+            context.Services.AddDbConfiguration(options =>
+            {
+                //请求/config/dashboard/index.html 即可跳转到db confi配置页面
+                options.AddDashboard(actionOptions => { });
+            }); 
+        }
+
+        public override void Configure(ApplicationBuilderContext context)
         {
-            context.Services.AddControllers();              
+            var app = context.ApplicationBuilder;
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapDbConfigurationDashboard();              
+            });
         }
     }
 ```
@@ -415,9 +428,19 @@ public class Startup
 
         public void ConfigureServices(IServiceCollection services)
         {
-         //方式一
-          services.AddDbConfiguration();      
+            services.AddDbConfiguration(options =>
+            {
+                options.AddDashboard(actionOptions => { });
+            }); 
         }   
+
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        {
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapDbConfigurationDashboard();
+            });
+        }
     }
 ```
 

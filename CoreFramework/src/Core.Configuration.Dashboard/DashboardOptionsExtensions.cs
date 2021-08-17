@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using System;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Core.Configuration.Dashboard
@@ -14,15 +15,10 @@ namespace Core.Configuration.Dashboard
         }
         public void AddServices(IServiceCollection services)
         {
-         
+            services.AddTransient<IStartupFilter, DashboardStaticFileStartupFilter>();
             services.Configure(_options);
             services.TryAddSingleton(typeof(ServiceRouteBuilder));
             services.TryAddEnumerable(new ServiceDescriptor(typeof(IDashboardRouteProvider), typeof(DashboardActionRouteProvider),ServiceLifetime.Singleton));
-            services.TryAddEnumerable(new ServiceDescriptor(typeof(IDashboardRouteProvider), typeof(DashboardHtmlActionRouteProvider), ServiceLifetime.Singleton));
-            services.TryAddEnumerable(new ServiceDescriptor(typeof(IDashboardRouteProvider), typeof(DashboardCssActionRouteProvider), ServiceLifetime.Singleton));
-            services.TryAddEnumerable(new ServiceDescriptor(typeof(IDashboardRouteProvider), typeof(DashboardJavaScriptActionRouteProvider), ServiceLifetime.Singleton));
-            services.TryAddEnumerable(new ServiceDescriptor(typeof(IDashboardRouteProvider), typeof(DashboardImgActionRouteProvider), ServiceLifetime.Singleton));
-            services.TryAddEnumerable(new ServiceDescriptor(typeof(IDashboardRouteProvider), typeof(DashboardStaticActionRouteProvider), ServiceLifetime.Singleton));
         }
     }
 }

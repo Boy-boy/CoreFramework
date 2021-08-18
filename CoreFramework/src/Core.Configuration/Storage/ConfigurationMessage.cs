@@ -14,6 +14,8 @@ namespace Core.Configuration.Storage
 
         public string Description { get; set; }
 
+        public string NameSpace{ get; set; }
+
         public DateTime CreateTime { get; set; }
 
         public DateTime UpdateTime { get; set; }

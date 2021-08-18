@@ -15,7 +15,7 @@ namespace Core.Configuration.Storage
 
         public abstract Task<PageResultDto<ConfigurationMessage>> GetAsync(MessageQueryModel query, CancellationToken cancellationToken = default);
 
-        public abstract Task<List<ConfigurationMessage>> GetAsync(string environment, CancellationToken cancellationToken = default);
+        public abstract Task<List<ConfigurationMessage>> GetAsync(string environment, string group, CancellationToken cancellationToken = default);
 
         public abstract Task<ConfigurationMessage> GetAsync(int id, CancellationToken cancellationToken = default);
 

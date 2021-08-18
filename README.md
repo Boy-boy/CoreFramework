@@ -226,7 +226,7 @@
                     //添加数据库配置文件，例如PostgreSql，Mysql，SqlServer
                     builder.AddPostgreSqlConfigure(actionOptions =>
                     {
-                        actionOptions.DbConnectionStr = "Host=47.101.70.119;Port=5432;Database=customer;Username=postgres;Password=123456";
+                        actionOptions.DbConnection = "Host=**;Port=5432;Database=customer;Username=postgres;Password=123456";
                     });
                 })
                 .ConfigureWebHostDefaults(webBuilder =>
@@ -253,7 +253,7 @@
         {       
             context.Services.AddDbConfiguration(options =>
             {
-                //请求/config/dashboard/index.html 即可跳转到db confi配置页面
+                //请求/config/dashboard/index.html 即可跳转到db config配置页面
                 options.AddDashboard(actionOptions => { });
             }); 
         }
@@ -407,7 +407,7 @@ public class Startup
                     //添加数据库配置文件，例如PostgreSql，Mysql，SqlServer
                     builder.AddPostgreSqlConfigure(actionOptions =>
                     {
-                        actionOptions.DbConnectionStr = "Host=47.101.70.119;Port=5432;Database=customer;Username=postgres;Password=123456";
+                        actionOptions.DbConnection = "Host=**;Port=5432;Database=customer;Username=postgres;Password=123456";
                     });
                 })
                 .ConfigureWebHostDefaults(webBuilder =>
@@ -430,6 +430,7 @@ public class Startup
         {
             services.AddDbConfiguration(options =>
             {
+                 //请求/config/dashboard/index.html 即可跳转到db config配置页面
                 options.AddDashboard(actionOptions => { });
             }); 
         }   

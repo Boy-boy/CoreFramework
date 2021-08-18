@@ -25,7 +25,7 @@ namespace Core.Configuration.SqlServer
 
             var exist = await ExistAsync(message.Key, cancellationToken);
             if (exist)
-                throw new Exception($"The configuration key for the {_source.Environment} environment already exists");
+                throw new Exception($"The configuration key for the {_source.Environment} environment and {_source.NameSpace} NameSpace already exists");
 
             var dateTime = DateTime.Now;
             var dateUtcTime = DateTime.UtcNow;
@@ -35,14 +35,15 @@ namespace Core.Configuration.SqlServer
                 new SqlParameter("@Value", message.Value),
                 new SqlParameter("@Environment", _source.Environment),
                 new SqlParameter("@Description", message.Description),
+                new SqlParameter("@NameSpace", _source.NameSpace),
                 new SqlParameter("@CreateTime", dateTime),
                 new SqlParameter("@UpdateTime", dateTime),
                 new SqlParameter("@UtcTime", dateUtcTime)
             };
-            var sql = $@"INSERT INTO {GetTableName()} ([Key],[Value],[Environment],[Description],[CreateTime],[UpdateTime],[UtcTime]) 
-VALUES (@Key,@Value,@Environment,@Description,@CreateTime,@UpdateTime,@UtcTime);";
+            var sql = $@"INSERT INTO {GetTableName()} ([Key],[Value],[Environment],[Description],[NameSpace],[CreateTime],[UpdateTime],[UtcTime]) 
+VALUES (@Key,@Value,@Environment,@Description,@NameSpace,@CreateTime,@UpdateTime,@UtcTime);";
 
-            using var connection = new SqlConnection(_source.DbConnectionStr);
+            using var connection = new SqlConnection(_source.DbConnection);
             var executeRows = connection.ExecuteNonQuery(sql, sqlParams);
 
             if (executeRows <= 0) return executeRows;
@@ -61,7 +62,7 @@ VALUES (@Key,@Value,@Environment,@Description,@CreateTime,@UpdateTime,@UtcTime);
             {
                 var exist = await ExistAsync(message.Key, cancellationToken);
                 if (exist)
-                    throw new Exception($"The configuration key for the {_source.Environment} environment already exists");
+                    throw new Exception($"The configuration key for the {_source.Environment} environment and {_source.NameSpace} NameSpace already exists");
             }
 
             var dateTime = DateTime.Now;
@@ -77,7 +78,7 @@ VALUES (@Key,@Value,@Environment,@Description,@CreateTime,@UpdateTime,@UtcTime);
 SET [Key]=@Key,[Value]=@Value,[Description]=@Description,[UpdateTime]=@UpdateTime
 WHERE [Id]=@Id";
 
-            using var connection = new SqlConnection(_source.DbConnectionStr);
+            using var connection = new SqlConnection(_source.DbConnection);
             var executeRows = connection.ExecuteNonQuery(sql, sqlParams);
 
             if (executeRows <= 0) return executeRows;
@@ -98,7 +99,7 @@ WHERE [Id]=@Id";
             };
             var sql = $@"DELETE FROM {GetTableName()} WHERE [Id]=@Id";
 
-            using var connection = new SqlConnection(_source.DbConnectionStr);
+            using var connection = new SqlConnection(_source.DbConnection);
             var executeRows = connection.ExecuteNonQuery(sql, sqlParams);
             if (executeRows <= 0) return executeRows;
 
@@ -115,10 +116,11 @@ WHERE [Id]=@Id";
 
             var sqlParams = new List<object>
             {
-                new SqlParameter("@Environment", _source.Environment)
+                new SqlParameter("@Environment", _source.Environment),
+                new SqlParameter("@NameSpace", _source.NameSpace)
             };
 
-            var sqlWhere = new StringBuilder("WHERE [Environment]=@Environment ");
+            var sqlWhere = new StringBuilder("WHERE [Environment]=@Environment AND [NameSpace]=@NameSpace ");
             if (query.Id.HasValue)
             {
                 sqlWhere = sqlWhere.Append("AND [Id]=@Id ");
@@ -131,7 +133,7 @@ WHERE [Id]=@Id";
             }
 
             var sql = $@"SELECT * FROM {GetTableName()} {sqlWhere} ORDER BY [UpdateTime] DESC  offset {query.PageIndex * query.PageSize} rows fetch next {query.PageSize} rows only";
-            using var connection = new SqlConnection(_source.DbConnectionStr);
+            using var connection = new SqlConnection(_source.DbConnection);
             var reader = connection.ExecuteQuery(sql, sqlParams.ToArray());
             var list = new List<ConfigurationMessage>();
             while (reader.Read())
@@ -142,6 +144,8 @@ WHERE [Id]=@Id";
                     Key = reader["Key"].ToString(),
                     Value = reader["Value"].ToString(),
                     Description = reader["Description"].ToString(),
+                    Environment = reader["Environment"].ToString(),
+                    NameSpace = reader["NameSpace"].ToString(),
                     CreateTime = Convert.ToDateTime(reader["CreateTime"].ToString()),
                     UpdateTime = Convert.ToDateTime(reader["UpdateTime"].ToString()),
                     UtcTime = Convert.ToDateTime(reader["UtcTime"].ToString())
@@ -152,7 +156,7 @@ WHERE [Id]=@Id";
             return await Task.FromResult(result);
         }
 
-        public override async Task<List<ConfigurationMessage>> GetAsync(string environment, CancellationToken cancellationToken = default)
+        public override async Task<List<ConfigurationMessage>> GetAsync(string environment, string group, CancellationToken cancellationToken = default)
         {
             var result = new List<ConfigurationMessage>();
             if (cancellationToken.IsCancellationRequested) return result;
@@ -161,12 +165,17 @@ WHERE [Id]=@Id";
             var sqlWhere = new StringBuilder("WHERE 1=1 ");
             if (!string.IsNullOrEmpty(environment))
             {
-                sqlWhere.Append("AND [Environment]=@Environment");
+                sqlWhere.Append("AND [Environment]=@Environment ");
                 sqlParams.Add(new SqlParameter("@Environment", environment));
+            }
+            if (!string.IsNullOrEmpty(group))
+            {
+                sqlWhere.Append("AND [NameSpace]=@NameSpace ");
+                sqlParams.Add(new SqlParameter("@NameSpace", group));
             }
 
             var sql = $@"SELECT * FROM {GetTableName()} {sqlWhere}";
-            using var connection = new SqlConnection(_source.DbConnectionStr);
+            using var connection = new SqlConnection(_source.DbConnection);
             var reader = connection.ExecuteQuery(sql, sqlParams.ToArray());
             while (reader.Read())
             {
@@ -176,6 +185,8 @@ WHERE [Id]=@Id";
                     Key = reader["Key"].ToString(),
                     Value = reader["Value"].ToString(),
                     Description = reader["Description"].ToString(),
+                    Environment = reader["Environment"].ToString(),
+                    NameSpace = reader["NameSpace"].ToString(),
                     CreateTime = Convert.ToDateTime(reader["CreateTime"].ToString()),
                     UpdateTime = Convert.ToDateTime(reader["UpdateTime"].ToString()),
                     UtcTime = Convert.ToDateTime(reader["UtcTime"].ToString())
@@ -195,7 +206,7 @@ WHERE [Id]=@Id";
             };
 
             var sql = $@"SELECT * FROM {GetTableName()} WHERE [Id]=@Id";
-            using var connection = new SqlConnection(_source.DbConnectionStr);
+            using var connection = new SqlConnection(_source.DbConnection);
             var reader = connection.ExecuteQuery(sql, sqlParams.ToArray());
             while (reader.Read())
             {
@@ -205,6 +216,8 @@ WHERE [Id]=@Id";
                     Key = reader["Key"].ToString(),
                     Value = reader["Value"].ToString(),
                     Description = reader["Description"].ToString(),
+                    Environment = reader["Environment"].ToString(),
+                    NameSpace = reader["NameSpace"].ToString(),
                     CreateTime = Convert.ToDateTime(reader["CreateTime"].ToString()),
                     UpdateTime = Convert.ToDateTime(reader["UpdateTime"].ToString()),
                     UtcTime = Convert.ToDateTime(reader["UtcTime"].ToString())
@@ -223,11 +236,12 @@ WHERE [Id]=@Id";
             object[] sqlParams =
              {
                 new SqlParameter("@Key", key),
-                new SqlParameter("@Environment", _source.Environment)
+                new SqlParameter("@Environment", _source.Environment),
+                new SqlParameter("@NameSpace", _source.NameSpace)
             };
 
-            var sql = $"SELECT COUNT(1) AS count FROM {GetTableName()} WHERE [Key]=@Key AND [Environment]=@Environment";
-            using var connection = new SqlConnection(_source.DbConnectionStr);
+            var sql = $"SELECT COUNT(1) AS count FROM {GetTableName()} WHERE [Key]=@Key AND [Environment]=@Environment AND [NameSpace]=@NameSpace ";
+            using var connection = new SqlConnection(_source.DbConnection);
             var reader = connection.ExecuteQuery(sql, sqlParams);
             var count = 0;
             while (reader.Read())
@@ -243,11 +257,12 @@ WHERE [Id]=@Id";
 
             object[] sqlParams =
             {
-                new SqlParameter("@Environment", _source.Environment)
+                new SqlParameter("@Environment", _source.Environment),
+                new SqlParameter("@NameSpace", _source.NameSpace)
             };
 
-            var sql = $"SELECT COUNT(1) AS count FROM {GetTableName()} WHERE [Environment]=@Environment";
-            using var connection = new SqlConnection(_source.DbConnectionStr);
+            var sql = $"SELECT COUNT(1) AS count FROM {GetTableName()} WHERE [Environment]=@Environment AND [NameSpace]=@NameSpace ";
+            using var connection = new SqlConnection(_source.DbConnection);
             var reader = connection.ExecuteQuery(sql, sqlParams);
             var count = 0;
             while (reader.Read())
@@ -274,12 +289,13 @@ CREATE TABLE {GetTableName()}(
 	[Value] [text] NOT NULL,
     [Environment] [varchar](20) NOT NULL,
 	[Description] [text] NULL,
+    [NameSpace] [varchar](50) NOT NULL,
 	[CreateTime] [datetime2](6) NOT NULL,
     [UpdateTime] [datetime2](6) NOT NULL,
 	[UtcTime] [datetime2](6) NOT NULL
 	)
 END;";
-            using (var connection = new SqlConnection(_source.DbConnectionStr))
+            using (var connection = new SqlConnection(_source.DbConnection))
                 connection.ExecuteNonQuery(sql);
 
             await Task.CompletedTask;
@@ -287,7 +303,7 @@ END;";
 
         public virtual string GetTableName()
         {
-            return $"{_source.DbSchema}.{_source.TableName}";
+            return $"{_source.DbSchema}.{_source.DbTable}";
         }
     }
 }

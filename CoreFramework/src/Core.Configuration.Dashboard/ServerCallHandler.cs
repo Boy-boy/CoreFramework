@@ -99,7 +99,7 @@ namespace Core.Configuration.Dashboard
                         break;
                     }
                 default:
-                    throw new Exception("暂且只支持GET,POST,DELETE请求");
+                    throw new Exception("Db Config Data Api暂且只支持GET,POST,DELETE请求");
             }
             await Task.CompletedTask;
         }

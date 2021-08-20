@@ -2,20 +2,20 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.FileProviders;
 using System;
-using System.IO;
+using System.Reflection;
 
 namespace Core.Configuration.Dashboard
 {
     public class DashboardStaticFileStartupFilter : IStartupFilter
     {
+        private const string EmbeddedFileNamespace = "Core.Configuration.Dashboard.wwwroot.dist";
         public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
         {
             return (app =>
             {
-                var path = Path.Combine(AppContext.BaseDirectory, "DbConfigStaticFile", "dist");
                 app.UseStaticFiles(new StaticFileOptions
                 {
-                    FileProvider = new PhysicalFileProvider(path),
+                    FileProvider = new EmbeddedFileProvider(typeof(DashboardStaticFileStartupFilter).GetTypeInfo().Assembly, EmbeddedFileNamespace),
                     RequestPath = "/config/dashboard"
                 });
                 next(app);

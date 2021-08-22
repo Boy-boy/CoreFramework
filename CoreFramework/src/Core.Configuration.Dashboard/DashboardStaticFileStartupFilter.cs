@@ -6,24 +6,26 @@ using System;
 using System.IO;
 using System.Reflection;
 using System.Text;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Core.Configuration.Dashboard
 {
     public class DashboardStaticFileStartupFilter : IStartupFilter
     {
         private const string EmbeddedFileNamespace = "Core.Configuration.Dashboard.wwwroot.dist";
-
         private const string PathMatch = "/config/dashboard";
-
         private const string PathMatch1 = "/config/dashboard/home";
+
         public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
         {
             return (app =>
             {
+                var option = app.ApplicationServices.GetRequiredService<IOptions<DashboardOptions>>();
                 app.Use(async (context, next1) =>
                 {
                     var path = context.Request.Path;
-                    if (path.Equals(PathMatch) || path.Equals(PathMatch1))
+                    if (path.Equals(option.Value.PathMatch) || path.Equals(PathMatch1))
                     {
                         context.Response.StatusCode = 200;
                         context.Response.ContentType = "text/html;charset=utf-8";
@@ -42,7 +44,7 @@ namespace Core.Configuration.Dashboard
                 app.UseStaticFiles(new StaticFileOptions
                 {
                     FileProvider = new EmbeddedFileProvider(typeof(DashboardStaticFileStartupFilter).GetTypeInfo().Assembly, EmbeddedFileNamespace),
-                    RequestPath = PathMatch
+                    RequestPath= PathMatch
                 });
                 next(app);
             });

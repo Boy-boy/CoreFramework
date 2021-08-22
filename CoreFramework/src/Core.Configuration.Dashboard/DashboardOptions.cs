@@ -7,8 +7,11 @@ namespace Core.Configuration.Dashboard
     {
         public DashboardOptions()
         {
+            PathMatch = "/config/dashboard";
             Attributes = new List<Attribute>();
         }
+
+        public string PathMatch { get; set; }
 
         public List<Attribute> Attributes { get; }
 

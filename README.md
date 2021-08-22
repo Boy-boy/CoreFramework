@@ -253,8 +253,11 @@
         {       
             context.Services.AddDbConfiguration(options =>
             {
-                //请求/config/dashboard/index.html 即可跳转到db config配置页面
-                options.AddDashboard(actionOptions => { });
+                options.AddDashboard(actionOptions =>
+                 {
+                   //请求/config/dashboard 即可跳转到db config配置页面,可配置，如下
+                   actionOptions.PathMatch = "/config/dashboard";
+                 });
             }); 
         }
 
@@ -430,8 +433,11 @@ public class Startup
         {
             services.AddDbConfiguration(options =>
             {
-                 //请求/config/dashboard/index.html 即可跳转到db config配置页面
-                options.AddDashboard(actionOptions => { });
+               options.AddDashboard(actionOptions =>
+                 {
+                   //请求/config/dashboard 即可跳转到db config配置页面,可配置，如下
+                   actionOptions.PathMatch = "/config/dashboard";
+                 });
             }); 
         }   
 

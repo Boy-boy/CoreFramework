@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using Core.EventBus.Messaging;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Core.EventBus.Transaction
 {
@@ -16,9 +17,9 @@ namespace Core.EventBus.Transaction
 
         public bool AutoCommit { get; set; }
 
-        protected TransactionBase(IMessagePublisher publisher)
+        protected TransactionBase(IServiceProvider serviceProvider)
         {
-            _publisher = publisher;
+            _publisher = serviceProvider.GetService<IMessagePublisher>();
             _messages = new ConcurrentQueue<IMessage>();
         }
 
@@ -37,6 +38,9 @@ namespace Core.EventBus.Transaction
 
         protected virtual void Flush()
         {
+            if (_publisher == null)
+                return;
+
             while (!_messages.IsEmpty)
             {
                 _messages.TryDequeue(out var message);

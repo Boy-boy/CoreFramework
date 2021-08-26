@@ -1,5 +1,6 @@
 ﻿using System;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Core.EventBus.RabbitMQ
 {
@@ -17,8 +18,8 @@ namespace Core.EventBus.RabbitMQ
             _options.Invoke(option);
             services.AddRabbitMq(option.RabbitMqOptions);
 
-            services.AddSingleton<IMessagePublisher, RabbitMqMessagePublisher>();
-            services.AddSingleton<IMessageSubscribe, RabbitMqMessageSubscribe>();
+            services.TryAddSingleton<IMessagePublisher, RabbitMqMessagePublisher>();
+            services.TryAddSingleton<IMessageSubscribe, RabbitMqMessageSubscribe>();
             services.Configure(_options);
         }
     }

@@ -18,7 +18,7 @@ namespace Core.EventBus.PostgreSql
         {
             context.Services.Configure<EventBusPostgreSqlOptions>(_configuration.GetSection("EventBus:Storage"));
             context.Items.TryGetValue(nameof(EventBusBuilder), out var eventBusBuilder);
-            ((EventBusBuilder)eventBusBuilder).AddPostgreSql();
+            ((EventBusBuilder)eventBusBuilder).AddPostgreSql(options => { });
         }
     }
 }

@@ -9,7 +9,7 @@ namespace Core.EventBus.PostgreSql
     public static class PostgreSqlServiceCollectionExtensions
     {
         public static EventBusBuilder AddPostgreSql(this EventBusBuilder builder,
-            Action<EventBusPostgreSqlOptions> options = null)
+            Action<EventBusPostgreSqlOptions> options)
         {
             builder.Service.TryAddSingleton<IStorage, PostgreSqlStorage>();
             builder.Service.TryAddTransient<ITransaction, PostgreSqlTransaction>();

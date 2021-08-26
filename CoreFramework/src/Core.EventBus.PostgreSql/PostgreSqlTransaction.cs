@@ -1,4 +1,5 @@
-﻿using Core.EventBus.Transaction;
+﻿using System;
+using Core.EventBus.Transaction;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Data;
 using System.Threading;
@@ -8,8 +9,8 @@ namespace Core.EventBus.PostgreSql
 {
     public class PostgreSqlTransaction : TransactionBase
     {
-        public PostgreSqlTransaction(IMessagePublisher publisher)
-        : base(publisher)
+        public PostgreSqlTransaction(IServiceProvider serviceProvider)
+        : base(serviceProvider)
         {
         }
 

@@ -1,4 +1,5 @@
-﻿using Core.EventBus.Transaction;
+﻿using System;
+using Core.EventBus.Transaction;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Data;
 using System.Threading;
@@ -8,8 +9,8 @@ namespace Core.EventBus.SqlServer
 {
     public class SqlServerTransaction : TransactionBase
     {
-        public SqlServerTransaction(IMessagePublisher publisher)
-        : base(publisher)
+        public SqlServerTransaction(IServiceProvider serviceProvider)
+            : base(serviceProvider)
         {
         }
 

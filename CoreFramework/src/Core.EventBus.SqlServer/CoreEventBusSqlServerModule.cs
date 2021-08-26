@@ -18,7 +18,7 @@ namespace Core.EventBus.SqlServer
         {
             context.Services.Configure<EventBusSqlServerOptions>(_configuration.GetSection("EventBus:Storage"));
             context.Items.TryGetValue(nameof(EventBusBuilder), out var eventBusBuilder);
-            ((EventBusBuilder)eventBusBuilder).AddSqlServer();
+            ((EventBusBuilder)eventBusBuilder).AddSqlServer(options => { });
         }
     }
 }

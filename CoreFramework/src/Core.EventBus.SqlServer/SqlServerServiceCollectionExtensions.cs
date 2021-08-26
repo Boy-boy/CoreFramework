@@ -9,7 +9,7 @@ namespace Core.EventBus.SqlServer
     public static class SqlServerServiceCollectionExtensions
     {
         public static EventBusBuilder AddSqlServer(this EventBusBuilder builder,
-            Action<EventBusSqlServerOptions> options = null)
+            Action<EventBusSqlServerOptions> options)
         {
             builder.Service.TryAddSingleton<IStorage, SqlServerStorage>();
             builder.Service.TryAddTransient<ITransaction, SqlServerTransaction>();

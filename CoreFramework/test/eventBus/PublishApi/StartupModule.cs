@@ -29,7 +29,7 @@ namespace PublishApi
                 //配置Exchange（可选）
                 options.AddPublishConfigure(configureOptions =>
                 {
-                    configureOptions.ExchangeName = RabbitMqConst.DefaultExchangeName;
+                    configureOptions.ExchangeName = RabbitMqConstants.DefaultExchangeName;
                 });
             });
 

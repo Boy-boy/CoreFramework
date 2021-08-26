@@ -95,11 +95,11 @@ namespace Core.EventBus.RabbitMQ
         {
             var subscribeConfigure = _options.Value.RabbitSubscribeConfigures.LastOrDefault(p => p.EventType == eventType);
             if (subscribeConfigure == null)
-                return (RabbitMqConst.DefaultExchangeName, RabbitMqConst.DefaultQueueName);
+                return (RabbitMqConstants.DefaultExchangeName, RabbitMqConstants.DefaultQueueName);
 
             var (exchangeName, queueName) = subscribeConfigure.GetExchangeNameAndQueueName(eventType);
-            exchangeName = exchangeName ?? RabbitMqConst.DefaultExchangeName;
-            queueName = queueName ?? RabbitMqConst.DefaultQueueName;
+            exchangeName = exchangeName ?? RabbitMqConstants.DefaultExchangeName;
+            queueName = queueName ?? RabbitMqConstants.DefaultQueueName;
             return (exchangeName, queueName);
         }
 

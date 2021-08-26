@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Core.EventBus.Local
 {
@@ -6,8 +7,8 @@ namespace Core.EventBus.Local
     {
         public void AddServices(IServiceCollection services)
         {
-            services.AddSingleton<IMessagePublisher, LocalMessagePublisher>();
-            services.AddSingleton<IMessageSubscribe, LocalMessageSubscribe>();
+            services.TryAddSingleton<IMessagePublisher, LocalMessagePublisher>();
+            services.TryAddSingleton<IMessageSubscribe, LocalMessageSubscribe>();
         }
     }
 }

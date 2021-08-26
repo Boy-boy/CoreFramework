@@ -1,4 +1,5 @@
-﻿using Core.EventBus.Transaction;
+﻿using System;
+using Core.EventBus.Transaction;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Data;
 using System.Threading;
@@ -8,8 +9,8 @@ namespace Core.EventBus.Mysql
 {
     public class MysqlTransaction : TransactionBase
     {
-        public MysqlTransaction(IMessagePublisher publisher)
-        : base(publisher)
+        public MysqlTransaction(IServiceProvider serviceProvider)
+        : base(serviceProvider)
         {
         }
 

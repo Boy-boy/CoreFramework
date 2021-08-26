@@ -9,7 +9,7 @@ namespace Core.EventBus.Mysql
     public static class MysqlServiceCollectionExtensions
     {
         public static EventBusBuilder AddMysql(this EventBusBuilder builder,
-            Action<EventBusMysqlOptions> options = null)
+            Action<EventBusMysqlOptions> options)
         {
             builder.Service.TryAddSingleton<IStorage, MysqlStorage>();
             builder.Service.TryAddTransient<ITransaction, MysqlTransaction>();

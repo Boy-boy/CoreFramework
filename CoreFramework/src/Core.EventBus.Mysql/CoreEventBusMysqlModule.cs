@@ -18,7 +18,7 @@ namespace Core.EventBus.Mysql
         {
             context.Services.Configure<EventBusMysqlOptions>(_configuration.GetSection("EventBus:Storage"));
             context.Items.TryGetValue(nameof(EventBusBuilder), out var eventBusBuilder);
-            ((EventBusBuilder)eventBusBuilder).AddMysql();
+            ((EventBusBuilder)eventBusBuilder).AddMysql(options=>{});
         }
     }
 }

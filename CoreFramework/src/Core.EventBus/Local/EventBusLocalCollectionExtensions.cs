@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Core.EventBus.Local
 {
@@ -6,8 +6,8 @@ namespace Core.EventBus.Local
     {
         public static EventBusBuilder AddLocalMq(this EventBusBuilder builder)
         {
-            builder.Service.AddSingleton<IMessagePublisher, LocalMessagePublisher>();
-            builder.Service.AddSingleton<IMessageSubscribe, LocalMessageSubscribe>();
+            builder.Service.TryAddSingleton<IMessagePublisher, LocalMessagePublisher>();
+            builder.Service.TryAddSingleton<IMessageSubscribe, LocalMessageSubscribe>();
             return builder;
         }
 

@@ -1,9 +1,9 @@
 ﻿using Core.EventBus.Messaging;
+using Core.Json.Newtonsoft;
 using Core.RabbitMQ;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Newtonsoft.Json;
 using Polly;
 using RabbitMQ.Client.Exceptions;
 using System;
@@ -16,7 +16,7 @@ namespace Core.EventBus.RabbitMQ
 {
     public class RabbitMqMessagePublisher : MessagePublisherBase
     {
-        private readonly int _retryCount = 5;
+        private readonly int _retryCount = 3;
         private readonly IRabbitMqPersistentConnection _persistentConnection;
         private readonly IOptions<EventBusRabbitMqOptions> _options;
         private readonly ILogger<RabbitMqMessagePublisher> _logger;
@@ -35,10 +35,6 @@ namespace Core.EventBus.RabbitMQ
 
         public override Task SendAsync<T>(T message)
         {
-            if (!_persistentConnection.IsConnected)
-            {
-                _persistentConnection.TryConnect();
-            }
             var policy = Policy.Handle<BrokerUnreachableException>()
                 .Or<SocketException>()
                 .WaitAndRetry(_retryCount, retryAttempt => TimeSpan.FromSeconds(retryAttempt), (ex, time) =>
@@ -47,19 +43,27 @@ namespace Core.EventBus.RabbitMQ
                 });
 
             var eventName = MessageNameAttribute.GetNameOrDefault(message.GetType());
-            _logger.LogTrace("Creating RabbitMQ channel to publish event: {EventId} ({EventName})", message.Id, eventName);
 
-            using (var channel = _persistentConnection.CreateModel())
+            var data = message.ToJson();
+            var body = Encoding.UTF8.GetBytes(data).AsMemory();
+
+            var exchangeName = _options.Value.RabbitMqPublishConfigure.GetExchangeName() ?? RabbitMqConstants.DefaultExchangeName;
+
+            policy.Execute(() =>
             {
-                _logger.LogTrace("Declaring RabbitMQ exchange to publish event: {EventId}", message.Id);
-                var data = JsonConvert.SerializeObject(message);
-                var body = Encoding.UTF8.GetBytes(data).AsMemory();
-
-                var model = channel;
-                var exchangeName = _options.Value.RabbitMqPublishConfigure.GetExchangeName() ?? RabbitMqConst.DefaultExchangeName;
-                model.ExchangeDeclare(exchange: exchangeName, type: "direct", durable: true, autoDelete: false, arguments: new ConcurrentDictionary<string, object>());
-                policy.Execute(() =>
+                if (!_persistentConnection.IsConnected)
                 {
+                    _persistentConnection.TryConnect();
+                }
+
+                using (var channel = _persistentConnection.CreateModel())
+                {
+                    var model = channel;
+
+                    _logger.LogTrace("Declaring RabbitMQ exchange {ExchangeName} to publish event: {EventId}", exchangeName, message.Id);
+                    model.ExchangeDeclare(exchange: exchangeName, type: "direct", durable: true, autoDelete: false,
+                        arguments: new ConcurrentDictionary<string, object>());
+
                     var properties = model.CreateBasicProperties();
                     properties.DeliveryMode = 2; // persistent
                     _logger.LogTrace("Publishing event to RabbitMQ: {EventId}", message.Id);
@@ -69,8 +73,9 @@ namespace Core.EventBus.RabbitMQ
                         mandatory: true,
                         basicProperties: properties,
                         body: body);
-                });
-            }
+
+                }
+            });
             return Task.CompletedTask;
         }
     }

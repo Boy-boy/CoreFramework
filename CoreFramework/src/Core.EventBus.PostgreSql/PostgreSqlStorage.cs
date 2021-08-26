@@ -43,8 +43,8 @@ CREATE TABLE IF NOT EXISTS {GetTableName()} (
   PRIMARY KEY (Id)
 );";
 
-            using (var connection = new NpgsqlConnection(_options.Value.DbConnectionStr))
-                connection.ExecuteNonQuery(sql);
+            using var connection = new NpgsqlConnection(_options.Value.DbConnectionStr);
+            connection.ExecuteNonQuery(sql);
 
             _logger.LogInformation($"initial message table successfully. table name is [{GetTableName()}]");
             await Task.CompletedTask;

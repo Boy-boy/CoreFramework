@@ -18,7 +18,7 @@ namespace Core.RabbitMQ
         public RabbitMqExchangeDeclareConfigure(
             string exchangeName,
             string type,
-            bool durable = false,
+            bool durable = true,
             bool autoDelete = false,
             Dictionary<string, object> arguments = null)
         {

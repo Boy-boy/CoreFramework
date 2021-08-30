@@ -57,8 +57,8 @@ namespace Core.EventBus.RabbitMQ
 
         protected override void Subscribe(Type messageType, Type handlerType)
         {
-            TeyCreateMessageConsumer(messageType);
             _messageHandlerManager.AddHandler(messageType, handlerType);
+            TeyCreateMessageConsumer(messageType);
         }
 
         public override void Subscribe<T, TH>()
@@ -80,7 +80,7 @@ namespace Core.EventBus.RabbitMQ
                 if (!RabbitMqMessageConsumerDic.ContainsKey(key))
                 {
                     var rabbitMqMessageConsumer = _rabbitMqMessageConsumerFactory.Create(
-                        new RabbitMqExchangeDeclareConfigure(exchangeName, "direct", true),
+                        new RabbitMqExchangeDeclareConfigure(exchangeName, "direct"),
                         new RabbitMqQueueDeclareConfigure(queueName));
                     rabbitMqMessageConsumer.OnMessageReceived(Consumer_Received);
                     RabbitMqMessageConsumerDic.TryAdd(key, rabbitMqMessageConsumer);

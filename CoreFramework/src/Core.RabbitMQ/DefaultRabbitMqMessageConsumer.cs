@@ -38,6 +38,7 @@ namespace Core.RabbitMQ
         {
             ExchangeDeclare = exchangeDeclare;
             QueueDeclare = queueDeclare;
+            TryCreateExchangeAndQueue();
             InitializeTimer();
         }
 
@@ -46,7 +47,20 @@ namespace Core.RabbitMQ
             _timer = new Timer(sender =>
             {
                 TimerCallback();
-            }, this, TimeSpan.FromSeconds(0), TimeSpan.FromSeconds(10));
+            }, this, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(10));
+        }
+
+        private void TryCreateExchangeAndQueue()
+        {
+            if (!_persistentConnection.IsConnected)
+            {
+                _persistentConnection.TryConnect();
+            }
+            using (var channel = _persistentConnection.CreateModel())
+            {
+                ExchangeDeclare.Declare(channel);
+                QueueDeclare.Declare(channel);
+            }
         }
 
         public void OnMessageReceived(Func<IModel, BasicDeliverEventArgs, Task> processEvent)
@@ -62,8 +76,6 @@ namespace Core.RabbitMQ
             }
             using (var channel = _persistentConnection.CreateModel())
             {
-                ExchangeDeclare.Declare(channel);
-                QueueDeclare.Declare(channel);
                 channel.QueueBind(queue: QueueDeclare.QueueName,
                     exchange: ExchangeDeclare.ExchangeName,
                     routingKey: routingKey);

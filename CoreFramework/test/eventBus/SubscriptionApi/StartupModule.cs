@@ -2,6 +2,7 @@
 using Core.EventBus.RabbitMQ;
 using Core.Modularity;
 using Core.Modularity.Attribute;
+using Core.RabbitMQ;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,6 +24,7 @@ namespace SubscriptionApi
         {
             context.Services.AddControllers();
 
+            context.Services.Configure<RabbitMqOptions>(Configuration.GetSection("RabbitMq"));
             context.Services.TryRegistrarMessageHandlers(new[] { typeof(StartupModule).Assembly });
             context.Services.Configure<EventBusOptions>(options =>
             {

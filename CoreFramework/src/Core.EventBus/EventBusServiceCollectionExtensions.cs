@@ -30,6 +30,12 @@ namespace Microsoft.Extensions.DependencyInjection
             return new EventBusBuilder(services);
         }
 
+        /// <summary>
+        /// 向IOC容器注册Handler处理器
+        /// </summary>
+        /// <param name="services"></param>
+        /// <param name="assemblies"></param>
+        /// <returns></returns>
         public static IServiceCollection TryRegistrarMessageHandlers(this IServiceCollection services, Assembly[] assemblies)
         {
             if (assemblies == null) return services;

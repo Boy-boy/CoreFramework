@@ -10,6 +10,10 @@ namespace Core.EventBus
         {
             Extensions = new List<IEventBusOptionsExtensions>();
         }
+
+        /// <summary>
+        /// 自动订阅，Handler处理器所属程序集
+        /// </summary>
         public Assembly[] AutoRegistrarHandlersAssemblies { get; set; }
 
         public List<IEventBusOptionsExtensions> Extensions { get; set; }

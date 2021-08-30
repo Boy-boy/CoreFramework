@@ -1,8 +1,10 @@
-﻿namespace Core.EventBus.RabbitMQ
+﻿using System.Reflection;
+
+namespace Core.EventBus.RabbitMQ
 {
-    public static class RabbitMqConstants
+    public class RabbitMqConstants
     {
-       public const string DefaultExchangeName = "event_bus_rabbitmq_default_exchange";
-       public const string DefaultQueueName = "event_bus_rabbitmq_default_queue";
+        public static string DefaultExchangeName = "event_bus_default_exchange";
+        public static string DefaultQueueName = Assembly.GetEntryAssembly()?.GetName().Name;
     }
 }

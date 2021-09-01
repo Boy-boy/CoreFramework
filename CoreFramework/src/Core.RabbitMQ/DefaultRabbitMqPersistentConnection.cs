@@ -24,7 +24,7 @@ namespace Core.RabbitMQ
 
         public DefaultRabbitMqPersistentConnection(IOptions<RabbitMqOptions> option, ILogger<DefaultRabbitMqPersistentConnection> logger)
         {
-            var connection = option.Value.Connection;
+            var connection = option.Value.Connection ?? throw new ArgumentNullException(nameof(option.Value.Connection));
             _connectionFactory = connection.ConnectionFactory ?? throw new ArgumentNullException(nameof(connection.ConnectionFactory));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }

@@ -131,7 +131,7 @@ namespace Core.RabbitMQ
         {
             var consumer = new AsyncEventingBasicConsumer(ConsumerChannel);
             consumer.Received += Consumer_Received;
-            ConsumerChannel.BasicQos(0, 100, false);
+            ConsumerChannel.BasicQos(0, 30, false);
             ConsumerChannel.BasicConsume(
                 queue: QueueDeclare.QueueName,
                 autoAck: false,

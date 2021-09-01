@@ -1,4 +1,5 @@
-﻿using Core.RabbitMQ;
+﻿using Core.EventBus.Messaging;
+using Core.RabbitMQ;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
@@ -6,10 +7,9 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System;
 using System.Collections.Concurrent;
-using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Core.EventBus.Messaging;
+using Core.EventBus.Messaging.Diagnostics;
 
 namespace Core.EventBus.RabbitMQ
 {
@@ -41,16 +41,16 @@ namespace Core.EventBus.RabbitMQ
 
         private void SubsManager_OnEventRemoved(object sender, Type messageType)
         {
-            var eventName = MessageNameAttribute.GetNameOrDefault(messageType);
-            var (exchangeName, queueName) = GetExchangeNameAndQueueName(messageType);
+            var exchangeName = _options.Value.ExchangeName;
+            var queueName = MessageGroupAttribute.GetGroupOrDefault(messageType);
             var key = $"{exchangeName}_{queueName}";
             lock (_lock)
             {
-                if (!RabbitMqMessageConsumerDic.ContainsKey(key)) return;
-                RabbitMqMessageConsumerDic.TryGetValue(key, out var rabbitMqMessageConsumer);
-                rabbitMqMessageConsumer?.UnbindAsync(eventName);
-                if (rabbitMqMessageConsumer != null && rabbitMqMessageConsumer.HasRoutingKeyBindingQueue()) return;
-                rabbitMqMessageConsumer?.Dispose();
+                if (!RabbitMqMessageConsumerDic.TryGetValue(key, out var rabbitMqMessageConsumer)) return;
+                var eventName = MessageNameAttribute.GetNameOrDefault(messageType);
+                rabbitMqMessageConsumer.UnbindAsync(eventName);
+                if (rabbitMqMessageConsumer.HasRoutingKeyBindingQueue()) return;
+                rabbitMqMessageConsumer.Dispose();
                 RabbitMqMessageConsumerDic.TryRemove(key, out _);
             }
         }
@@ -58,7 +58,7 @@ namespace Core.EventBus.RabbitMQ
         protected override void Subscribe(Type messageType, Type handlerType)
         {
             _messageHandlerManager.AddHandler(messageType, handlerType);
-            TeyCreateMessageConsumer(messageType);
+            TryCreateMessageConsumer(messageType);
         }
 
         public override void Subscribe<T, TH>()
@@ -71,36 +71,24 @@ namespace Core.EventBus.RabbitMQ
             _messageHandlerManager.RemoveHandler(typeof(T), typeof(TH));
         }
 
-        private void TeyCreateMessageConsumer(Type eventType)
+        private void TryCreateMessageConsumer(Type eventType)
         {
-            var (exchangeName, queueName) = GetExchangeNameAndQueueName(eventType);
+            var exchangeName = _options.Value.ExchangeName;
+            var queueName = MessageGroupAttribute.GetGroupOrDefault(eventType);
             var key = $"{exchangeName}_{queueName}";
             lock (_lock)
             {
-                if (!RabbitMqMessageConsumerDic.ContainsKey(key))
+                if (!RabbitMqMessageConsumerDic.TryGetValue(key, out var rabbitMqMessageConsumer))
                 {
-                    var rabbitMqMessageConsumer = _rabbitMqMessageConsumerFactory.Create(
+                    rabbitMqMessageConsumer = _rabbitMqMessageConsumerFactory.Create(
                         new RabbitMqExchangeDeclareConfigure(exchangeName, "direct"),
                         new RabbitMqQueueDeclareConfigure(queueName));
                     rabbitMqMessageConsumer.OnMessageReceived(Consumer_Received);
                     RabbitMqMessageConsumerDic.TryAdd(key, rabbitMqMessageConsumer);
                 }
-                RabbitMqMessageConsumerDic.TryGetValue(key, out var rabbitMqMessageConsumer1);
                 var eventName = MessageNameAttribute.GetNameOrDefault(eventType);
-                rabbitMqMessageConsumer1?.BindAsync(eventName);
+                rabbitMqMessageConsumer.BindAsync(eventName);
             }
-        }
-
-        private (string ExchangeName, string QueueName) GetExchangeNameAndQueueName(Type eventType)
-        {
-            var subscribeConfigure = _options.Value.RabbitSubscribeConfigures.LastOrDefault(p => p.EventType == eventType);
-            if (subscribeConfigure == null)
-                return (RabbitMqConstants.DefaultExchangeName, RabbitMqConstants.DefaultQueueName);
-
-            var (exchangeName, queueName) = subscribeConfigure.GetExchangeNameAndQueueName(eventType);
-            exchangeName = exchangeName ?? RabbitMqConstants.DefaultExchangeName;
-            queueName = queueName ?? RabbitMqConstants.DefaultQueueName;
-            return (exchangeName, queueName);
         }
 
         private async Task Consumer_Received(IModel model, BasicDeliverEventArgs eventArgs)
@@ -128,20 +116,40 @@ namespace Core.EventBus.RabbitMQ
             if (_messageHandlerManager.MessageTypeMappingDict.TryGetValue(eventName, out var messageType))
             {
                 var integrationEvent = (IMessage)JsonConvert.DeserializeObject(message, messageType);
+
+                _logger.LogTrace("Enable diagnostic listeners before consume,name is {name}", DiagnosticListenerConstants.BeforeConsume);
+                EventBusDiagnosticListener.TracingConsumeBefore(integrationEvent);
+
                 var messageHandlers = _messageHandlerProvider.GetHandlers(messageType);
                 foreach (var messageHandler in messageHandlers)
                 {
                     var concreteType = typeof(IMessageHandler<>).MakeGenericType(messageType);
                     var method = concreteType.GetMethod("HandAsync");
-                    if (method != null)
+                    if (method == null) continue;
+                    try
                     {
                         await (Task)method.Invoke(messageHandler, new object[] { integrationEvent });
                     }
+                    catch (Exception e)
+                    {
+                        var handlerType = messageHandler.GetType();
+                        _logger.LogError("Message processing failure,message type is {messageType},handler type is {handlerType},error message is {errorMessage}",
+                            messageType, handlerType, e.Message);
+
+                        _logger.LogTrace("Enable diagnostic listeners incorrect consume,name is {name}", DiagnosticListenerConstants.ErrorConsume);
+                        EventBusDiagnosticListener.TracingConsumeError(integrationEvent, handlerType, e.Message);
+                    }
                 }
+
+                _logger.LogTrace("Enable diagnostic listeners after consume,name is {name}", DiagnosticListenerConstants.AfterConsume);
+                EventBusDiagnosticListener.TracingConsumeAfter(integrationEvent);
             }
             else
             {
                 _logger.LogWarning("No subscription for RabbitMQ event: {eventName}", eventName);
+
+                _logger.LogTrace("Not subscribed to enable diagnostic listener,name is {name}", DiagnosticListenerConstants.NotSubscribed);
+                EventBusDiagnosticListener.TracingNotSubscribed(message);
             }
         }
     }

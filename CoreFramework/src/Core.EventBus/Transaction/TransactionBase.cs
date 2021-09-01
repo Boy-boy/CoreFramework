@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Core.EventBus.Transaction
 {
-    public abstract class TransactionBase : ITransaction, IDisposable
+    public abstract class TransactionBase : ITransaction
     {
         private readonly IMessagePublisher _publisher;
 
@@ -40,12 +40,14 @@ namespace Core.EventBus.Transaction
         {
             if (_publisher == null)
                 return;
-
-            while (!_messages.IsEmpty)
+            Task.Run(() =>
             {
-                _messages.TryDequeue(out var message);
-                ((MessagePublisherBase)_publisher)?.SendAsync(message);
-            }
+                while (!_messages.IsEmpty)
+                {
+                    _messages.TryDequeue(out var message);
+                    ((MessagePublisherBase)_publisher)?.SendAsync(message);
+                }
+            });
         }
 
         public abstract void Dispose();

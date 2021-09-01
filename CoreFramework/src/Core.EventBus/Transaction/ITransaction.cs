@@ -1,9 +1,10 @@
-﻿using System.Threading;
+﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Core.EventBus.Transaction
 {
-    public interface ITransaction
+    public interface ITransaction : IDisposable
     {
         bool AutoCommit { get; set; }
 

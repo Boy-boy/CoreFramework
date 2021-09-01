@@ -13,7 +13,10 @@ namespace Microsoft.Extensions.DependencyInjection
 
             var option = new EventBusRabbitMqOptions();
             optionAction.Invoke(option);
-            builder.Service.AddRabbitMq(option.RabbitMqOptions);
+            builder.Service.AddRabbitMq(options =>
+            {
+                options.Connection = option.RabbitMqConnection;
+            });
 
             builder.Service.TryAddSingleton<IMessagePublisher, RabbitMqMessagePublisher>();
             builder.Service.TryAddSingleton<IMessageSubscribe, RabbitMqMessageSubscribe>();

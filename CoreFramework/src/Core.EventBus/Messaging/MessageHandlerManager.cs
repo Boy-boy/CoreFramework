@@ -60,10 +60,10 @@ namespace Core.EventBus
                 handlers = new List<IMessageHandlerWrapper>();
                 _handlerDict.Add(messageType, handlers);
             }
-            if (handlers.Any(handlerWrapper => handlerWrapper.BaseHandlerType == baseHandlerType))
+            if (handlers.Any(handlerWrapper => handlerWrapper.HandlerType == handlerType))
             {
                 throw new ArgumentException(
-                    $"Handler Type {baseHandlerType.Name} already registered for '{messageType.Name}'");
+                    $"Handler Type {handlerType.Name} already registered for '{messageType.Name}'");
             }
             var handlerWrapperType = typeof(MessageHandlerWrapper<>).MakeGenericType(messageType);
             handlers.Add(Activator.CreateInstance(handlerWrapperType, _serviceScopeFactory, handlerType, baseHandlerType) as IMessageHandlerWrapper);

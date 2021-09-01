@@ -8,20 +8,18 @@ namespace Core.EventBus
     {
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly IMessageHandler<TMessage> _handler;
-        private readonly Type _handlerType;
-        private readonly Type _baseHandlerType;
 
-        public MessageHandlerWrapper(){}
+        public MessageHandlerWrapper() { }
         public MessageHandlerWrapper(
             IServiceScopeFactory serviceScopeFactory,
             Type handlerType,
             Type baseHandlerType)
         {
             _serviceScopeFactory = serviceScopeFactory;
-            _handlerType = handlerType;
-            _baseHandlerType = baseHandlerType;
-            HandlerPriority = MessageHandlerPriorityAttribute.GetPriority(typeof(TMessage), _handlerType);
-            if (MessageHandlerLifetimeAttribute.GetHandlerLifetime(_handlerType) == MessageHandlerLifetime.Singleton)
+            HandlerType = handlerType;
+            BaseHandlerType = baseHandlerType;
+            HandlerPriority = MessageHandlerPriorityAttribute.GetPriority(typeof(TMessage), handlerType);
+            if (MessageHandlerLifetimeAttribute.GetHandlerLifetime(handlerType) == MessageHandlerLifetime.Singleton)
             {
                 _handler = GetIocMessageHandler();
             }
@@ -29,9 +27,9 @@ namespace Core.EventBus
 
         public IMessageHandler Handler => _handler ?? GetIocMessageHandler();
 
-        public Type HandlerType => _handlerType;
+        public Type HandlerType { get; }
 
-        public Type BaseHandlerType => _baseHandlerType;
+        public Type BaseHandlerType { get; }
 
         public int HandlerPriority { get; }
 
@@ -40,7 +38,7 @@ namespace Core.EventBus
             return (IMessageHandler<TMessage>)_serviceScopeFactory
                 .CreateScope()
                 .ServiceProvider
-                .GetRequiredService(_baseHandlerType);
+                .GetRequiredService(HandlerType);
         }
     }
 }

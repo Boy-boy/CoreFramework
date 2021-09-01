@@ -1,8 +1,10 @@
-﻿using Core.EventBus.RabbitMQ;
-using Core.EventBus.SqlServer;
+﻿using Core.EventBus.PostgreSql;
+using Core.EventBus.RabbitMQ;
 using Core.Modularity;
 using Core.Modularity.Attribute;
+using Core.RabbitMQ;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -10,8 +12,8 @@ using Microsoft.Extensions.Hosting;
 namespace PublishApi
 {
     [DependsOn(
-        typeof(CoreEventBusRabbitMqModule),
-        typeof(CoreEventBusSqlServerModule))]
+        typeof(CoreEventBusRabbitMqModule)
+        , typeof(CoreEventBusPostgreSqlModule))]
     public class StartupModule : CoreModuleBase
     {
         public IConfiguration Configuration { get; }
@@ -24,19 +26,14 @@ namespace PublishApi
         {
             context.Services.AddControllers();
 
+            var rabbitMqConnection = Configuration.GetSection("RabbitMq:Connection").Get<RabbitMqConnectionConfigure>();
             context.Services.Configure<EventBusRabbitMqOptions>(options =>
             {
-                //配置Exchange（可选）
-                options.AddPublishConfigure(configureOptions =>
-                {
-                    configureOptions.ExchangeName = RabbitMqConstants.DefaultExchangeName;
-                });
+                options.RabbitMqConnection = rabbitMqConnection;
             });
-
-            context.Services.Configure<EventBusSqlServerOptions>(options =>
+            context.Services.Configure<EventBusPostgreSqlOptions>(options =>
             {
-                //配置Connection（必须）
-                options.DbConnectionStr = Configuration.GetConnectionString("customer");
+                options.DbConnection = Configuration.GetConnectionString("customer");
             });
         }
 

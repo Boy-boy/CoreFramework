@@ -5,11 +5,11 @@
         /// <summary>
         /// 数据库连接字符串
         /// </summary>
-        public string DbConnectionStr { get; set; }
+        public string DbConnection { get; set; }
 
         /// <summary>
         /// 若数据库不存在table，即创建新的table
         /// </summary>
-        public string TableName { get; set; } = "PublishMessage";
+        public string DbTable { get; set; } = "PublishMessage";
     }
 }

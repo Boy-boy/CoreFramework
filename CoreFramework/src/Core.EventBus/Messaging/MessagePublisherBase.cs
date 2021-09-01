@@ -22,12 +22,12 @@ namespace Core.EventBus.Messaging
             Storage = provider.GetService<IStorage>();
         }
 
-        public Task PublishAsync<T>(T message)
+        public async Task PublishAsync<T>(T message)
             where T : class, IMessage
         {
             if (Storage == null)
             {
-                SendAsync(message);
+                await SendAsync(message);
             }
             else
             {
@@ -37,14 +37,14 @@ namespace Core.EventBus.Messaging
                 if (transaction == null)
                 {
                     //未开启事务
-                    SendAsync(message);
+                    await SendAsync(message);
                 }
                 else
                 {
                     if (transaction.AutoCommit)
                     {
-                        TransactionAccessor.Transaction.Commit();
-                        SendAsync(message);
+                        await TransactionAccessor.Transaction.CommitAsync();
+                        await SendAsync(message);
                     }
                     else
                     {
@@ -52,7 +52,7 @@ namespace Core.EventBus.Messaging
                     }
                 }
             }
-            return Task.CompletedTask;
+            await Task.CompletedTask;
         }
 
         public abstract Task SendAsync<T>(T message)

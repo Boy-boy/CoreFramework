@@ -11,6 +11,7 @@ using System.Collections.Concurrent;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
+using Core.EventBus.Messaging.Diagnostics;
 
 namespace Core.EventBus.RabbitMQ
 {
@@ -33,8 +34,11 @@ namespace Core.EventBus.RabbitMQ
             _logger = logger;
         }
 
-        public override Task SendAsync<T>(T message)
+        public override async Task SendAsync<T>(T message)
         {
+            _logger.LogTrace("Enable diagnostic listeners before publishing,name is {name}", DiagnosticListenerConstants.BeforePublish);
+            EventBusDiagnosticListener.TracingPublishBefore(message);
+
             var policy = Policy.Handle<BrokerUnreachableException>()
                 .Or<SocketException>()
                 .WaitAndRetry(_retryCount, retryAttempt => TimeSpan.FromSeconds(retryAttempt), (ex, time) =>
@@ -43,11 +47,10 @@ namespace Core.EventBus.RabbitMQ
                 });
 
             var eventName = MessageNameAttribute.GetNameOrDefault(message.GetType());
-
             var data = message.ToJson();
             var body = Encoding.UTF8.GetBytes(data).AsMemory();
 
-            var exchangeName = _options.Value.RabbitMqPublishConfigure.GetExchangeName() ?? RabbitMqConstants.DefaultExchangeName;
+            var exchangeName = _options.Value.ExchangeName;
 
             policy.Execute(() =>
             {
@@ -59,7 +62,6 @@ namespace Core.EventBus.RabbitMQ
                 using (var channel = _persistentConnection.CreateModel())
                 {
                     var model = channel;
-
                     _logger.LogTrace("Declaring RabbitMQ exchange {ExchangeName} to publish event: {EventId}", exchangeName, message.Id);
                     model.ExchangeDeclare(exchange: exchangeName, type: "direct", durable: true, autoDelete: false,
                         arguments: new ConcurrentDictionary<string, object>());
@@ -73,10 +75,12 @@ namespace Core.EventBus.RabbitMQ
                         mandatory: true,
                         basicProperties: properties,
                         body: body);
-
                 }
             });
-            return Task.CompletedTask;
+
+            _logger.LogTrace("Enable diagnostic listeners after publishing,name is {name}", DiagnosticListenerConstants.AfterPublish);
+            EventBusDiagnosticListener.TracingPublishAfter(message);
+            await Task.CompletedTask;
         }
     }
 }

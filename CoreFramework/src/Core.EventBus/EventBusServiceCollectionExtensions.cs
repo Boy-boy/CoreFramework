@@ -16,8 +16,20 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<IMessageHandlerProvider, MessageHandlerProvider>();
             services.TryAddSingleton<ITransactionAccessor, TransactionAccessor>();
             services.AddHostedService<EventBusBackgroundService>();
+            ConfigureEventBusOptions(services, configureOptions);
+            return new EventBusBuilder(services);
+        }
+
+        /// <summary>
+        ///  
+        /// </summary>
+        /// <param name="services"></param>
+        /// <param name="configureOptions"></param>
+        /// <returns></returns>
+        public static IServiceCollection ConfigureEventBusOptions(this IServiceCollection services, Action<EventBusOptions> configureOptions = null)
+        {
             if (configureOptions == null)
-                return new EventBusBuilder(services);
+                return services;
             var options = new EventBusOptions();
             configureOptions.Invoke(options);
             foreach (var extension in options.Extensions)
@@ -26,8 +38,7 @@ namespace Microsoft.Extensions.DependencyInjection
             }
             services.TryRegistrarMessageHandlers(options.AutoRegistrarHandlersAssemblies);
             services.Configure(configureOptions);
-
-            return new EventBusBuilder(services);
+            return services;
         }
 
         /// <summary>
@@ -36,19 +47,19 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="services"></param>
         /// <param name="assemblies"></param>
         /// <returns></returns>
-        public static IServiceCollection TryRegistrarMessageHandlers(this IServiceCollection services, Assembly[] assemblies)
+        private static void TryRegistrarMessageHandlers(this IServiceCollection services, Assembly[] assemblies)
         {
-            if (assemblies == null) return services;
+            if (assemblies == null) return;
             var handlerTypes = MessageHandlerExtensions.GetHandlerTypes(assemblies);
             foreach (var handlerType in handlerTypes)
             {
                 var baseHandlerTypes = MessageHandlerExtensions.GetBaseHandlerTypes(handlerType);
                 foreach (var baseHandlerType in baseHandlerTypes)
                 {
-                    services.TryAddTransient(baseHandlerType, handlerType);
+                    services.AddTransient(baseHandlerType, handlerType);
+                    services.AddTransient(handlerType);
                 }
             }
-            return services;
         }
     }
 }

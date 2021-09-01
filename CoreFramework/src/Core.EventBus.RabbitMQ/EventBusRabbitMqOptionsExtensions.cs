@@ -16,7 +16,10 @@ namespace Core.EventBus.RabbitMQ
         {
             var option = new EventBusRabbitMqOptions();
             _options.Invoke(option);
-            services.AddRabbitMq(option.RabbitMqOptions);
+            services.AddRabbitMq(options =>
+            {
+                options.Connection = option.RabbitMqConnection;
+            });
 
             services.TryAddSingleton<IMessagePublisher, RabbitMqMessagePublisher>();
             services.TryAddSingleton<IMessageSubscribe, RabbitMqMessageSubscribe>();

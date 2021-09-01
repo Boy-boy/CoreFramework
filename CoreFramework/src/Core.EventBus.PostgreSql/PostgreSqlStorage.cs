@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS {GetTableName()} (
   PRIMARY KEY (Id)
 );";
 
-            using var connection = new NpgsqlConnection(_options.Value.DbConnectionStr);
+            using var connection = new NpgsqlConnection(_options.Value.DbConnection);
             connection.ExecuteNonQuery(sql);
 
             _logger.LogInformation($"initial message table successfully. table name is [{GetTableName()}]");
@@ -72,7 +72,7 @@ VALUES (@id,@Version,@MessageType,@MessageData,@CreateTime,@UtcTime);";
 
             if (dbTransaction == null)
             {
-                using var connection = new NpgsqlConnection(_options.Value.DbConnectionStr);
+                using var connection = new NpgsqlConnection(_options.Value.DbConnection);
                 connection.ExecuteNonQuery(sql, sqlParams: sqlParams);
                 _logger.LogInformation($"insert message in {GetTableName()} table successfully. messageId={message.Id}");
             }
@@ -95,7 +95,7 @@ VALUES (@id,@Version,@MessageType,@MessageData,@CreateTime,@UtcTime);";
 
         public virtual string GetTableName()
         {
-            return $"{_options.Value.DbSchema}.{_options.Value.TableName}";
+            return $"{_options.Value.DbSchema}.{_options.Value.DbTable}";
         }
     }
 }

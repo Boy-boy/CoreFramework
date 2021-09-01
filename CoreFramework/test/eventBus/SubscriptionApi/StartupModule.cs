@@ -1,5 +1,4 @@
-﻿using Core.EventBus;
-using Core.EventBus.RabbitMQ;
+﻿using Core.EventBus.RabbitMQ;
 using Core.Modularity;
 using Core.Modularity.Attribute;
 using Core.RabbitMQ;
@@ -24,9 +23,13 @@ namespace SubscriptionApi
         {
             context.Services.AddControllers();
 
-            context.Services.Configure<RabbitMqOptions>(Configuration.GetSection("RabbitMq"));
-            context.Services.TryRegistrarMessageHandlers(new[] { typeof(StartupModule).Assembly });
-            context.Services.Configure<EventBusOptions>(options =>
+            var rabbitMqConnection = Configuration.GetSection("RabbitMq:Connection").Get<RabbitMqConnectionConfigure>();
+            context.Services.Configure<EventBusRabbitMqOptions>(options =>
+            {
+                options.RabbitMqConnection = rabbitMqConnection;
+            });
+
+            context.Services.ConfigureEventBusOptions(options =>
             {
                 options.AutoRegistrarHandlersAssemblies = new[] { typeof(StartupModule).Assembly };
             });

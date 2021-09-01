@@ -1,35 +1,23 @@
-﻿using System;
-using System.Collections.Generic;
-using Core.RabbitMQ;
+﻿using Core.RabbitMQ;
+using System;
 
 namespace Core.EventBus.RabbitMQ
 {
     public class EventBusRabbitMqOptions
     {
-        public RabbitMqPublishConfigure RabbitMqPublishConfigure { get; }
+        private string _defaultExchangeName = "event_bus_default_routing";
 
-        public List<RabbitMqSubscribeConfigure> RabbitSubscribeConfigures { get; }
-
-        public Action<RabbitMqOptions> RabbitMqOptions { get; set; }
+        public string ExchangeName
+        {
+            get => _defaultExchangeName;
+            set => _defaultExchangeName = value ?? throw new Exception("exchange is not allowed to be null");
+        }
 
         public EventBusRabbitMqOptions()
         {
-            RabbitMqPublishConfigure = new RabbitMqPublishConfigure();
-            RabbitSubscribeConfigures = new List<RabbitMqSubscribeConfigure>();
+            RabbitMqConnection = new RabbitMqConnectionConfigure();
         }
 
-        public EventBusRabbitMqOptions AddPublishConfigure(Action<RabbitMqPublishConfigure> configureOptions = null)
-        {
-            if (configureOptions == null) return this;
-            configureOptions.Invoke(RabbitMqPublishConfigure);
-            return this;
-        }
-
-        public EventBusRabbitMqOptions AddSubscribeConfigures(Action<List<RabbitMqSubscribeConfigure>> configureOptions = null)
-        {
-            if (configureOptions == null) return this;
-            configureOptions.Invoke(RabbitSubscribeConfigures);
-            return this;
-        }
+        public RabbitMqConnectionConfigure RabbitMqConnection { get; set; }
     }
 }

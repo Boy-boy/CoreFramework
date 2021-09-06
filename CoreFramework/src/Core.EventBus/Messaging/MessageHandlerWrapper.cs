@@ -12,12 +12,12 @@ namespace Core.EventBus
         public MessageHandlerWrapper() { }
         public MessageHandlerWrapper(
             IServiceScopeFactory serviceScopeFactory,
-            Type handlerType,
-            Type baseHandlerType)
+            Type handlerType)
         {
             _serviceScopeFactory = serviceScopeFactory;
+            MessageName = MessageNameAttribute.GetNameOrDefault(typeof(TMessage));
+            MessageType = typeof(TMessage);
             HandlerType = handlerType;
-            BaseHandlerType = baseHandlerType;
             HandlerPriority = MessageHandlerPriorityAttribute.GetPriority(typeof(TMessage), handlerType);
             if (MessageHandlerLifetimeAttribute.GetHandlerLifetime(handlerType) == MessageHandlerLifetime.Singleton)
             {
@@ -27,9 +27,11 @@ namespace Core.EventBus
 
         public IMessageHandler Handler => _handler ?? GetIocMessageHandler();
 
-        public Type HandlerType { get; }
+        public string MessageName { get; }
 
-        public Type BaseHandlerType { get; }
+        public Type MessageType { get; }
+
+        public Type HandlerType { get; }
 
         public int HandlerPriority { get; }
 

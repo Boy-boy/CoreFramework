@@ -6,9 +6,11 @@ namespace Core.EventBus
     {
         IMessageHandler Handler { get; }
 
-        Type HandlerType { get; }
+        string MessageName { get; }
 
-        Type BaseHandlerType { get; }
+        Type MessageType { get; }
+
+        Type HandlerType { get; }
 
         int HandlerPriority { get; }
     }

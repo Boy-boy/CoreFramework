@@ -6,9 +6,8 @@ namespace Core.EventBus
     public interface IMessageHandlerManager
     {
         event EventHandler<Type> OnEventRemoved;
-        IDictionary<Type, IList<IMessageHandlerWrapper>> MessageHandlerDict { get; }
 
-        IDictionary<string, Type> MessageTypeMappingDict { get; }
+        IList<IMessageHandlerWrapper> MessageHandlerWrappers { get; }
 
         void AddHandler(Type messageType, Type handlerType);
 

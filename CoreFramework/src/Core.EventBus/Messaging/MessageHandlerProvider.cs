@@ -21,12 +21,11 @@ namespace Core.EventBus
 
         public IEnumerable<IMessageHandler> GetHandlers(Type messageType)
         {
-            return _messageHandlerManager.MessageHandlerDict.ContainsKey(messageType)
-                ? _messageHandlerManager.MessageHandlerDict[messageType]
-                    .OrderByDescending(x => x.HandlerPriority)
-                    .Select(s => s.Handler)
-                    .ToList()
-                : new List<IMessageHandler>();
+            return _messageHandlerManager.MessageHandlerWrappers
+                .Where(p => p.MessageType == messageType)
+                .OrderByDescending(x => x.HandlerPriority)
+                .Select(s => s.Handler)
+                .ToList();
         }
     }
 }

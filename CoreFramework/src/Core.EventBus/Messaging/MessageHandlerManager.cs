@@ -8,72 +8,48 @@ namespace Core.EventBus
     public class MessageHandlerManager : IMessageHandlerManager
     {
         private readonly IServiceScopeFactory _serviceScopeFactory;
-        private readonly IDictionary<Type, IList<IMessageHandlerWrapper>> _handlerDict;
-        private readonly IDictionary<string, Type> _messageTypeMappingDict;
+        private readonly IList<IMessageHandlerWrapper> _messageHandlerWrappers;
 
         public event EventHandler<Type> OnEventRemoved;
-        public IDictionary<Type, IList<IMessageHandlerWrapper>> MessageHandlerDict => _handlerDict;
-        public IDictionary<string, Type> MessageTypeMappingDict => _messageTypeMappingDict;
+        public IList<IMessageHandlerWrapper> MessageHandlerWrappers => _messageHandlerWrappers;
 
         public MessageHandlerManager(IServiceScopeFactory serviceScopeFactory)
         {
             _serviceScopeFactory = serviceScopeFactory;
-            _handlerDict = new Dictionary<Type, IList<IMessageHandlerWrapper>>();
-            _messageTypeMappingDict = new Dictionary<string, Type>();
+            _messageHandlerWrappers = new List<IMessageHandlerWrapper>();
         }
 
         public void AddHandler(Type messageType, Type handlerType)
         {
-            var baseHandlerTypes = MessageHandlerExtensions.GetBaseHandlerTypes(handlerType);
-            foreach (var baseHandlerType in baseHandlerTypes)
-            {
-                var messageType1 = baseHandlerType.GenericTypeArguments.Single();
-                if (messageType != messageType1) continue;
-                RegisterMessageHandlerWrapper(messageType, handlerType, baseHandlerType);
-                RegisterMessageTypeMapping(messageType);
-            }
-        }
-
-        public void RemoveHandler(Type messageType, Type handlerType)
-        {
-            var baseHandlerTypes = MessageHandlerExtensions.GetBaseHandlerTypes(handlerType);
-            foreach (var baseHandlerType in baseHandlerTypes)
-            {
-                var messageType1 = baseHandlerType.GenericTypeArguments.Single();
-                if (messageType != messageType1) continue;
-                if (!_handlerDict.TryGetValue(messageType, out var handlers)) continue;
-                if (handlers.All(handlerWrapper => handlerWrapper.BaseHandlerType != baseHandlerType)) continue;
-                handlers = handlers.Where(x => x.BaseHandlerType != baseHandlerType).ToList();
-                if (handlers.Count != 0) continue;
-                _handlerDict.Remove(messageType);
-                var eventName = MessageNameAttribute.GetNameOrDefault(messageType);
-                if (_messageTypeMappingDict.ContainsKey(eventName))
-                    _messageTypeMappingDict.Remove(eventName);
-                OnEventRemoved?.Invoke(this, messageType);
-            }
-        }
-
-        private void RegisterMessageHandlerWrapper(Type messageType, Type handlerType, Type baseHandlerType)
-        {
-            if (!_handlerDict.TryGetValue(messageType, out var handlers))
-            {
-                handlers = new List<IMessageHandlerWrapper>();
-                _handlerDict.Add(messageType, handlers);
-            }
-            if (handlers.Any(handlerWrapper => handlerWrapper.HandlerType == handlerType))
+            if (_messageHandlerWrappers.Any(handlerWrapper => handlerWrapper.MessageType == messageType && handlerWrapper.HandlerType == handlerType))
             {
                 throw new ArgumentException(
                     $"Handler Type {handlerType.Name} already registered for '{messageType.Name}'");
             }
+
+            var messageName = MessageNameAttribute.GetNameOrDefault(messageType);
+            if (_messageHandlerWrappers.Any(handlerWrapper => handlerWrapper.MessageName == messageName && handlerWrapper.MessageType != messageType))
+            {
+                throw new ArgumentException(
+                    $"The message name '{messageName}' corresponding to the message type '{messageType}' already exists");
+            }
+
             var handlerWrapperType = typeof(MessageHandlerWrapper<>).MakeGenericType(messageType);
-            handlers.Add(Activator.CreateInstance(handlerWrapperType, _serviceScopeFactory, handlerType, baseHandlerType) as IMessageHandlerWrapper);
+            _messageHandlerWrappers.Add(Activator.CreateInstance(handlerWrapperType, _serviceScopeFactory, handlerType) as IMessageHandlerWrapper);
         }
 
-        private void RegisterMessageTypeMapping(Type messageType)
+        public void RemoveHandler(Type messageType, Type handlerType)
         {
-            var eventName = MessageNameAttribute.GetNameOrDefault(messageType);
-            if (!_messageTypeMappingDict.ContainsKey(eventName))
-                _messageTypeMappingDict.Add(eventName, messageType);
+            var handler = _messageHandlerWrappers
+                .FirstOrDefault(p => p.MessageType == messageType && p.HandlerType == handlerType);
+
+            if (handler != null)
+                _messageHandlerWrappers.Remove(handler);
+
+            if (_messageHandlerWrappers.Any(p => p.MessageType == messageType))
+                return;
+
+            OnEventRemoved?.Invoke(this, messageType);
         }
     }
 }

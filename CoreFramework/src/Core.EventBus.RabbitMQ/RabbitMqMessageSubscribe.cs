@@ -1,5 +1,7 @@
 ﻿using Core.EventBus.Messaging;
+using Core.EventBus.Messaging.Diagnostics;
 using Core.RabbitMQ;
+using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
@@ -7,9 +9,9 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System;
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Core.EventBus.Messaging.Diagnostics;
 
 namespace Core.EventBus.RabbitMQ
 {
@@ -113,7 +115,11 @@ namespace Core.EventBus.RabbitMQ
         {
             _logger.LogTrace("Processing RabbitMQ event: {eventName}", eventName);
 
-            if (_messageHandlerManager.MessageTypeMappingDict.TryGetValue(eventName, out var messageType))
+            var messageType = _messageHandlerManager.MessageHandlerWrappers
+                .FirstOrDefault(p => p.MessageName == eventName)
+                ?.MessageType;
+
+            if (messageType != null)
             {
                 var integrationEvent = (IMessage)JsonConvert.DeserializeObject(message, messageType);
 

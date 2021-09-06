@@ -176,10 +176,10 @@
   }
 ```
 
-注意：<font color='red'> 1.发布和订阅消息，需定义消息名称，且要保持一致，请使用MessageNameAttribute</font>
-     2.可配置事件处理器生命周期，请使用MessageHandlerLifetimeAttribute，默认是Transient（仅可定义在class上）
-     3.同一个消息可被多个处理器订阅，可配置处理器处理顺序，请使用MessageHandlerPriorityAttribute
-     4.可配置消息所属组，需在消息上使用MessageGroupAttribute（默认为服务名称）
+注意：<font color='red'> 1.发布和订阅消息，需定义消息名称，且要保持一致，请使用MessageNameAttribute</font></br>
+     2.可配置事件处理器生命周期，请使用MessageHandlerLifetimeAttribute，默认是Transient（仅可定义在class上）</br>
+     3.同一个消息可被多个处理器订阅，可配置处理器处理顺序，请使用MessageHandlerPriorityAttribute</br>
+     4.可配置消息所属组，需在消息上使用MessageGroupAttribute（默认为服务名称）</br>
 #### entityFraworkCore
 
 ```c#

@@ -142,27 +142,24 @@
       
         public override void ConfigureServices(ServiceCollectionContext context)
         {    
-          context.Services.Configure<EventBusRabbitMqOptions>(options =>
+
+            var rabbitMqConnection = Configuration.GetSection("RabbitMq:Connection").Get<RabbitMqConnectionConfigure>();
+            context.Services.Configure<EventBusRabbitMqOptions>(options =>
             {
-               //配置发布交换器，可不配置
-                options.AddPublishConfigure();
-                //配置订阅交换器和队列，可不配置
-                options.AddSubscribeConfigures();
+                options.RabbitMqConnection = rabbitMqConnection;
             });
-                                  
-           //若基于本地消息表存储event，需配置      
-           context.Services.Configure<EventBusSqlServerOptions>(options =>
+
+            //若事件需持久化，则需依赖CoreEventBusSqlServerModule
+            context.Services.Configure<EventBusPostgreSqlOptions>(options =>
             {
-                //配置Connection（必须）
-                options.ConnectionString = Configuration.GetConnectionString("customer");
+                options.DbConnection = Configuration.GetConnectionString("customer");
             });
-            
+                                             
             //若该服务是订阅服务，则需配置以下代码
-            context.Services.TryRegistrarMessageHandlers(new[] { typeof(StartupModule).Assembly });
-            context.Services.Configure<EventBusOptions>(options =>
+            context.Services.ConfigureEventBusOptions(options =>
             {
                 options.AutoRegistrarHandlersAssemblies = new[] { typeof(StartupModule).Assembly };
-            });          
+            });    
         }
     }
 ```
@@ -179,6 +176,10 @@
   }
 ```
 
+注意：<font color='red'> 1.发布和订阅消息，需定义消息名称，且要保持一致，请使用MessageNameAttribute</font>
+     2.可配置事件处理器生命周期，请使用MessageHandlerLifetimeAttribute，默认是Transient（仅可定义在class上）
+     3.同一个消息可被多个处理器订阅，可配置处理器处理顺序，请使用MessageHandlerPriorityAttribute
+     4.可配置消息所属组，需在消息上使用MessageGroupAttribute（默认为服务名称）
 #### entityFraworkCore
 
 ```c#
@@ -322,50 +323,15 @@ public class Startup
 
         public void ConfigureServices(IServiceCollection services)
         {
-            //TODO:推荐使用方式二
-           #region eventbus使用方式一
-           //若是订阅服务，添加自动扫描程序集，则自动注入Handler到ServiceCollection中       
-           services.AddEventBus(options => 
-                    {
-                        //若是订阅服务，添加自动扫描程序集
-                        options.AutoRegistrarHandlersAssemblies = new[] { typeof(Startup).Assembly }
-                    })
-                   .AddRabbitMq(options =>
-                    {
-                        //配置消息对应的Exchange（若不配置，则使用默认的）
-                        options.AddPublishConfigure(configureOptions =>
-                        {
-                            configureOptions.ExchangeName = RabbitMqConst.DefaultExchangeName;
-                        });
-                    })
-                    .AddSqlServer(options =>
-                     {
-                         options.ConnectionString = Configuration.GetConnectionString("customer");
-                     });
-            services.Configure<RabbitMqOptions>(Configuration.GetSection("RabbitMq"));
-            services.AddRabbitMq();
-            #endregion
-
-            #region eventbus使用方式二
             //services.AddEventBus(options =>
             //{
-            //    options.AutoRegistrarHandlersAssemblies = new[] {typeof(Startup).Assembly},
-            //    options.AddRabbitMq(actionOptions =>
+            //    options.AutoRegistrarHandlersAssemblies = new[] { typeof(Startup).Assembly };
+            //    options.AddRabbitMq(rabbitOptions =>
             //    {
-            //        //配置消息对应的Exchange和Queue（若不配置，则使用默认的）
-            //        actionOptions.AddSubscribeConfigures(configureOptions =>
-            //        {
-            //            configureOptions.Add(new RabbitMqSubscribeConfigure(typeof(CustomerEvent),
-            //                RabbitMqConst.DefaultExchangeName, RabbitMqConst.DefaultQueueName));
-            //        });
-            //        //配置rabbitMq的连接地址
-            //        actionOptions.RabbitMqOptions = rabbitOptions =>
-            //        {
-            //            rabbitOptions.Connection=new RabbitMqConnectionConfigure();
-            //        };
+            //        rabbitOptions.ExchangeName = "demo";
+            //        rabbitOptions.RabbitMqConnection = new RabbitMqConnectionConfigure();
             //    });
             //});
-            #endregion
         }      
     }
 ```

@@ -4,6 +4,7 @@ using Core.EventBus.RabbitMQ;
 using Core.EventBus.SqlServer;
 using Core.Modularity;
 using Core.Modularity.Attribute;
+using Core.Permission.Storage;
 using EntityFrameworkCore.Api.Entities;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
@@ -44,6 +45,15 @@ namespace EntityFrameworkCore.Api
             context.Services.AddDbConfiguration(options =>
             {
                 options.AddDashboard(actionOptions => { });
+            });
+
+            context.Services.AddPermission(options =>
+            {
+                options.AddPostgreSql(actionOptions =>
+                {
+                    actionOptions.DbConnection =
+                        "Host=47.101.70.119;Port=5432;Database=customer;Username=postgres;Password=123456";
+                });
             });
 
             //方式二

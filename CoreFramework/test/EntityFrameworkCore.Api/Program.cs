@@ -18,6 +18,7 @@ namespace EntityFrameworkCore.Api
                     builder.AddPostgreSqlConfigure(actionOptions =>
                     {
                         actionOptions.DbConnection = "Host=47.101.70.119;Port=5432;Database=customer;Username=postgres;Password=123456";
+                        actionOptions.DbSchema = "core1";
                     });
                 })
                 .ConfigureWebHostDefaults(webBuilder =>

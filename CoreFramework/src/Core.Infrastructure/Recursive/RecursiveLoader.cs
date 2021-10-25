@@ -26,26 +26,26 @@ namespace Core.Infrastructure.Recursive
             if (!allModels.Any())
                 return newModelDescriptors;
 
-            var modelDescriptors = new List<RecursiveModelDescriptor<T>>();
+            var dtoMap = new Dictionary<object, RecursiveModelDescriptor<T>>();
             foreach (var instance in allModels)
             {
-                modelDescriptors.Add(new RecursiveModelDescriptor<T>(instance));
+                dtoMap.Add(instance.Id, new RecursiveModelDescriptor<T>(instance));
             }
-            modelDescriptors = modelDescriptors
-                .OrderBy(p => p.Instance.Id)
-                .ToList();
 
-            var isTrue = true;
-            while (isTrue)
+            foreach (var item in dtoMap.Values)
             {
-                var startModel = modelDescriptors.First();
-                newModelDescriptors.Add(startModel);
-                startModel?.SetDependencies(modelDescriptors);
-
-                if (modelDescriptors.Count <= 0)
-                    isTrue = false;
+                if (item.Instance.ParentId == null)
+                {
+                    newModelDescriptors.Add(item);
+                }
+                else
+                {
+                    if (dtoMap.ContainsKey(item.Instance.ParentId))
+                    {
+                        dtoMap[item.Instance.ParentId].SetNode(item);
+                    }
+                }
             }
-
             return newModelDescriptors;
         }
     }

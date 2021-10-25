@@ -18,24 +18,11 @@ namespace Core.Infrastructure.Recursive
             _nodes = new List<RecursiveModelDescriptor<T>>();
         }
 
-        public void SetDependencies(List<RecursiveModelDescriptor<T>> models)
+        public void SetNode(RecursiveModelDescriptor<T> model)
         {
-            if (models == null)
+            if (model == null)
                 return;
-
-            var recursiveModelDescriptors = models.FindAll(m => m.Instance.ParentId != null && m.Instance.ParentId.Equals(Instance.Id));
-            _nodes.AddRange(recursiveModelDescriptors);
-
-            models.Remove(this);
-            foreach (var recursiveModelDescriptor in recursiveModelDescriptors)
-            {
-                models.Remove(recursiveModelDescriptor);
-            }
-
-            foreach (var recursiveModelDescriptor in recursiveModelDescriptors)
-            {
-                recursiveModelDescriptor.SetDependencies(models);
-            }
+            _nodes.Add(model);
         }
     }
 }

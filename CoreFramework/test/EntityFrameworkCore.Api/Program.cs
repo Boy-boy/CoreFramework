@@ -13,14 +13,6 @@ namespace EntityFrameworkCore.Api
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
-                .ConfigureAppConfiguration((context, builder) =>
-                {
-                    builder.AddPostgreSqlConfigure(actionOptions =>
-                    {
-                        actionOptions.DbConnection = "Host=47.101.70.119;Port=5432;Database=customer;Username=postgres;Password=123456";
-                        actionOptions.DbSchema = "core1";
-                    });
-                })
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.UseStartup<Startup>();

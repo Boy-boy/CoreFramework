@@ -32,8 +32,7 @@ namespace PublishApi.Controllers
             {
                 await _publisher.PublishAsync(new CustomerEvent());
             }
-            if (transaction != null)
-                await transaction.CommitAsync();
+            await transaction.CommitAsync();
 
             return "Hello Word";
         }

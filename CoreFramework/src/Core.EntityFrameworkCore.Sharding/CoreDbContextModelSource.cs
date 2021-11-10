@@ -19,13 +19,23 @@ namespace Core.EntityFrameworkCore.Sharding
             return CreateModel(context, conventionSetBuilder);
         }
 
-        protected  IModel CreateModel(
+        public IModel GetModel(DbContext context, IConventionSetBuilder conventionSetBuilder, ModelDependencies modelDependencies)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public IModel GetModel(DbContext context, ModelCreationDependencies modelCreationDependencies, bool designTime)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        protected IModel CreateModel(
            DbContext context,
             IConventionSetBuilder conventionSetBuilder)
         {
             var modelBuilder = new ModelBuilder(conventionSetBuilder.CreateConventionSet());
             _dependencies.ModelCustomizer.Customize(modelBuilder, context);
-            return modelBuilder.Model;
+            return (IModel)modelBuilder.Model;
         }
     }
 }

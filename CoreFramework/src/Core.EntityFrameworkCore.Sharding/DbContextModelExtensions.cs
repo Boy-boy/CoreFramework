@@ -6,7 +6,7 @@ namespace Core.EntityFrameworkCore.Sharding
     {
         public static bool ValidateModelIsReadonly(this Model model)
         {
-           return model.IsReadonly;
+           return model.IsReadOnly;
         }
 
         public static void TryFinalizeModel(this Model model)

@@ -9,7 +9,7 @@ namespace Core.EventBus.Transaction
     public static class DbTransactionExtensions
     {
         /// <summary>
-        /// 开启事务，返回值若为空，表示未启用持久化机制
+        /// 开启事务
         /// </summary>
         /// <param name="dbConnection"></param>
         /// <param name="publisher"></param>
@@ -20,18 +20,16 @@ namespace Core.EventBus.Transaction
         {
             if (dbConnection == null)
             {
-                throw new ArgumentException(nameof(dbConnection));
+                throw new ArgumentNullException(nameof(dbConnection));
             }
             if (publisher == null)
             {
-                throw new ArgumentException(nameof(publisher));
+                throw new ArgumentNullException(nameof(publisher));
             }
 
             var publisherBase = (MessagePublisherBase)publisher;
             var transaction = publisherBase.ServiceScopeFactory.CreateScope().ServiceProvider
-                .GetService<ITransaction>();
-            if (transaction == null) return null;
-
+                .GetRequiredService<ITransaction>();
             var transactionBase = (TransactionBase)transaction;
             if (dbConnection.State == ConnectionState.Closed)
                 dbConnection.Open();
@@ -43,7 +41,7 @@ namespace Core.EventBus.Transaction
         }
 
         /// <summary>
-        /// 开启事务，返回值若为空，表示未启用持久化机制
+        /// 开启事务
         /// </summary>
         /// <param name="database"></param>
         /// <param name="publisher"></param>
@@ -54,17 +52,16 @@ namespace Core.EventBus.Transaction
         {
             if (database == null)
             {
-                throw new ArgumentException(nameof(database));
+                throw new ArgumentNullException(nameof(database));
             }
             if (publisher == null)
             {
-                throw new ArgumentException(nameof(publisher));
+                throw new ArgumentNullException(nameof(publisher));
             }
+
             var publisherBase = (MessagePublisherBase)publisher;
             var transaction = publisherBase.ServiceScopeFactory.CreateScope().ServiceProvider
-                .GetService<ITransaction>();
-            if (transaction == null) return null;
-
+                .GetRequiredService<ITransaction>();
             var transactionBase = (TransactionBase)transaction;
             var dbTransaction = database.BeginTransaction();
             transactionBase.DbTransaction = dbTransaction;

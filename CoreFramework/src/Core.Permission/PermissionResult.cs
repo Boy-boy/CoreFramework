@@ -2,8 +2,8 @@
 {
     public class PermissionResult
     {
-        public bool Forbidden { get; private set; }
-        public bool Succeeded { get; private set; }
+        public bool Forbidden { get; private init; }
+        public bool Succeeded { get; private init; }
 
         public static PermissionResult Success()
         {

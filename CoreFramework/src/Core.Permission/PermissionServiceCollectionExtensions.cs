@@ -1,5 +1,6 @@
 ﻿using Core.Permission;
 using System;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -18,11 +19,14 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 extension.AddServices(services);
             }
-
-            services.AddScoped<IPermissionHandler, DefaultPermissionHandler>();
-            services.AddSingleton<IPermissionRoleProvider, DefaultPermissionRoleProvider>();
+           
+            services.TryAddEnumerable(ServiceDescriptor.Scoped<IPermissionHandler, DefaultPermissionHandler>());
+            services.TryAddScoped<IPermissionService, DefaultPermissionService>();
+            services.TryAddSingleton<IPermissionRoleProvider, DefaultPermissionRoleProvider>();
             services.AddMemoryCache();
             services.AddHostedService<PermissionBackgroundService>();
+
+            services.AddHttpContextAccessor();
 
             return services;
         }

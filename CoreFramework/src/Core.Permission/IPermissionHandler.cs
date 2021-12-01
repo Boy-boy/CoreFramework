@@ -1,7 +1,9 @@
-﻿namespace Core.Permission
+﻿using System.Threading.Tasks;
+
+namespace Core.Permission
 {
     public interface IPermissionHandler
     {
-        PermissionResult Handler(PermissionContext context);
+        Task HandlerAsync(PermissionHandlerContext handlerContext);
     }
 }

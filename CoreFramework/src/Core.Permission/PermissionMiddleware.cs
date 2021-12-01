@@ -4,24 +4,20 @@ using System.Linq;
 using Microsoft.AspNetCore.Http;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Routing;
 
 namespace Core.Permission
 {
     public class PermissionMiddleware
     {
         private readonly RequestDelegate _next;
-        private readonly IPermissionRoleProvider _permissionRoleProvider;
-        private readonly IPermissionHandler _permissionHandler;
+        private readonly IPermissionService _permissionService;
 
         public PermissionMiddleware(
             RequestDelegate next,
-            IPermissionRoleProvider permissionRoleProvider,
-            IPermissionHandler permissionHandler)
+            IPermissionService permissionService)
         {
             _next = next;
-            _permissionRoleProvider = permissionRoleProvider;
-            _permissionHandler = permissionHandler;
+            _permissionService = permissionService;
         }
 
         public async Task Invoke(HttpContext context)
@@ -43,33 +39,27 @@ namespace Core.Permission
                 await _next(context);
                 return;
             }
-            var roles = new List<string>();
 
-            var permissionNames = endpoint.Metadata.GetOrderedMetadata<PermissionRoleRouteAttribute>() ?? Array.Empty<PermissionRoleRouteAttribute>();
-            if (permissionNames.Count > 0)
+            var permissionAttributes = endpoint.Metadata.GetOrderedMetadata<PermissionAttribute>();
+            if (!permissionAttributes.Any())
             {
-                foreach (var permissionName in permissionNames)
-                {
-                    roles.AddRange(_permissionRoleProvider.GetRolesAsync(permissionName.GetName()));
-                }
+                await _next(context);
+                return;
             }
-            else
-            {
-                if (endpoint is RouteEndpoint routeEndpoint)
-                {
-                    var apiRoute = routeEndpoint.RoutePattern.RawText;
-                    roles.AddRange(_permissionRoleProvider.GetRolesAsync(apiRoute));
-                }
-            }
-            roles = roles.Distinct().ToList();
 
-            var permissionContext = new PermissionContext(context, roles);
-            var result = _permissionHandler.Handler(permissionContext);
-            if (result.Forbidden)
+            var permissions = new List<string>();
+            foreach (var permissionAttribute in permissionAttributes)
+            {
+                permissions = permissions.Union(permissionAttribute.GetPermissions()).ToList();
+            }
+
+            var permissionResult = await _permissionService.AuthorizeAsync(permissions);
+            if (permissionResult.Forbidden)
             {
                 context.Response.StatusCode = 403;
                 return;
             }
+
             await _next(context);
         }
     }

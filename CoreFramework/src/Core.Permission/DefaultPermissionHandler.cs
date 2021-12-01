@@ -1,10 +1,12 @@
-﻿namespace Core.Permission
+﻿using System.Threading.Tasks;
+
+namespace Core.Permission
 {
     public class DefaultPermissionHandler : IPermissionHandler
     {
-        public PermissionResult Handler(PermissionContext context)
+        public async Task HandlerAsync(PermissionHandlerContext handlerContext)
         {
-            return PermissionResult.Success();
+            await Task.FromResult(PermissionResult.Success());
         }
     }
 }

@@ -5,6 +5,7 @@ namespace Core.Permission
 {
     public class PermissionOptions
     {
+        public bool InvokeHandlersAfterFailure { get; set; } = true;
         public PermissionOptions()
         {
             Extensions = new List<IPermissionOptionsExtensions>();

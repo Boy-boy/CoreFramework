@@ -14,9 +14,12 @@ namespace Core.EventBus.Transaction
         /// <param name="dbConnection"></param>
         /// <param name="publisher"></param>
         /// <param name="autoCommit"></param>
+        /// <param name="transaction"></param>
         /// <returns></returns>
-        public static ITransaction BeginTransaction(this IDbConnection dbConnection,
-            IMessagePublisher publisher, bool autoCommit = false)
+        public static bool TryBeginTransaction(this IDbConnection dbConnection,
+            IMessagePublisher publisher,
+            bool autoCommit,
+            out ITransaction transaction)
         {
             if (dbConnection == null)
             {
@@ -28,8 +31,11 @@ namespace Core.EventBus.Transaction
             }
 
             var publisherBase = (MessagePublisherBase)publisher;
-            var transaction = publisherBase.ServiceScopeFactory.CreateScope().ServiceProvider
-                .GetRequiredService<ITransaction>();
+            transaction = publisherBase.ServiceScopeFactory.CreateScope().ServiceProvider
+               .GetService<ITransaction>();
+            if (transaction == null)
+                return false;
+
             var transactionBase = (TransactionBase)transaction;
             if (dbConnection.State == ConnectionState.Closed)
                 dbConnection.Open();
@@ -37,7 +43,7 @@ namespace Core.EventBus.Transaction
             transactionBase.DbTransaction = dbTransaction;
             transactionBase.AutoCommit = autoCommit;
             ((MessagePublisherBase)publisher).TransactionAccessor.Transaction = transactionBase;
-            return transactionBase;
+            return true;
         }
 
         /// <summary>
@@ -46,9 +52,12 @@ namespace Core.EventBus.Transaction
         /// <param name="database"></param>
         /// <param name="publisher"></param>
         /// <param name="autoCommit"></param>
+        /// <param name="transaction"></param>
         /// <returns></returns>
-        public static ITransaction BeginTransaction(this DatabaseFacade database,
-            IMessagePublisher publisher, bool autoCommit = false)
+        public static bool TryBeginTransaction(this DatabaseFacade database,
+            IMessagePublisher publisher,
+            bool autoCommit,
+            out ITransaction transaction)
         {
             if (database == null)
             {
@@ -60,14 +69,17 @@ namespace Core.EventBus.Transaction
             }
 
             var publisherBase = (MessagePublisherBase)publisher;
-            var transaction = publisherBase.ServiceScopeFactory.CreateScope().ServiceProvider
-                .GetRequiredService<ITransaction>();
+            transaction = publisherBase.ServiceScopeFactory.CreateScope().ServiceProvider
+               .GetService<ITransaction>();
+            if (transaction == null)
+                return false;
+
             var transactionBase = (TransactionBase)transaction;
             var dbTransaction = database.BeginTransaction();
             transactionBase.DbTransaction = dbTransaction;
             transactionBase.AutoCommit = autoCommit;
             ((MessagePublisherBase)publisher).TransactionAccessor.Transaction = transactionBase;
-            return transactionBase;
+            return true;
         }
     }
 }

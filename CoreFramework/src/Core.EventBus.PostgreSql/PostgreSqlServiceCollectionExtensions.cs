@@ -11,10 +11,12 @@ namespace Core.EventBus.PostgreSql
         public static EventBusBuilder AddPostgreSql(this EventBusBuilder builder,
             Action<EventBusPostgreSqlOptions> options)
         {
+            if (options == null)
+                throw new AggregateException(nameof(options));
+
             builder.Service.TryAddSingleton<IStorage, PostgreSqlStorage>();
             builder.Service.TryAddTransient<ITransaction, PostgreSqlTransaction>();
-            if (options != null)
-                builder.Service.Configure(options);
+            builder.Service.Configure(options);
             return builder;
         }
 

@@ -16,8 +16,8 @@ namespace Core.EntityFrameworkCore
         public CoreDbContext(DbContextOptions options)
             : base(options)
         {
-            var serviceProvider = options.FindExtension<CoreOptionsExtension>().ApplicationServiceProvider;
-            MessagePublisher = serviceProvider.GetService<IMessagePublisher>();
+            var serviceProvider = options.FindExtension<CoreOptionsExtension>()?.ApplicationServiceProvider;
+            MessagePublisher = serviceProvider?.GetService<IMessagePublisher>();
         }
         private IMessagePublisher MessagePublisher { get; }
 
@@ -27,24 +27,21 @@ namespace Core.EntityFrameworkCore
             var result = events.Count;
             if (events.Count > 0 && MessagePublisher != null)
             {
-                using (var transaction = (TransactionBase)Database.BeginTransaction(MessagePublisher))
+                if (Database.TryBeginTransaction(MessagePublisher, false, out var transaction))
                 {
-                    if (transaction == null)
+                    foreach (var item in events)
                     {
-                        result = base.SaveChanges(acceptAllChangesOnSuccess);
-                        foreach (var item in events)
-                        {
-                            MessagePublisher.PublishAsync(item).GetAwaiter().GetResult();
-                        }
+                        MessagePublisher.PublishAsync(item).GetAwaiter().GetResult();
                     }
-                    else
+                    result += base.SaveChanges(acceptAllChangesOnSuccess);
+                    transaction.Commit();
+                }
+                else
+                {
+                    result = base.SaveChanges(acceptAllChangesOnSuccess);
+                    foreach (var item in events)
                     {
-                        foreach (var item in events)
-                        {
-                            MessagePublisher.PublishAsync(item).GetAwaiter().GetResult();
-                        }
-                        result += base.SaveChanges(acceptAllChangesOnSuccess);
-                        transaction.Commit();
+                        MessagePublisher.PublishAsync(item).GetAwaiter().GetResult();
                     }
                 }
                 return result;
@@ -60,24 +57,21 @@ namespace Core.EntityFrameworkCore
             var result = events.Count;
             if (events.Count > 0 && MessagePublisher != null)
             {
-                using (var transaction = (TransactionBase)Database.BeginTransaction(MessagePublisher))
+                if (Database.TryBeginTransaction(MessagePublisher, false, out var transaction))
                 {
-                    if (transaction == null)
+                    foreach (var item in events)
                     {
-                        result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
-                        foreach (var item in events)
-                        {
-                            await MessagePublisher.PublishAsync(item);
-                        }
+                        await MessagePublisher.PublishAsync(item);
                     }
-                    else
+                    result += await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+                    await transaction.CommitAsync(cancellationToken);
+                }
+                else
+                {
+                    result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+                    foreach (var item in events)
                     {
-                        foreach (var item in events)
-                        {
-                            await MessagePublisher.PublishAsync(item);
-                        }
-                        result += await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
-                        await transaction.CommitAsync(cancellationToken);
+                        await MessagePublisher.PublishAsync(item);
                     }
                 }
                 return result;
@@ -91,7 +85,7 @@ namespace Core.EntityFrameworkCore
             var events = new List<IMessage>();
             foreach (var entry in ChangeTracker.Entries().ToList())
             {
-                if (!(entry.Entity is AggregateRoot domainEntity)) continue;
+                if (entry.Entity is not AggregateRoot domainEntity) continue;
                 var domainEvents = domainEntity.GetEvents().ToList();
                 if (!domainEvents.Any()) continue;
                 events.AddRange(domainEvents);

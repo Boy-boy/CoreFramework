@@ -31,7 +31,7 @@ namespace SubscriptionApi
 
             context.Services.ConfigureEventBusOptions(options =>
             {
-                options.AutoRegistrarHandlersAssemblies = new[] { typeof(StartupModule).Assembly };
+                options.HandlersAssemblies = new[] { typeof(StartupModule).Assembly };
             });
         }
 

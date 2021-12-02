@@ -1,4 +1,5 @@
-﻿using RabbitMQ.Client;
+﻿using System;
+using RabbitMQ.Client;
 using System.Collections.Generic;
 
 namespace Core.RabbitMQ
@@ -17,12 +18,12 @@ namespace Core.RabbitMQ
 
         public RabbitMqExchangeDeclareConfigure(
             string exchangeName,
-            string type,
+            string type = "direct",
             bool durable = true,
             bool autoDelete = false,
             Dictionary<string, object> arguments = null)
         {
-            ExchangeName = exchangeName;
+            ExchangeName = exchangeName ?? throw new ArgumentNullException(nameof(exchangeName));
             Type = type;
             Durable = durable;
             AutoDelete = autoDelete;

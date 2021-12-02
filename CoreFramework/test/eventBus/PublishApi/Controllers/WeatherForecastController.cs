@@ -27,13 +27,21 @@ namespace PublishApi.Controllers
         public async Task<string> Get()
         {
             var connection = new NpgsqlConnection(_configuration.GetConnectionString("customer"));
-            using var transaction = connection.BeginTransaction(_publisher);
-            for (var i = 0; i < 100; i++)
+            if (connection.TryBeginTransaction(_publisher, false, out var transaction))
             {
-                await _publisher.PublishAsync(new CustomerEvent());
+                for (var i = 0; i < 100; i++)
+                {
+                    await _publisher.PublishAsync(new CustomerEvent());
+                }
+                await transaction.CommitAsync();
             }
-            await transaction.CommitAsync();
-
+            else
+            {
+                for (var i = 0; i < 100; i++)
+                {
+                    await _publisher.PublishAsync(new CustomerEvent());
+                }
+            }
             return "Hello Word";
         }
     }

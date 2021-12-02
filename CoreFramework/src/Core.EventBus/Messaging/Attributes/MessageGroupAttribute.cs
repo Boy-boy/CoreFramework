@@ -29,7 +29,7 @@ namespace Core.EventBus
                        .OfType<MessageGroupAttribute>()
                        .FirstOrDefault()
                        ?.Group
-                   ?? Assembly.GetEntryAssembly()?.GetName().Name.ToLower();
+                   ?? Assembly.GetEntryAssembly()?.GetName().Name?.ToLower();
         }
     }
 }

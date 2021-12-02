@@ -65,6 +65,8 @@ namespace Core.RabbitMQ
 
         public void OnMessageReceived(Func<IModel, BasicDeliverEventArgs, Task> processEvent)
         {
+            if (ProcessEvents.Any(p => p.Method == processEvent.Method))
+                return;
             ProcessEvents.Add(processEvent);
         }
 

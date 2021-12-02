@@ -36,6 +36,8 @@ namespace Core.EventBus.RabbitMQ
 
         public override async Task SendAsync<T>(T message)
         {
+            await Task.Yield();
+
             _logger.LogTrace("Enable diagnostic listeners before publishing,name is {name}", DiagnosticListenerConstants.BeforePublish);
             EventBusDiagnosticListener.TracingPublishBefore(message);
 
@@ -59,23 +61,21 @@ namespace Core.EventBus.RabbitMQ
                     _persistentConnection.TryConnect();
                 }
 
-                using (var channel = _persistentConnection.CreateModel())
-                {
-                    var model = channel;
-                    _logger.LogTrace("Declaring RabbitMQ exchange {ExchangeName} to publish event: {EventId}", exchangeName, message.Id);
-                    model.ExchangeDeclare(exchange: exchangeName, type: "direct", durable: true, autoDelete: false,
-                        arguments: new ConcurrentDictionary<string, object>());
+                using var channel = _persistentConnection.CreateModel();
+                var model = channel;
+                _logger.LogTrace("Declaring RabbitMQ exchange {ExchangeName} to publish event: {EventId}", exchangeName, message.Id);
+                model.ExchangeDeclare(exchange: exchangeName, type: "direct", durable: true, autoDelete: false,
+                    arguments: new ConcurrentDictionary<string, object>());
 
-                    var properties = model.CreateBasicProperties();
-                    properties.DeliveryMode = 2; // persistent
-                    _logger.LogTrace("Publishing event to RabbitMQ: {EventId}", message.Id);
-                    model.BasicPublish(
-                        exchange: exchangeName,
-                        routingKey: eventName,
-                        mandatory: true,
-                        basicProperties: properties,
-                        body: body);
-                }
+                var properties = model.CreateBasicProperties();
+                properties.DeliveryMode = 2; // persistent
+                _logger.LogTrace("Publishing event to RabbitMQ: {EventId}", message.Id);
+                model.BasicPublish(
+                    exchange: exchangeName,
+                    routingKey: eventName,
+                    mandatory: true,
+                    basicProperties: properties,
+                    body: body);
             });
 
             _logger.LogTrace("Enable diagnostic listeners after publishing,name is {name}", DiagnosticListenerConstants.AfterPublish);

@@ -1,14 +1,12 @@
 ﻿using Core.EventBus.Messaging;
 using Core.EventBus.Messaging.Diagnostics;
 using Core.RabbitMQ;
-using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System;
-using System.Collections.Concurrent;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -19,41 +17,40 @@ namespace Core.EventBus.RabbitMQ
     {
         private readonly IMessageHandlerManager _messageHandlerManager;
         private readonly IMessageHandlerProvider _messageHandlerProvider;
-        private readonly IRabbitMqMessageConsumerFactory _rabbitMqMessageConsumerFactory;
+        private readonly IRabbitMqMessageConsumerManager _rabbitMqMessageConsumerManager;
         private readonly IOptions<EventBusRabbitMqOptions> _options;
         private readonly ILogger<RabbitMqMessageSubscribe> _logger;
-        protected ConcurrentDictionary<string, IRabbitMqMessageConsumer> RabbitMqMessageConsumerDic { get; }
-        private readonly object _lock = new object();
+        private readonly object _lock = new();
 
         public RabbitMqMessageSubscribe(
             IMessageHandlerManager messageHandlerManager,
             IMessageHandlerProvider messageHandlerProvider,
-            IRabbitMqMessageConsumerFactory rabbitMqMessageConsumerFactory,
+            IRabbitMqMessageConsumerManager rabbitMqMessageConsumerManager,
             IOptions<EventBusRabbitMqOptions> options,
             ILogger<RabbitMqMessageSubscribe> logger)
         {
             _messageHandlerManager = messageHandlerManager;
             _messageHandlerProvider = messageHandlerProvider;
-            _rabbitMqMessageConsumerFactory = rabbitMqMessageConsumerFactory;
+            _rabbitMqMessageConsumerManager = rabbitMqMessageConsumerManager;
             _options = options;
             _logger = logger;
-            RabbitMqMessageConsumerDic = new ConcurrentDictionary<string, IRabbitMqMessageConsumer>();
             messageHandlerManager.OnEventRemoved += SubsManager_OnEventRemoved;
         }
 
         private void SubsManager_OnEventRemoved(object sender, Type messageType)
         {
-            var exchangeName = _options.Value.ExchangeName;
-            var queueName = MessageGroupAttribute.GetGroupOrDefault(messageType);
-            var key = $"{exchangeName}_{queueName}";
             lock (_lock)
             {
-                if (!RabbitMqMessageConsumerDic.TryGetValue(key, out var rabbitMqMessageConsumer)) return;
+                var exchangeName = _options.Value.ExchangeName;
+                var queueName = MessageGroupAttribute.GetGroupOrDefault(messageType);
+                if (!_rabbitMqMessageConsumerManager.TryGet(exchangeName, queueName, out var rabbitMqMessageConsumer))
+                    return;
                 var eventName = MessageNameAttribute.GetNameOrDefault(messageType);
                 rabbitMqMessageConsumer.UnbindAsync(eventName);
-                if (rabbitMqMessageConsumer.HasRoutingKeyBindingQueue()) return;
+                if (rabbitMqMessageConsumer.HasRoutingKeyBindingQueue())
+                    return;
                 rabbitMqMessageConsumer.Dispose();
-                RabbitMqMessageConsumerDic.TryRemove(key, out _);
+                _rabbitMqMessageConsumerManager.TryRemove(exchangeName, queueName);
             }
         }
 
@@ -77,20 +74,10 @@ namespace Core.EventBus.RabbitMQ
         {
             var exchangeName = _options.Value.ExchangeName;
             var queueName = MessageGroupAttribute.GetGroupOrDefault(eventType);
-            var key = $"{exchangeName}_{queueName}";
-            lock (_lock)
-            {
-                if (!RabbitMqMessageConsumerDic.TryGetValue(key, out var rabbitMqMessageConsumer))
-                {
-                    rabbitMqMessageConsumer = _rabbitMqMessageConsumerFactory.Create(
-                        new RabbitMqExchangeDeclareConfigure(exchangeName, "direct"),
-                        new RabbitMqQueueDeclareConfigure(queueName));
-                    rabbitMqMessageConsumer.OnMessageReceived(Consumer_Received);
-                    RabbitMqMessageConsumerDic.TryAdd(key, rabbitMqMessageConsumer);
-                }
-                var eventName = MessageNameAttribute.GetNameOrDefault(eventType);
-                rabbitMqMessageConsumer.BindAsync(eventName);
-            }
+            var rabbitMqMessageConsumer = _rabbitMqMessageConsumerManager.TryCreate(
+                new RabbitMqExchangeDeclareConfigure(exchangeName),
+               new RabbitMqQueueDeclareConfigure(queueName));
+            rabbitMqMessageConsumer.OnMessageReceived(Consumer_Received);
         }
 
         private async Task Consumer_Received(IModel model, BasicDeliverEventArgs eventArgs)

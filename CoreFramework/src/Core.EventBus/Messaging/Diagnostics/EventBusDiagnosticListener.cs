@@ -13,9 +13,8 @@ namespace Core.EventBus.Messaging.Diagnostics
         /// <param name="message"></param>
         public static void TracingPublishBefore(IMessage message)
         {
-            if (!EventBusDiagnostics.IsEnabled(DiagnosticListenerConstants.BeforePublish))
+            if (!EventBusDiagnostics.IsEnabled() || !EventBusDiagnostics.IsEnabled(DiagnosticListenerConstants.BeforePublish))
                 return;
-
             var result = new
             {
                 Message = message,
@@ -30,7 +29,7 @@ namespace Core.EventBus.Messaging.Diagnostics
         /// <param name="message"></param>
         public static void TracingPublishAfter(IMessage message)
         {
-            if (!EventBusDiagnostics.IsEnabled(DiagnosticListenerConstants.AfterPublish))
+            if (!EventBusDiagnostics.IsEnabled() || !EventBusDiagnostics.IsEnabled(DiagnosticListenerConstants.AfterPublish))
                 return;
 
             var result = new
@@ -48,7 +47,7 @@ namespace Core.EventBus.Messaging.Diagnostics
         /// <param name="errorMessage"></param>
         public static void TracingPublishError(IMessage message, string errorMessage)
         {
-            if (!EventBusDiagnostics.IsEnabled(DiagnosticListenerConstants.ErrorPublish))
+            if (!EventBusDiagnostics.IsEnabled() || !EventBusDiagnostics.IsEnabled(DiagnosticListenerConstants.ErrorPublish))
                 return;
 
             var result = new
@@ -66,7 +65,7 @@ namespace Core.EventBus.Messaging.Diagnostics
         /// <param name="message"></param>
         public static void TracingConsumeBefore(IMessage message)
         {
-            if (!EventBusDiagnostics.IsEnabled(DiagnosticListenerConstants.BeforeConsume))
+            if (!EventBusDiagnostics.IsEnabled() || !EventBusDiagnostics.IsEnabled(DiagnosticListenerConstants.BeforeConsume))
                 return;
 
             var result = new
@@ -83,7 +82,7 @@ namespace Core.EventBus.Messaging.Diagnostics
         /// <param name="message"></param>
         public static void TracingConsumeAfter(IMessage message)
         {
-            if (!EventBusDiagnostics.IsEnabled(DiagnosticListenerConstants.AfterConsume))
+            if (!EventBusDiagnostics.IsEnabled() || !EventBusDiagnostics.IsEnabled(DiagnosticListenerConstants.AfterConsume))
                 return;
 
             var result = new
@@ -102,7 +101,7 @@ namespace Core.EventBus.Messaging.Diagnostics
         /// <param name="errorMessage"></param>
         public static void TracingConsumeError(IMessage message, Type handlerType, string errorMessage)
         {
-            if (!EventBusDiagnostics.IsEnabled(DiagnosticListenerConstants.ErrorConsume))
+            if (!EventBusDiagnostics.IsEnabled() || !EventBusDiagnostics.IsEnabled(DiagnosticListenerConstants.ErrorConsume))
                 return;
 
             var result = new
@@ -121,7 +120,7 @@ namespace Core.EventBus.Messaging.Diagnostics
         /// <param name="message"></param>
         public static void TracingNotSubscribed(object message)
         {
-            if (!EventBusDiagnostics.IsEnabled(DiagnosticListenerConstants.NotSubscribed))
+            if (!EventBusDiagnostics.IsEnabled() || !EventBusDiagnostics.IsEnabled(DiagnosticListenerConstants.NotSubscribed))
                 return;
 
             var result = new

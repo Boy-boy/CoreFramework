@@ -20,7 +20,7 @@ namespace SubscriptionApi
         {
             //services.AddEventBus(options =>
             //{
-            //    options.AutoRegistrarHandlersAssemblies = new[] { typeof(Startup).Assembly };
+            //    options.HandlersAssemblies = new[] { typeof(Startup).Assembly };
             //    options.AddRabbitMq(rabbitOptions =>
             //    {
             //        rabbitOptions.ExchangeName = "demo";

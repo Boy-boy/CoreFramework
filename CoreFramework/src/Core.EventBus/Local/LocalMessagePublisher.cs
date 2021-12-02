@@ -25,6 +25,7 @@ namespace Core.EventBus.Local
 
         public override async Task SendAsync<T>(T message)
         {
+            await Task.Yield();
             var messageHandlers = _messageHandlerProvider
                 .GetHandlers<T>()
                 .ToList();

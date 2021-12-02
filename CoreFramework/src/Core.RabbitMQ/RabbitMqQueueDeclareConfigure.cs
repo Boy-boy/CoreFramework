@@ -1,4 +1,5 @@
-﻿using RabbitMQ.Client;
+﻿using System;
+using RabbitMQ.Client;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
@@ -24,7 +25,7 @@ namespace Core.RabbitMQ
             bool autoDelete = false,
             Dictionary<string, object> arguments = null)
         {
-            QueueName = queueName;
+            QueueName = queueName ?? throw new ArgumentNullException(nameof(queueName));
             Durable = durable;
             Exclusive = exclusive;
             AutoDelete = autoDelete;

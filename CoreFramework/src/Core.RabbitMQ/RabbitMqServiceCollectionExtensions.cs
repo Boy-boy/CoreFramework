@@ -13,7 +13,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(services));
             }
             services.TryAddSingleton<IRabbitMqPersistentConnection, DefaultRabbitMqPersistentConnection>();
-            services.TryAddSingleton<IRabbitMqMessageConsumerFactory, DefaultRabbitMqMessageConsumerFactory>();
+            services.TryAddSingleton<IRabbitMqMessageConsumerManager, DefaultRabbitMqMessageConsumerManager>();
             if (configureOptions != null)
                 services.Configure(configureOptions);
             return services;

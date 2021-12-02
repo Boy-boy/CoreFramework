@@ -14,7 +14,7 @@ namespace Core.EventBus
         /// <summary>
         /// 自动订阅，Handler处理器所属的程序集集合
         /// </summary>
-        public Assembly[] AutoRegistrarHandlersAssemblies { get; set; }
+        public Assembly[] HandlersAssemblies { get; set; }
 
         public List<IEventBusOptionsExtensions> Extensions { get; set; }
     }

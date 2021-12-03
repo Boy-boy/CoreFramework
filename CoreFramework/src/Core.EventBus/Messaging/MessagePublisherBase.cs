@@ -11,7 +11,7 @@ namespace Core.EventBus
 
         public ITransactionAccessor TransactionAccessor { get; }
 
-        public IMessageMailBox MessageMailBox { get; }
+        public MessagePublisherMailBox MessagePublisherMailBox { get; }
 
         protected IStorage Storage { get; }
 
@@ -20,8 +20,8 @@ namespace Core.EventBus
             ServiceScopeFactory = serviceScopeFactory;
             var provider = ServiceScopeFactory.CreateScope().ServiceProvider;
             TransactionAccessor = provider.GetRequiredService<ITransactionAccessor>();
-            MessageMailBox = provider.GetRequiredService<IMessageMailBox>();
             Storage = provider.GetService<IStorage>();
+            MessagePublisherMailBox = ActivatorUtilities.CreateInstance<MessagePublisherMailBox>(provider, this);
         }
 
         public async Task PublishAsync<T>(T message)
@@ -29,7 +29,7 @@ namespace Core.EventBus
         {
             if (Storage == null)
             {
-                MessageMailBox.EnqueueMessage(message);
+                MessagePublisherMailBox.EnqueueMessage(message);
             }
             else
             {
@@ -39,14 +39,14 @@ namespace Core.EventBus
                 if (transaction == null)
                 {
                     //未开启事务
-                    MessageMailBox.EnqueueMessage(message);
+                    MessagePublisherMailBox.EnqueueMessage(message);
                 }
                 else
                 {
                     if (transaction.AutoCommit)
                     {
                         await TransactionAccessor.Transaction.CommitAsync();
-                        MessageMailBox.EnqueueMessage(message);
+                        MessagePublisherMailBox.EnqueueMessage(message);
                     }
                     else
                     {

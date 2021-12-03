@@ -13,12 +13,6 @@ namespace Core.EventBus
             _messageHandlerManager = messageHandlerManager;
         }
 
-        public IEnumerable<IMessageHandler> GetHandlers<TMessage>()
-            where TMessage : class, IMessage
-        {
-            return GetHandlers(typeof(TMessage));
-        }
-
         public IEnumerable<IMessageHandler> GetHandlers(Type messageType)
         {
             return _messageHandlerManager.MessageHandlerWrappers

@@ -8,7 +8,7 @@ namespace Core.EventBus.Transaction
 {
     public abstract class TransactionBase : ITransaction
     {
-        private readonly IMessageMailBox _messageMailBox;
+        private readonly IMessagePublisher _publisher;
 
         private readonly ConcurrentQueue<IMessage> _messages;
 
@@ -18,7 +18,7 @@ namespace Core.EventBus.Transaction
 
         protected TransactionBase(IServiceProvider serviceProvider)
         {
-            _messageMailBox = serviceProvider.GetRequiredService<IMessageMailBox>();
+            _publisher = serviceProvider.GetService<IMessagePublisher>();
             _messages = new ConcurrentQueue<IMessage>();
         }
 
@@ -37,12 +37,14 @@ namespace Core.EventBus.Transaction
 
         protected virtual void Flush()
         {
+            if (_publisher == null)
+                return;
             Task.Run(() =>
             {
                 while (!_messages.IsEmpty)
                 {
                     _messages.TryDequeue(out var message);
-                    _messageMailBox.EnqueueMessage(message);
+                    ((MessagePublisherBase)_publisher).MessagePublisherMailBox.EnqueueMessage(message);
                 }
             });
         }

@@ -25,7 +25,7 @@ namespace Core.EventBus.Local
         public override async Task SendAsync<T>(T message)
         {
             var messageHandlers = _messageHandlerProvider
-                .GetHandlers<T>()
+                .GetHandlers(message.GetType())
                 .ToList();
 
             if (messageHandlers.Any())
@@ -35,7 +35,7 @@ namespace Core.EventBus.Local
 
                 foreach (var messageHandler in messageHandlers)
                 {
-                    var concreteType = typeof(IMessageHandler<>).MakeGenericType(typeof(T));
+                    var concreteType = typeof(IMessageHandler<>).MakeGenericType(message.GetType());
                     var method = concreteType.GetMethod("HandAsync");
                     if (method == null) continue;
                     try

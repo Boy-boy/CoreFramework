@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 
-namespace Core.EventBus.Messaging.Diagnostics
+namespace Core.EventBus.Diagnostics
 {
     public class EventBusDiagnosticListener
     {

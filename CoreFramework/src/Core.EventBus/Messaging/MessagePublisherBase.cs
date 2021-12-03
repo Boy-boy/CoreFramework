@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Core.EventBus.Storage;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Core.EventBus.Messaging
+namespace Core.EventBus
 {
     public abstract class MessagePublisherBase : IMessagePublisher
     {
@@ -11,14 +11,16 @@ namespace Core.EventBus.Messaging
 
         public ITransactionAccessor TransactionAccessor { get; }
 
+        public IMessageMailBox MessageMailBox { get; }
+
         protected IStorage Storage { get; }
 
-        protected MessagePublisherBase(
-            IServiceScopeFactory serviceScopeFactory)
+        protected MessagePublisherBase(IServiceScopeFactory serviceScopeFactory)
         {
             ServiceScopeFactory = serviceScopeFactory;
             var provider = ServiceScopeFactory.CreateScope().ServiceProvider;
             TransactionAccessor = provider.GetRequiredService<ITransactionAccessor>();
+            MessageMailBox = provider.GetRequiredService<IMessageMailBox>();
             Storage = provider.GetService<IStorage>();
         }
 
@@ -27,7 +29,7 @@ namespace Core.EventBus.Messaging
         {
             if (Storage == null)
             {
-                await SendAsync(message);
+                MessageMailBox.EnqueueMessage(message);
             }
             else
             {
@@ -37,14 +39,14 @@ namespace Core.EventBus.Messaging
                 if (transaction == null)
                 {
                     //未开启事务
-                    await SendAsync(message);
+                    MessageMailBox.EnqueueMessage(message);
                 }
                 else
                 {
                     if (transaction.AutoCommit)
                     {
                         await TransactionAccessor.Transaction.CommitAsync();
-                        await SendAsync(message);
+                        MessageMailBox.EnqueueMessage(message);
                     }
                     else
                     {

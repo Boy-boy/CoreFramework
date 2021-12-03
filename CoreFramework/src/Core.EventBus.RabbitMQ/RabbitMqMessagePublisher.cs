@@ -11,7 +11,7 @@ using System.Collections.Concurrent;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
-using Core.EventBus.Messaging.Diagnostics;
+using Core.EventBus.Diagnostics;
 
 namespace Core.EventBus.RabbitMQ
 {
@@ -36,8 +36,6 @@ namespace Core.EventBus.RabbitMQ
 
         public override async Task SendAsync<T>(T message)
         {
-            await Task.Yield();
-
             _logger.LogTrace("Enable diagnostic listeners before publishing,name is {name}", DiagnosticListenerConstants.BeforePublish);
             EventBusDiagnosticListener.TracingPublishBefore(message);
 

@@ -47,7 +47,7 @@ namespace Core.RabbitMQ
             _timer = new Timer(sender =>
             {
                 TimerCallback();
-            }, this, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(10));
+            }, this, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(30));
         }
 
         private void TryCreateExchangeAndQueue()
@@ -56,11 +56,10 @@ namespace Core.RabbitMQ
             {
                 _persistentConnection.TryConnect();
             }
-            using (var channel = _persistentConnection.CreateModel())
-            {
-                ExchangeDeclare.Declare(channel);
-                QueueDeclare.Declare(channel);
-            }
+
+            using var channel = _persistentConnection.CreateModel();
+            ExchangeDeclare.Declare(channel);
+            QueueDeclare.Declare(channel);
         }
 
         public void OnMessageReceived(Func<IModel, BasicDeliverEventArgs, Task> processEvent)
@@ -121,6 +120,7 @@ namespace Core.RabbitMQ
 
         private void TryCreateConsumerChannel()
         {
+            _logger.LogTrace("try create consumer channel");
             if (ConsumerChannel != null && !ConsumerChannel.IsClosed) return;
             if (!_persistentConnection.IsConnected)
             {

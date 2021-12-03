@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
-using Core.EventBus.Messaging;
-using Core.EventBus.Messaging.Diagnostics;
+using Core.EventBus.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -25,7 +24,6 @@ namespace Core.EventBus.Local
 
         public override async Task SendAsync<T>(T message)
         {
-            await Task.Yield();
             var messageHandlers = _messageHandlerProvider
                 .GetHandlers<T>()
                 .ToList();

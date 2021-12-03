@@ -1,5 +1,5 @@
 ﻿using Core.EventBus.Messaging;
-using Core.EventBus.Messaging.Diagnostics;
+using Core.EventBus.Diagnostics;
 using Core.RabbitMQ;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;

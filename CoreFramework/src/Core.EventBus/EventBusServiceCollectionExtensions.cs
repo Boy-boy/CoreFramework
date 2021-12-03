@@ -15,6 +15,7 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<IMessageHandlerManager, MessageHandlerManager>();
             services.TryAddSingleton<IMessageHandlerProvider, MessageHandlerProvider>();
             services.TryAddSingleton<ITransactionAccessor, TransactionAccessor>();
+            services.TryAddSingleton<IMessageMailBox, DefaultMessageMailBox>();
             services.AddHostedService<EventBusBackgroundService>();
             ConfigureEventBusOptions(services, configureOptions);
             return new EventBusBuilder(services);

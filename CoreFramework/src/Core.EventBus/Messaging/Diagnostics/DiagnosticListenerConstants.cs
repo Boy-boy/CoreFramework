@@ -1,4 +1,4 @@
-﻿namespace Core.EventBus.Messaging.Diagnostics
+﻿namespace Core.EventBus.Diagnostics
 {
     public static class DiagnosticListenerConstants
     {

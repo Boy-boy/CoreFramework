@@ -4,11 +4,12 @@ using System.Threading.Tasks;
 
 namespace SubscriptionApi.Event
 {
+    [MessageHandlerPriority(9)]
     public class EventHandler1 : IMessageHandler<CustomerEvent>
     {
         public Task HandAsync(CustomerEvent message)
         {
-            Console.WriteLine(message.Id);
+            Console.WriteLine("handler1"+message.Id);
             return Task.CompletedTask;
         }
     }

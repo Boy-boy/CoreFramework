@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS {GetTableName()} (
             };
 
             var sql = $@"INSERT INTO {GetTableName()} (Id,Version,MessageType,MessageData,CreateTime,UtcTime) 
-VALUES (@id,@Version,@MessageType,@MessageData,@CreateTime,@UtcTime);";
+VALUES (@Id,@Version,@MessageType,@MessageData,@CreateTime,@UtcTime);";
 
             if (dbTransaction == null)
             {

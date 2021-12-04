@@ -29,7 +29,7 @@ namespace PublishApi.Controllers
             var connection = new NpgsqlConnection(_configuration.GetConnectionString("customer"));
             if (connection.TryBeginTransaction(_publisher, false, out var transaction))
             {
-                for (var i = 0; i < 100; i++)
+                for (var i = 0; i < 500; i++)
                 {
                     await _publisher.PublishAsync(new CustomerEvent());
                 }

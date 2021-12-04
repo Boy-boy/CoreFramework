@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS {_options.Value.DbTable} (
             };
 
             var sql = $@"INSERT INTO {_options.Value.DbTable} (`Id`,`Version`,`MessageType`,`MessageData`,`CreateTime`,`UtcTime`) 
-VALUES (@id,@Version,@MessageType,@MessageData,@CreateTime,@UtcTime);";
+VALUES (@Id,@Version,@MessageType,@MessageData,@CreateTime,@UtcTime);";
 
             if (dbTransaction == null)
             {

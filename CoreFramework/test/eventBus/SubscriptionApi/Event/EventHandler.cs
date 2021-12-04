@@ -8,7 +8,7 @@ namespace SubscriptionApi.Event
     {
         public Task HandAsync(CustomerEvent message)
         {
-            Console.WriteLine(message.Id);
+            Console.WriteLine("handler"+message.Id);
             return Task.CompletedTask;
         }
     }

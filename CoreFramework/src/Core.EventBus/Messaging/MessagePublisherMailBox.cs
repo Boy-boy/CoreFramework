@@ -19,7 +19,7 @@ namespace Core.EventBus
             ILogger<MessagePublisherMailBox> logger)
         {
             _logger = logger;
-            _publisher = messagePublisher;
+            _publisher = messagePublisher ?? throw new ArgumentNullException(nameof(messagePublisher));
             _queue = new ConcurrentQueue<IMessage>();
         }
 
@@ -63,8 +63,6 @@ namespace Core.EventBus
             {
                 if (_queue.TryDequeue(out var message))
                 {
-                    if (_publisher == null)
-                        return;
                     await ((MessagePublisherBase)_publisher).SendAsync(message);
                 }
             }

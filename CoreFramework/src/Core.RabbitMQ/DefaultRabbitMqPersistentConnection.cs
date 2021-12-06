@@ -13,20 +13,20 @@ namespace Core.RabbitMQ
     public class DefaultRabbitMqPersistentConnection
        : IRabbitMqPersistentConnection
     {
-        private readonly IConnectionFactory _connectionFactory;
+        private readonly RabbitMqOptions _option;
         private readonly ILogger<DefaultRabbitMqPersistentConnection> _logger;
         private readonly int _retryCount = 6;
         IConnection _connection;
         bool _disposed;
 
 
-        readonly object _syncRoot = new object();
+        readonly object _syncRoot = new();
 
-        public DefaultRabbitMqPersistentConnection(IOptions<RabbitMqOptions> option, ILogger<DefaultRabbitMqPersistentConnection> logger)
+        public DefaultRabbitMqPersistentConnection(IOptions<RabbitMqOptions> option,
+            ILogger<DefaultRabbitMqPersistentConnection> logger)
         {
-            var connection = option.Value.Connection ?? throw new ArgumentNullException(nameof(option.Value.Connection));
-            _connectionFactory = connection.ConnectionFactory ?? throw new ArgumentNullException(nameof(connection.ConnectionFactory));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _option = option.Value;
+            _logger = logger;
         }
 
         public bool IsConnected => _connection != null && _connection.IsOpen && !_disposed;
@@ -59,22 +59,33 @@ namespace Core.RabbitMQ
 
         public bool TryConnect()
         {
+            if (IsConnected)
+                return true;
+
             _logger.LogInformation("RabbitMQ Client is trying to connect");
             lock (_syncRoot)
             {
+                if (IsConnected)
+                    return true;
+
                 var policy = Policy.Handle<SocketException>()
-                    .Or<BrokerUnreachableException>()
-                    .WaitAndRetry(_retryCount, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)), (ex, time) =>
-                    {
-                        _logger.LogWarning(ex, "RabbitMQ Client could not connect after {TimeOut}s ({ExceptionMessage})", $"{time.TotalSeconds:n1}", ex.Message);
-                    }
-                );
+                .Or<BrokerUnreachableException>()
+                .WaitAndRetry(_retryCount, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)), (ex, time) =>
+                {
+                    _logger.LogWarning(ex, "RabbitMQ Client could not connect after {TimeOut}s ({ExceptionMessage})", $"{time.TotalSeconds:n1}", ex.Message);
+                });
 
                 policy.Execute(() =>
                 {
-                    if (!IsConnected)
-                        _connection = _connectionFactory
-                              .CreateConnection();
+                    if (IsConnected)
+                        return;
+
+                    var connectionFactory = _option.Connection.ConnectionFactory;
+                    var hostnames = _option.Connection.HostName.TrimEnd(';').Split(';');
+                    // Handle Rabbit MQ Cluster.
+                    _connection = hostnames.Length == 1
+                        ? connectionFactory.CreateConnection()
+                        : connectionFactory.CreateConnection(hostnames);
                 });
 
                 if (IsConnected)

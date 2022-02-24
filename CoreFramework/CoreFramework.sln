@@ -65,11 +65,15 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Core.Configuration.Dashboar
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Core.Threading.Tasks", "src\Core.Threading.Tasks\Core.Threading.Tasks.csproj", "{D2E6EFF7-0229-4D54-A9F9-2C1F57A0F1CA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.Translate", "src\Core.Translate\Core.Translate.csproj", "{77EED0C8-30EB-4DC3-822D-834189CBB4F2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Core.Translate", "src\Core.Translate\Core.Translate.csproj", "{77EED0C8-30EB-4DC3-822D-834189CBB4F2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.Permission", "src\Core.Permission\Core.Permission.csproj", "{AB77A76C-566A-43A2-943F-6C19BC9B015F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Core.Permission", "src\Core.Permission\Core.Permission.csproj", "{AB77A76C-566A-43A2-943F-6C19BC9B015F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.Permission.PostgreSql", "src\Core.Permission.PostgreSql\Core.Permission.PostgreSql.csproj", "{CACD7855-0706-44B5-9A21-557243F3FC67}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Core.Permission.PostgreSql", "src\Core.Permission.PostgreSql\Core.Permission.PostgreSql.csproj", "{CACD7855-0706-44B5-9A21-557243F3FC67}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.Pipeline", "src\Core.Pipeline\Core.Pipeline.csproj", "{83E87C4D-BC62-4EB6-B035-5DA2D2DBE30B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test", "test\Test\Test.csproj", "{ABB779DE-2225-4614-A03E-9FD14AD3E128}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -197,6 +201,14 @@ Global
 		{CACD7855-0706-44B5-9A21-557243F3FC67}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CACD7855-0706-44B5-9A21-557243F3FC67}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CACD7855-0706-44B5-9A21-557243F3FC67}.Release|Any CPU.Build.0 = Release|Any CPU
+		{83E87C4D-BC62-4EB6-B035-5DA2D2DBE30B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{83E87C4D-BC62-4EB6-B035-5DA2D2DBE30B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{83E87C4D-BC62-4EB6-B035-5DA2D2DBE30B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{83E87C4D-BC62-4EB6-B035-5DA2D2DBE30B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{ABB779DE-2225-4614-A03E-9FD14AD3E128}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ABB779DE-2225-4614-A03E-9FD14AD3E128}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{ABB779DE-2225-4614-A03E-9FD14AD3E128}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{ABB779DE-2225-4614-A03E-9FD14AD3E128}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -234,6 +246,8 @@ Global
 		{77EED0C8-30EB-4DC3-822D-834189CBB4F2} = {03EFE65F-3027-40EA-A790-7C8D31C11E18}
 		{AB77A76C-566A-43A2-943F-6C19BC9B015F} = {03EFE65F-3027-40EA-A790-7C8D31C11E18}
 		{CACD7855-0706-44B5-9A21-557243F3FC67} = {03EFE65F-3027-40EA-A790-7C8D31C11E18}
+		{83E87C4D-BC62-4EB6-B035-5DA2D2DBE30B} = {03EFE65F-3027-40EA-A790-7C8D31C11E18}
+		{ABB779DE-2225-4614-A03E-9FD14AD3E128} = {ADB0B39E-2BFA-4241-956A-47AD65CEB2FA}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {67653D37-9D27-4AD4-9F01-DB21CA3B5835}

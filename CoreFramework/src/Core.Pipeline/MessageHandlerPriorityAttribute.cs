@@ -8,7 +8,7 @@ namespace Core.Pipeline
         public virtual int Priority { get; }
 
         public PipelinePriorityAttribute()
-        : this(0)
+        : this(int.MaxValue)
         {
         }
 
@@ -36,7 +36,7 @@ namespace Core.Pipeline
                     return methodPriorityAttributes.First().Priority;
                 }
             }
-            return pipelineHandlerType.GetCustomAttributes(true).OfType<PipelinePriorityAttribute>().FirstOrDefault()?.Priority ?? 0;
+            return pipelineHandlerType.GetCustomAttributes(true).OfType<PipelinePriorityAttribute>().FirstOrDefault()?.Priority ?? int.MaxValue;
         }
     }
 }

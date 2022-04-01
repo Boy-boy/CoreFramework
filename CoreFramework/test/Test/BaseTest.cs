@@ -19,6 +19,11 @@ namespace Test
 
             service.AddPipeline(typeof(BaseTest).Assembly);
 
+            service.AddAmazonS3(configActions =>
+            {
+
+            });
+
             ServiceProvider = service.BuildServiceProvider();
         }
     }

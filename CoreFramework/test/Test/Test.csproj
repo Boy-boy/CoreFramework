@@ -16,6 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Core.Amazon.S3\Core.Amazon.S3.csproj" />
     <ProjectReference Include="..\..\src\Core.Pipeline\Core.Pipeline.csproj" />
   </ItemGroup>
 

@@ -75,7 +75,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Core.Pipeline", "src\Core.P
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test", "test\Test\Test.csproj", "{ABB779DE-2225-4614-A03E-9FD14AD3E128}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.Excel", "src\Core.Excel\Core.Excel.csproj", "{B11F893D-F710-40B5-A3C6-9E1258E707CC}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Core.Excel", "src\Core.Excel\Core.Excel.csproj", "{B11F893D-F710-40B5-A3C6-9E1258E707CC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.Amazon.S3", "src\Core.Amazon.S3\Core.Amazon.S3.csproj", "{A49B9ECC-BC80-4641-8442-C96FA3A8107F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -215,6 +217,10 @@ Global
 		{B11F893D-F710-40B5-A3C6-9E1258E707CC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B11F893D-F710-40B5-A3C6-9E1258E707CC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B11F893D-F710-40B5-A3C6-9E1258E707CC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A49B9ECC-BC80-4641-8442-C96FA3A8107F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A49B9ECC-BC80-4641-8442-C96FA3A8107F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A49B9ECC-BC80-4641-8442-C96FA3A8107F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A49B9ECC-BC80-4641-8442-C96FA3A8107F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -255,6 +261,7 @@ Global
 		{83E87C4D-BC62-4EB6-B035-5DA2D2DBE30B} = {03EFE65F-3027-40EA-A790-7C8D31C11E18}
 		{ABB779DE-2225-4614-A03E-9FD14AD3E128} = {ADB0B39E-2BFA-4241-956A-47AD65CEB2FA}
 		{B11F893D-F710-40B5-A3C6-9E1258E707CC} = {03EFE65F-3027-40EA-A790-7C8D31C11E18}
+		{A49B9ECC-BC80-4641-8442-C96FA3A8107F} = {03EFE65F-3027-40EA-A790-7C8D31C11E18}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {67653D37-9D27-4AD4-9F01-DB21CA3B5835}

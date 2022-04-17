@@ -141,20 +141,7 @@
         public IConfiguration Configuration { get; }
       
         public override void ConfigureServices(ServiceCollectionContext context)
-        {    
-
-            var rabbitMqConnection = Configuration.GetSection("RabbitMq:Connection").Get<RabbitMqConnectionConfigure>();
-            context.Services.Configure<EventBusRabbitMqOptions>(options =>
-            {
-                options.RabbitMqConnection = rabbitMqConnection;
-            });
-
-            //若事件需持久化，则需依赖CoreEventBusSqlServerModule
-            context.Services.Configure<EventBusPostgreSqlOptions>(options =>
-            {
-                options.DbConnection = Configuration.GetConnectionString("customer");
-            });
-                                             
+        {                              
             //若该服务是订阅服务，则需配置以下代码
             context.Services.ConfigureEventBusOptions(options =>
             {
@@ -165,13 +152,21 @@
 ```
 ```json
 2.在appsetting.json配置Rabbitmq
- "RabbitMq": {
-    "Connection": {
-      "hostName": "127.0.0.1",
-      "userName": "guest",
-      "password": "guest",
-      "port": "-1",
-      "virtualHost": "/"
+"EventBus": {
+    "RabbitMq": {
+      "ExchangeName": "exchange_name",
+      "Connection": {
+        "hostName": "81.69.227.172",
+        "userName": "guest",
+        "password": "guest",
+        "port": "30072",
+        "virtualHost": "/"
+      }
+    },
+    "Storage": {
+      "DbConnection": "Host=81.69.227.172;Port=31432;Database=customer;Username=postgres;Password=gb123456",
+      "DbSchema": "EventBus",
+      "DbTable": "PublishMessage"
     }
   }
 ```

@@ -2,6 +2,7 @@
 using Core.Modularity;
 using Core.Modularity.Attribute;
 using Core.RabbitMQ;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -12,10 +13,17 @@ namespace Core.EventBus.RabbitMQ
         typeof(CoreRabbitMqModule))]
     public class CoreEventBusRabbitMqModule : CoreModuleBase
     {
+        public IConfiguration Configuration { get; }
+
+        public CoreEventBusRabbitMqModule(IConfiguration configuration)
+        {
+            Configuration = configuration;
+        }
+
         public override void ConfigureServices(ServiceCollectionContext context)
         {
             context.Items.TryGetValue(nameof(EventBusBuilder), out var eventBusBuilder);
-            ((EventBusBuilder)eventBusBuilder).AddRabbitMq(_ => { });
+            ((EventBusBuilder)eventBusBuilder).AddRabbitMq(Configuration.GetSection("EventBus:RabbitMq"));
         }
 
         public override void PostConfigureServices(ServiceCollectionContext context)
@@ -37,7 +45,7 @@ namespace Core.EventBus.RabbitMQ
 
             context.Services.AddRabbitMq(options =>
             {
-                options.Connection = eventBusRabbitMqOptions.RabbitMqConnection;
+                options.Connection = eventBusRabbitMqOptions.Connection;
             });
         }
     }

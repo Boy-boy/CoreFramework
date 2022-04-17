@@ -1,7 +1,6 @@
 ﻿using Core.EventBus.RabbitMQ;
 using Core.Modularity;
 using Core.Modularity.Attribute;
-using Core.RabbitMQ;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,16 +21,9 @@ namespace SubscriptionApi
         public override void ConfigureServices(ServiceCollectionContext context)
         {
             context.Services.AddControllers();
-
-            var rabbitMqConnection = Configuration.GetSection("RabbitMq:Connection").Get<RabbitMqConnectionConfigure>();
-            context.Services.Configure<EventBusRabbitMqOptions>(options =>
-            {
-                options.RabbitMqConnection = rabbitMqConnection;
-            });
-
             context.Services.ConfigureEventBusOptions(options =>
             {
-                options.HandlersAssemblies = new[] { typeof(StartupModule).Assembly };
+                options.MessageHandlerAssemblies = new[] { typeof(StartupModule).Assembly };
             });
         }
 

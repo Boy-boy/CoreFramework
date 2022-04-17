@@ -70,13 +70,16 @@ namespace Core.EventBus.RabbitMQ
             _messageHandlerManager.RemoveHandler(typeof(T), typeof(TH));
         }
 
-        private void TryCreateMessageConsumer(Type eventType)
+        private void TryCreateMessageConsumer(Type messageType)
         {
             var exchangeName = _options.Value.ExchangeName;
-            var queueName = MessageGroupAttribute.GetGroupOrDefault(eventType);
+            var queueName = MessageGroupAttribute.GetGroupOrDefault(messageType);
             var rabbitMqMessageConsumer = _rabbitMqMessageConsumerManager.TryCreate(
                 new RabbitMqExchangeDeclareConfigure(exchangeName),
                new RabbitMqQueueDeclareConfigure(queueName));
+
+            var eventName = MessageNameAttribute.GetNameOrDefault(messageType);
+            rabbitMqMessageConsumer.BindAsync(eventName);
             rabbitMqMessageConsumer.OnMessageReceived(Consumer_Received);
         }
 

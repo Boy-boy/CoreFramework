@@ -1,29 +1,35 @@
 ﻿using System;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Core.EventBus.RabbitMQ
 {
     public class EventBusRabbitMqOptionsExtensions : IEventBusOptionsExtensions
     {
         private readonly Action<EventBusRabbitMqOptions> _options;
+        private readonly IConfiguration _configuration;
 
         public EventBusRabbitMqOptionsExtensions(Action<EventBusRabbitMqOptions> options)
         {
-            _options = options ?? throw new AggregateException(nameof(options));
+            _options = options;
         }
+
+        public EventBusRabbitMqOptionsExtensions(IConfiguration configuration)
+        {
+            _configuration = configuration;
+        }
+
+
         public void AddServices(IServiceCollection services)
         {
-            var option = new EventBusRabbitMqOptions();
-            _options.Invoke(option);
-            services.AddRabbitMq(options =>
+            if (_options != null)
             {
-                options.Connection = option.RabbitMqConnection;
-            });
-
-            services.TryAddSingleton<IMessagePublisher, RabbitMqMessagePublisher>();
-            services.TryAddSingleton<IMessageSubscribe, RabbitMqMessageSubscribe>();
-            services.Configure(_options);
+                new EventBusBuilder(services).AddRabbitMq(_options);
+            }
+            else if (_configuration != null)
+            {
+                new EventBusBuilder(services).AddRabbitMq(_configuration);
+            }
         }
     }
 }

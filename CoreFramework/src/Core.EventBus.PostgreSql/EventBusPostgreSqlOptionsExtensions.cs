@@ -1,25 +1,33 @@
 ﻿using System;
-using Core.EventBus.Storage;
-using Core.EventBus.Transaction;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Core.EventBus.PostgreSql
 {
     public class EventBusPostgreSqlOptionsExtensions : IEventBusOptionsExtensions
     {
         private readonly Action<EventBusPostgreSqlOptions> _options;
+        private readonly IConfiguration _configuration;
 
         public EventBusPostgreSqlOptionsExtensions(Action<EventBusPostgreSqlOptions> options)
         {
-            _options = options ?? throw new AggregateException(nameof(options));
+            _options = options;
         }
+        public EventBusPostgreSqlOptionsExtensions(IConfiguration configuration)
+        {
+            _configuration = configuration;
+        }
+
         public void AddServices(IServiceCollection services)
         {
-            services.TryAddSingleton<IStorage, PostgreSqlStorage>();
-            services.TryAddTransient<ITransaction, PostgreSqlTransaction>();
             if (_options != null)
-                services.Configure(_options);
+            {
+                new EventBusBuilder(services).AddPostgreSql(_options);
+            }
+            else if (_configuration != null)
+            {
+                new EventBusBuilder(services).AddPostgreSql(_configuration);
+            }
         }
     }
 }

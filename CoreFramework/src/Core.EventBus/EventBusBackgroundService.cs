@@ -23,7 +23,7 @@ namespace Core.EventBus
 
             //初始化订阅
             var messageSubscribe = provider.GetService<IMessageSubscribe>();
-            messageSubscribe?.Initialize(options.Value.HandlersAssemblies);
+            messageSubscribe?.Initialize(options.Value.MessageHandlerAssemblies);
 
             //初始化消息存储
             var storage = provider.GetService<IStorage>();

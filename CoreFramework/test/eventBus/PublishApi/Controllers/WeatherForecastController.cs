@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Diagnostics;
+using System.Threading.Tasks;
 using Core.EventBus;
 using Core.EventBus.Transaction;
 using Microsoft.AspNetCore.Mvc;
@@ -26,6 +27,8 @@ namespace PublishApi.Controllers
         [HttpGet]
         public async Task<string> Get()
         {
+            var sw = new Stopwatch();
+            sw.Start();
             var connection = new NpgsqlConnection(_configuration.GetConnectionString("customer"));
             if (connection.TryBeginTransaction(_publisher, false, out var transaction))
             {
@@ -42,7 +45,8 @@ namespace PublishApi.Controllers
                     await _publisher.PublishAsync(new CustomerEvent());
                 }
             }
-            return "Hello Word";
+            sw.Stop();
+            return $"500个事件，耗时：{sw.ElapsedMilliseconds}";
         }
     }
 }

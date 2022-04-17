@@ -36,7 +36,7 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 extension.AddServices(services);
             }
-            services.TryRegistrarMessageHandlers(options.HandlersAssemblies);
+            services.TryRegistrarMessageHandlers(options.MessageHandlerAssemblies);
             services.Configure(configureOptions);
             return services;
         }

@@ -1,6 +1,4 @@
-using Core.EventBus.PostgreSql;
 using Core.Modularity;
-using Core.RabbitMQ;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -23,18 +21,9 @@ namespace PublishApi
             #region eventbus使用方式一
             //services.AddEventBus(options =>
             //{
-            //    options.AddRabbitMq(rabbitOptions =>
-            //    {
-            //        rabbitOptions.ExchangeName = "demo";
-            //        rabbitOptions.RabbitMqConnection = new RabbitMqConnectionConfigure();
-            //    });
-
-            //    options.AddPostgreSql(pgOptions =>
-            //    {
-            //        pgOptions.DbConnection = "demo";
-            //        pgOptions.DbSchema = "demo";
-            //        pgOptions.DbTable = "demo";
-            //    });
+            //    options
+            //        .AddRabbitMq(Configuration.GetSection("EventBus:RabbitMq"))
+            //        .AddPostgreSql(Configuration.GetSection("EventBus:Storage"));
             //});
             #endregion
 

@@ -15,9 +15,9 @@ namespace Core.EventBus.RabbitMQ
 
         public EventBusRabbitMqOptions()
         {
-            RabbitMqConnection = new RabbitMqConnectionConfigure();
+            Connection = new RabbitMqConnectionConfigure();
         }
 
-        public RabbitMqConnectionConfigure RabbitMqConnection { get; set; }
+        public RabbitMqConnectionConfigure Connection { get; set; }
     }
 }

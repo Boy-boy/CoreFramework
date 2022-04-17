@@ -46,7 +46,7 @@ namespace Core.EventBus.RabbitMQ
                     _logger.LogWarning(ex, "Could not publish event: {EventId} after {Timeout}s ({ExceptionMessage})", message.Id, $"{time.TotalSeconds:n1}", ex.Message);
                 });
 
-            var eventName = MessageNameAttribute.GetNameOrDefault(message.GetType());
+            var messageName = MessageNameAttribute.GetNameOrDefault(message.GetType());
             var data = message.ToJson();
             var body = Encoding.UTF8.GetBytes(data).AsMemory();
 
@@ -70,7 +70,7 @@ namespace Core.EventBus.RabbitMQ
                 _logger.LogTrace("Publishing event to RabbitMQ: {EventId}", message.Id);
                 model.BasicPublish(
                     exchange: exchangeName,
-                    routingKey: eventName,
+                    routingKey: messageName,
                     mandatory: true,
                     basicProperties: properties,
                     body: body);

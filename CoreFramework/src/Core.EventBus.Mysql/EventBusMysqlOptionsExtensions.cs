@@ -1,25 +1,33 @@
-﻿using Core.EventBus.Storage;
-using Core.EventBus.Transaction;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
+﻿using Microsoft.Extensions.DependencyInjection;
 using System;
+using Microsoft.Extensions.Configuration;
 
 namespace Core.EventBus.Mysql
 {
     public class EventBusMysqlOptionsExtensions : IEventBusOptionsExtensions
     {
         private readonly Action<EventBusMysqlOptions> _options;
+        private readonly IConfiguration _configuration;
 
         public EventBusMysqlOptionsExtensions(Action<EventBusMysqlOptions> options)
         {
-            _options = options ?? throw new AggregateException(nameof(options));
+            _options = options;
         }
+        public EventBusMysqlOptionsExtensions(IConfiguration configuration)
+        {
+            _configuration = configuration;
+        }
+
         public void AddServices(IServiceCollection services)
         {
-            services.TryAddSingleton<IStorage, MysqlStorage>();
-            services.TryAddTransient<ITransaction, MysqlTransaction>();
             if (_options != null)
-                services.Configure(_options);
+            {
+                new EventBusBuilder(services).AddMysql(_options);
+            }
+            else if (_configuration != null)
+            {
+                new EventBusBuilder(services).AddMysql(_configuration);
+            }
         }
     }
 }

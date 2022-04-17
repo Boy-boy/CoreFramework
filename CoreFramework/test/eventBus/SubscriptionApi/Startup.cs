@@ -1,5 +1,4 @@
 using Core.Modularity;
-using Core.RabbitMQ;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -18,15 +17,11 @@ namespace SubscriptionApi
 
         public void ConfigureServices(IServiceCollection services)
         {
-            //services.AddEventBus(options =>
-            //{
-            //    options.HandlersAssemblies = new[] { typeof(Startup).Assembly };
-            //    options.AddRabbitMq(rabbitOptions =>
-            //    {
-            //        rabbitOptions.ExchangeName = "demo";
-            //        rabbitOptions.RabbitMqConnection = new RabbitMqConnectionConfigure();
-            //    });
-            //});
+            services.AddEventBus(options =>
+            {
+                options.MessageHandlerAssemblies = new[] { typeof(Startup).Assembly };
+                options.AddRabbitMq(Configuration.GetSection("EventBus:RabbitMq"));
+            });
 
             services.ConfigureServiceCollection<StartupModule>();
         }

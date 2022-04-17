@@ -1,6 +1,6 @@
 ﻿using System.Data;
 
-namespace Core.EventBus.PostgreSql
+namespace Core.EventBus.Storage
 {
     public static class DbConnectionExtensions
     {

@@ -17,7 +17,17 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Core.Amazon.S3\Core.Amazon.S3.csproj" />
+    <ProjectReference Include="..\..\src\Core.EmailClient.PostgreSql\Core.EmailClient.PostgreSql.csproj" />
     <ProjectReference Include="..\..\src\Core.Pipeline\Core.Pipeline.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="wwwroot\email_content.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="wwwroot\picture.gif">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

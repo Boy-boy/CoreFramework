@@ -15,16 +15,30 @@ namespace Test
 
         private void ConfigureServices()
         {
-            var service = new ServiceCollection();
+            var services = new ServiceCollection();
 
-            service.AddPipeline(typeof(BaseTest).Assembly);
+            services.AddPipeline(typeof(BaseTest).Assembly);
 
-            service.AddAmazonS3(configActions =>
+            services.AddAmazonS3(configActions =>
             {
 
             });
 
-            ServiceProvider = service.BuildServiceProvider();
+            services.AddEmailClient(options =>
+            {
+                options.Host = "smtp.qq.com";
+                options.Port = 465;
+                options.ClientId = "*@qq.com";
+                options.ClientSecret = "cglvafztpzfncajf";
+                options.AddPostgreSql(actionOptions =>
+                {
+                    actionOptions.DbConnection = "Host=81.69.227.172;Port=31432;Database=customer;Username=postgres;Password=gb123456";
+                    actionOptions.DbSchema = "Email";
+                    actionOptions.DbTable = "PublishMessage";
+                });
+            });
+
+            ServiceProvider = services.BuildServiceProvider();
         }
     }
 }

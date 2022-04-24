@@ -23,7 +23,12 @@
         /// <summary>
         /// 邮件附件集合
         /// </summary>
-        public List<MailFile> MailFiles { get; set; }
+        public List<MailFile> MailFiles { get; set; } = new();
+
+        /// <summary>
+        /// 邮件图片集合
+        /// </summary>
+        public List<MailFile> LinkedResources { get; set; } = new();
 
         /// <summary>
         /// 发件人
@@ -38,17 +43,17 @@
         /// <summary>
         /// 收件人
         /// </summary>
-        public List<string> Recipients { get; set; }
+        public List<string> Recipients { get; set; } = new();
 
         /// <summary>
         /// 抄送
         /// </summary>
-        public List<string> Cc { get; set; }
+        public List<string> Cc { get; set; } = new();
 
         /// <summary>
         /// 密送
         /// </summary>
-        public List<string> Bcc { get; set; }
+        public List<string> Bcc { get; set; } = new();
 
         /// <summary>
         /// 邮件主题
@@ -66,6 +71,7 @@
 
         /// <summary>
         /// 附件文件名称  例如：图片 MailFilePath=@"123.png"
+        /// 注意：文件名称切记使用中文(如，文件.jpg)
         /// </summary>
         public string MailFileName { get; set; }
 

@@ -7,7 +7,7 @@ namespace Core.EventBus
     {
         public override void ConfigureServices(ServiceCollectionContext context)
         {
-            var eventBusBuilder = context.Services.AddEventBus();
+            var eventBusBuilder = context.Services.AddEventBus(_ => { });
             context.Items.Add(nameof(EventBusBuilder), eventBusBuilder);
         }
     }

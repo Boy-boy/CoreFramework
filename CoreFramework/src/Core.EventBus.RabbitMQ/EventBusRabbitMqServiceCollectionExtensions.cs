@@ -10,7 +10,8 @@ namespace Microsoft.Extensions.DependencyInjection
     {
         public static EventBusBuilder AddRabbitMq(this EventBusBuilder builder, Action<EventBusRabbitMqOptions> optionAction)
         {
-            optionAction = optionAction ?? throw new AggregateException(nameof(optionAction));
+            if (optionAction == null)
+                throw new AggregateException(nameof(optionAction));
             builder.Service.Configure(optionAction);
 
             var options = new EventBusRabbitMqOptions();

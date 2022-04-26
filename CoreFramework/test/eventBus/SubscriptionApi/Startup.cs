@@ -19,7 +19,7 @@ namespace SubscriptionApi
         {
             services.AddEventBus(options =>
             {
-                options.MessageHandlerAssemblies = new[] { typeof(Startup).Assembly };
+                options.AddConsumers(typeof(Startup).Assembly);
                 options.AddRabbitMq(Configuration.GetSection("EventBus:RabbitMq"));
             });
 

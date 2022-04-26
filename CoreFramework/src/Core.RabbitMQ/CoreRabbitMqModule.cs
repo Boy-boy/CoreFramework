@@ -14,8 +14,7 @@ namespace Core.RabbitMQ
         }
         public override void ConfigureServices(ServiceCollectionContext context)
         {
-            context.Services.Configure<RabbitMqOptions>(Configuration.GetSection("RabbitMq"));
-            context.Services.AddRabbitMq();
+            context.Services.AddRabbitMq(Configuration.GetSection("RabbitMq"));
         }
     }
 }

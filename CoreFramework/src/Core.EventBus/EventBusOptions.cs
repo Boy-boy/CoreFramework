@@ -6,17 +6,25 @@ namespace Core.EventBus
 {
     public class EventBusOptions
     {
+        private Assembly[] _messageHandlerAssemblies;
+
         public EventBusOptions()
         {
             Extensions = new List<IEventBusOptionsExtensions>();
         }
 
-        /// <summary>
-        /// 自动订阅，Handler处理器所属的程序集集合
-        /// </summary>
-        public Assembly[] MessageHandlerAssemblies { get; set; }
+        public Assembly[] MessageHandlerAssemblies => _messageHandlerAssemblies;
 
         public List<IEventBusOptionsExtensions> Extensions { get; set; }
+
+        /// <summary>
+        /// 注册消费者
+        /// </summary>
+        /// <param name="assemblies"></param>
+        public void AddConsumers(params Assembly[] assemblies)
+        {
+            _messageHandlerAssemblies = assemblies;
+        }
     }
 
     public static class EventBusOptionsExtensions

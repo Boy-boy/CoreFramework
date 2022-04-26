@@ -1,4 +1,5 @@
-﻿using Core.EventBus.RabbitMQ;
+﻿using Core.EventBus;
+using Core.EventBus.RabbitMQ;
 using Core.Modularity;
 using Core.Modularity.Attribute;
 using Microsoft.AspNetCore.Builder;
@@ -21,9 +22,9 @@ namespace SubscriptionApi
         public override void ConfigureServices(ServiceCollectionContext context)
         {
             context.Services.AddControllers();
-            context.Services.ConfigureEventBusOptions(options =>
+            context.Services.Configure<EventBusOptions>(options =>
             {
-                options.MessageHandlerAssemblies = new[] { typeof(StartupModule).Assembly };
+                options.AddConsumers(typeof(Startup).Assembly);
             });
         }
 

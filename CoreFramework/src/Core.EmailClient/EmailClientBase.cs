@@ -44,6 +44,7 @@ namespace Core.EmailClient
                 Body = mailBodyEntity.Body,
                 BodyType = mailBodyEntity.BodyType,
                 MailFiles = mailBodyEntity.MailFiles,
+                LinkedResources = mailBodyEntity.LinkedResources,
                 CreationUserId = mailBodyEntity.CreationUserId,
                 IsSend = false
             };

@@ -53,6 +53,11 @@
         public List<MailFile> MailFiles { get; set; }
 
         /// <summary>
+        /// 邮件正文图片集合
+        /// </summary>
+        public List<MailFile> LinkedResources { get; set; }
+
+        /// <summary>
         /// 创建人
         /// </summary>
         public string CreationUserId { get; set; }

@@ -70,14 +70,15 @@ CREATE TABLE IF NOT EXISTS {GetTableName()} (
                 new NpgsqlParameter("@Body", model.Body),
                 new NpgsqlParameter("@BodyType", (int)model.BodyType),
                 new NpgsqlParameter("@MailFiles", NpgsqlDbType.Jsonb){Value=model.MailFiles??new List<MailFile>()},
+                new NpgsqlParameter("@LinkedResources", NpgsqlDbType.Jsonb){Value=model.LinkedResources??new List<MailFile>()},
                 new NpgsqlParameter("@CreationUserId", model.CreationUserId),
                 new NpgsqlParameter("@CreateTime",now),
                 new NpgsqlParameter("@UpdateTime", now),
                 new NpgsqlParameter("@IsSend", model.IsSend)
             };
 
-            var sql = $@"INSERT INTO {GetTableName()} (Id,Sender,SenderAddress,Recipients,Cc,Bcc,Subject,Body,BodyType,MailFiles,CreationUserId,CreateTime,UpdateTime,IsSend) 
-VALUES (@Id,@Sender,@SenderAddress,@Recipients,@Cc,@Bcc,@Subject,@Body,@BodyType,@MailFiles,@CreationUserId,@CreateTime,@UpdateTime,@IsSend);";
+            var sql = $@"INSERT INTO {GetTableName()} (Id,Sender,SenderAddress,Recipients,Cc,Bcc,Subject,Body,BodyType,MailFiles,LinkedResources,CreationUserId,CreateTime,UpdateTime,IsSend) 
+VALUES (@Id,@Sender,@SenderAddress,@Recipients,@Cc,@Bcc,@Subject,@Body,@BodyType,@MailFiles,@LinkedResources,@CreationUserId,@CreateTime,@UpdateTime,@IsSend);";
 
             if (dbTransaction == null)
             {
@@ -156,6 +157,7 @@ WHERE Id=@Id";
                     Body = reader["Body"].ToString(),
                     BodyType = (MailTextFormat)Enum.Parse(typeof(MailTextFormat), reader["BodyType"].ToString()),
                     MailFiles = reader["MailFiles"].ToString().ToObject<List<MailFile>>(),
+                    LinkedResources = reader["LinkedResources"].ToString().ToObject<List<MailFile>>(),
                     CreationUserId = reader["CreationUserId"].ToString(),
                     CreateTime = Convert.ToDateTime(reader["CreateTime"].ToString()),
                     UpdateTime = Convert.ToDateTime(reader["UpdateTime"].ToString()),
@@ -192,6 +194,7 @@ WHERE Id=@Id";
                     Body = reader["Body"].ToString(),
                     BodyType = (MailTextFormat)Enum.Parse(typeof(MailTextFormat), reader["BodyType"].ToString()),
                     MailFiles = reader["MailFiles"].ToString().ToObject<List<MailFile>>(),
+                    LinkedResources = reader["LinkedResources"].ToString().ToObject<List<MailFile>>(),
                     CreationUserId = reader["CreationUserId"].ToString(),
                     CreateTime = Convert.ToDateTime(reader["CreateTime"].ToString()),
                     UpdateTime = Convert.ToDateTime(reader["UpdateTime"].ToString()),

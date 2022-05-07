@@ -71,7 +71,6 @@
 
         /// <summary>
         /// 附件文件名称  例如：图片 MailFilePath=@"123.png"
-        /// 注意：文件名称切记使用中文(如，文件.jpg)
         /// </summary>
         public string MailFileName { get; set; }
 

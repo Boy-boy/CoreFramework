@@ -17,8 +17,8 @@ namespace Core.EmailClient
         public bool IsRunning { get; private set; }
 
         public EmailSendMailBox(IEmailClient emailClient,
-            IEmailStorage emailStorage,
-            ILogger<EmailSendMailBox> logger)
+            ILogger<EmailSendMailBox> logger,
+            IEmailStorage emailStorage = null)
         {
             _logger = logger;
             _emailClient = emailClient ?? throw new ArgumentNullException(nameof(emailClient));
@@ -75,7 +75,7 @@ namespace Core.EmailClient
                     await policy.ExecuteAsync(async () =>
                     {
                         await ((EmailClientBase)_emailClient).PushAsync(message.MailBodyEntity);
-                        if (_emailClient != null)
+                        if (_emailStorage != null)
                             await _emailStorage.UpdateAsync(new Storage.Model.UpdateEmailModel(message.Id, true));
                     });
                 }

@@ -13,7 +13,9 @@ namespace Core.EmailClient
         {
             var provider = serviceScopeFactory.CreateScope().ServiceProvider;
             _emailStorage = provider.GetService<IEmailStorage>();
-            _emailSendMailBox = ActivatorUtilities.CreateInstance<EmailSendMailBox>(provider, this, _emailStorage);
+            _emailSendMailBox = _emailStorage is null
+                ? ActivatorUtilities.CreateInstance<EmailSendMailBox>(provider, this)
+                : ActivatorUtilities.CreateInstance<EmailSendMailBox>(provider, this, _emailStorage);
         }
 
         public async Task SendAsync(MailBodyEntity mailBodyEntity, CancellationToken cancellationToken = default)

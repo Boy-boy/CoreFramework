@@ -27,7 +27,6 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<IEmailClient, DefaultEmailClient>();
             services.AddHostedService<EmailClientBackgroundService>();
 
-            services.TryAddSingleton<EmailSendMailBox>();
             return services;
         }
     }

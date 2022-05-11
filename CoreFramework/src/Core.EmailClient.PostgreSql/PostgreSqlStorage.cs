@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS {GetTableName()} (
   Body Text NOT NULL,
   BodyType int NOT NULL,
   MailFiles jsonb  NULL,
+  LinkedResources jsonb  NULL,
   CreationUserId VARCHAR(200) NOT NULL,
   CreateTime timestamp(6) NOT NULL,
   UpdateTime timestamp(6) NOT NULL,

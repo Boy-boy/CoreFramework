@@ -17,11 +17,11 @@ namespace SubscriptionApi
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddEventBus(options =>
-            {
-                options.AddConsumers(typeof(Startup).Assembly);
-                options.AddRabbitMq(Configuration.GetSection("EventBus:RabbitMq"));
-            });
+            //services.AddEventBus(options =>
+            //{
+            //    options.AddConsumers(typeof(Startup).Assembly);
+            //    options.AddRabbitMq(Configuration.GetSection("EventBus:RabbitMq"));
+            //});
 
             services.ConfigureServiceCollection<StartupModule>();
         }

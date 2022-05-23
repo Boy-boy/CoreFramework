@@ -1,7 +1,6 @@
 ﻿using Core.EventBus;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using System;
-using System.Reflection;
 using Core.EventBus.Transaction;
 
 namespace Microsoft.Extensions.DependencyInjection
@@ -24,33 +23,8 @@ namespace Microsoft.Extensions.DependencyInjection
 
             var options = new EventBusOptions();
             configureOptions.Invoke(options);
-            foreach (var extension in options.Extensions)
-            {
-                extension.AddServices(services);
-            }
-            services.TryRegisterMessageHandlers(options.MessageHandlerAssemblies);
+            options.Configure(services);
             return new EventBusBuilder(services);
-        }
-
-        /// <summary>
-        /// 向IOC容器注册Handler处理器
-        /// </summary>
-        /// <param name="services"></param>
-        /// <param name="assemblies"></param>
-        /// <returns></returns>
-        private static void TryRegisterMessageHandlers(this IServiceCollection services, Assembly[] assemblies)
-        {
-            if (assemblies == null) return;
-            var handlerTypes = MessageHandlerExtensions.GetHandlerTypes(assemblies);
-            foreach (var handlerType in handlerTypes)
-            {
-                var baseHandlerTypes = MessageHandlerExtensions.GetBaseHandlerTypes(handlerType);
-                foreach (var baseHandlerType in baseHandlerTypes)
-                {
-                    services.TryAddTransient(baseHandlerType, handlerType);
-                    services.TryAddTransient(handlerType);
-                }
-            }
         }
     }
 }

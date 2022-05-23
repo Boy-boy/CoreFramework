@@ -1,4 +1,6 @@
-﻿namespace Core.EmailClient
+﻿using Microsoft.Extensions.DependencyInjection;
+
+namespace Core.EmailClient
 {
     public class EmailClientOptions
     {
@@ -27,6 +29,14 @@
             if (eventBusOptionExtensions == null)
                 throw new AggregateException(nameof(eventBusOptionExtensions));
             options.Extensions.Add(eventBusOptionExtensions);
+        }
+
+        public static void Configure(this EmailClientOptions options, IServiceCollection services)
+        {
+            foreach (var extension in options.Extensions)
+            {
+                extension.AddServices(services);
+            }
         }
     }
 }

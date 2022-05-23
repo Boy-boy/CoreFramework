@@ -48,10 +48,17 @@ CREATE TABLE IF NOT EXISTS {GetTableName()} (
   PRIMARY KEY (Id)
 );";
 
-            await using var connection = new NpgsqlConnection(_options.DbConnection);
-            connection.ExecuteNonQuery(sql);
+            try
+            {
+                await using var connection = new NpgsqlConnection(_options.DbConnection);
+                connection.ExecuteNonQuery(sql);
 
-            _logger.LogInformation($"initial email message table successfully. table name is [{GetTableName()}]");
+                _logger.LogInformation($"initial email message table successfully. table name is [{GetTableName()}]");
+            }
+            catch (Exception e)
+            {
+                _logger.LogInformation($"initial email message table failed. table name is [{GetTableName()}],error message is {e.Message}");
+            }
             await Task.CompletedTask;
         }
 

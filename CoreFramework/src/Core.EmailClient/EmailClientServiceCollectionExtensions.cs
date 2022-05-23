@@ -16,11 +16,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
             var options = new EmailClientOptions();
             configureOptions.Invoke(options);
-            foreach (var extension in options.Extensions)
-            {
-                extension.AddServices(services);
-            }
-
+            options.Configure(services);
             services.AddLogging();
             services.AddOptions();
             services.Configure(configureOptions);

@@ -10,7 +10,7 @@ namespace Core.Threading.Tasks
     /// <summary>
     /// 并发扩展库
     /// </summary>
-    public class ConcurrentManagement
+    public class ConcurrentManager
     {
         private static readonly ConcurrentDictionary<string, ConcurrentResult> ConcurrentResults
             = new ConcurrentDictionary<string, ConcurrentResult>();
@@ -87,34 +87,41 @@ namespace Core.Threading.Tasks
                     });
 
                 taskList.Add(task);
-                concurrentResultNew.ExecuteTaskList = taskList;
+                concurrentResultNew.AddExecuteTask(task);
             }
             await Task.WhenAll(taskList);
-            concurrentResultNew.Completed = true;
+            concurrentResultNew.ExecuteCompleted();
             concurrentResultNew.StartExpiryTimer(ExpiryTimer_Tick);
         }
 
         /// <summary>
-        /// 获取任务结果值
+        /// 尝试获取任务结果值
         /// </summary>
         /// <param name="taskName"></param>
         /// <param name="result"></param>
         /// <returns></returns>
-        public static bool TryGetValue(string taskName, out ConcurrentResult result)
+        public static bool TryGetValue(string taskName, out IConcurrentResult result)
         {
-            return ConcurrentResults.TryGetValue(taskName, out result);
+            result = null;
+            if (!ConcurrentResults.TryGetValue(taskName, out var result1))
+                return false;
+            result = result1;
+            return true;
         }
 
         /// <summary>
-        /// 移除任务结果值
+        /// 尝试移除任务结果值
         /// </summary>
         /// <param name="taskName"></param>
         /// <param name="result"></param>
         /// <returns></returns>
-        public static bool TryRemoveValue(string taskName, out ConcurrentResult result)
+        public static bool TryRemoveValue(string taskName, out IConcurrentResult result)
         {
-            if (!ConcurrentResults.TryRemove(taskName, out result)) return false;
-            result.StopExpiryTimer();
+            result = null;
+            if (!ConcurrentResults.TryRemove(taskName, out var result1))
+                return false;
+            result1.StopExpiryTimer();
+            result = result1;
             return true;
         }
 
@@ -124,7 +131,7 @@ namespace Core.Threading.Tasks
         /// <param name="taskName"></param>
         /// <param name="result"></param>
         /// <returns></returns>
-        internal static bool TryAddValue(string taskName, ConcurrentResult result)
+        private static bool TryAddValue(string taskName, ConcurrentResult result)
         {
             return ConcurrentResults.TryAdd(taskName, result);
         }

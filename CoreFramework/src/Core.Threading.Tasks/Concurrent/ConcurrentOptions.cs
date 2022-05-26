@@ -29,7 +29,7 @@ namespace Core.Threading.Tasks
         }
 
         /// <summary>
-        /// 达到最大并发数，在指定时间间隔整数秒，若在这段时间内没有接收到信号则跳过等待继续执行
+        /// 达到最大并发数,若在这段时间内没有接收到信号则跳过等待继续执行
         /// </summary>
         public int SecondsTimeout { get; set; } = 60;
 

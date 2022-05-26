@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Core.Threading.Tasks
 {
-    public class ConcurrentResult
+    public class ConcurrentResult : IConcurrentResult
     {
         private static readonly TimerCallback TimerCallback = s => ((ConcurrentResult)s)?.Timer_Tick();
         private bool _timerInitialized;
@@ -58,6 +58,16 @@ namespace Core.Threading.Tasks
             TaskCount == 0
                 ? 1
                 : Math.Round((double)ExecuteTaskList.Count(p => p.Status == TaskStatus.RanToCompletion) / TaskCount, 4);
+
+        internal void ExecuteCompleted()
+        {
+            Completed = true;
+        }
+
+        internal void AddExecuteTask(Task task)
+        {
+            ExecuteTaskList.Add(task);
+        }
 
         /// <summary>
         /// 开启定时器

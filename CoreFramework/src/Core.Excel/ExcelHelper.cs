@@ -1,4 +1,5 @@
 ﻿using OfficeOpenXml;
+using System.Reflection;
 
 namespace Core.Excel
 {
@@ -21,14 +22,14 @@ namespace Core.Excel
                 var sheet = package.Workbook.Worksheets.Add(sheetName);
 
                 //获取传入的数据类型
-                var propertiesList = typeof(T).GetProperties();
+                var propertiesList = GetPropertyInfos<T>();
                 for (var row = 1; row <= sources.Count + 1; row++)
                 {
                     var index = 1;
                     for (var cl = 1; cl <= propertiesList.Length; cl++)
                     {
                         //获取备注名字
-                        var hasDisplayName = propertiesList[cl - 1].TryGetExportExcelDisplayName(out var displayName);
+                        var hasDisplayName = propertiesList[cl - 1].TryGetExportExcelColumnDisplayName(out var displayName);
                         //判断字段是否有自定义属性
                         if (!hasDisplayName) continue;
                         if (row == 1) //设置表头
@@ -55,5 +56,34 @@ namespace Core.Excel
             return ms;
         }
 
+
+        public static PropertyInfo[] GetPropertyInfos<T>()
+        {
+            var propertyInfoList = new List<PropertyInfoWrapper>();
+            var propertiesList = typeof(T).GetProperties();
+            foreach (var propertyInfo in propertiesList)
+            {
+                propertyInfoList.Add(new PropertyInfoWrapper(propertyInfo));
+            }
+
+            return propertyInfoList
+                .OrderBy(p => p.Order)
+                .Select(p => p.PropertyInfo)
+                .ToArray();
+        }
+    }
+
+    public struct PropertyInfoWrapper
+    {
+        public PropertyInfo PropertyInfo { get; }
+
+        public int Order { get; }
+
+        public PropertyInfoWrapper(PropertyInfo propertyInfo)
+        {
+            PropertyInfo = propertyInfo;
+            propertyInfo.TryGetExportExcelColumnOrder(out var order);
+            Order = order;
+        }
     }
 }

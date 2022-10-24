@@ -17,7 +17,10 @@ namespace Core.EmailClient.Mysql
 
         public override void ConfigureServices(ServiceCollectionContext context)
         {
-            context.Services.AddMysql(Configuration.GetSection("EmailClient:Storage"));
+            context.Services.Configure<EmailClientOptions>(options =>
+            {
+                options.AddMysql(Configuration.GetSection("EmailClient:Storage"));
+            });
         }
     }
 }

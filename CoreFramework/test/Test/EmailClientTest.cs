@@ -22,7 +22,7 @@ namespace Test
 
             emailClient.SendAsync(new MailBodyEntity
             {
-                CreationUserId = "1",
+                CreatorId = "1",
                 Subject = "haha",
                 Sender = "gaobo",
                 SenderAddress = "*@qq.com",

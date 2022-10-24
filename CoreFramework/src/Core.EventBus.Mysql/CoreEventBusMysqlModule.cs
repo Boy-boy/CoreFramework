@@ -1,6 +1,7 @@
 ﻿using Core.Modularity;
 using Core.Modularity.Attribute;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Core.EventBus.Mysql
 {
@@ -15,8 +16,10 @@ namespace Core.EventBus.Mysql
         }
         public override void ConfigureServices(ServiceCollectionContext context)
         {
-            context.Items.TryGetValue(nameof(EventBusBuilder), out var eventBusBuilder);
-            ((EventBusBuilder)eventBusBuilder).AddMysql(Configuration.GetSection("EventBus:Storage"));
+            context.Services.Configure<EventBusOptions>(options =>
+                {
+                    options.AddMysql(Configuration.GetSection("EventBus:Storage"));
+                });
         }
     }
 }

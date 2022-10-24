@@ -1,7 +1,7 @@
-﻿using System;
-using Core.EventBus.Messaging;
+﻿using Core.EventBus.Storage;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
+using System;
 using System.Data;
 
 namespace Core.EventBus.Transaction
@@ -13,13 +13,9 @@ namespace Core.EventBus.Transaction
         /// </summary>
         /// <param name="dbConnection"></param>
         /// <param name="publisher"></param>
-        /// <param name="autoCommit"></param>
-        /// <param name="transaction"></param>
         /// <returns></returns>
-        public static bool TryBeginTransaction(this IDbConnection dbConnection,
-            IMessagePublisher publisher,
-            bool autoCommit,
-            out ITransaction transaction)
+        public static ITransaction BeginTransaction(this IDbConnection dbConnection,
+            IMessagePublisher publisher)
         {
             if (dbConnection == null)
             {
@@ -29,21 +25,17 @@ namespace Core.EventBus.Transaction
             {
                 throw new ArgumentNullException(nameof(publisher));
             }
-
             var publisherBase = (MessagePublisherBase)publisher;
-            transaction = publisherBase.ServiceScopeFactory.CreateScope().ServiceProvider
-               .GetService<ITransaction>();
-            if (transaction == null)
-                return false;
-
-            var transactionBase = (TransactionBase)transaction;
+            VerifyStorageServicesAreRegistered(publisherBase.ServiceProvider);
             if (dbConnection.State == ConnectionState.Closed)
                 dbConnection.Open();
             var dbTransaction = dbConnection.BeginTransaction();
-            transactionBase.DbTransaction = dbTransaction;
-            transactionBase.AutoCommit = autoCommit;
-            ((MessagePublisherBase)publisher).TransactionAccessor.Transaction = transactionBase;
-            return true;
+
+            var transaction = (TransactionBase)publisherBase.ServiceProvider.GetRequiredService<ITransaction>();
+
+            transaction.DbTransaction = dbTransaction;
+            publisherBase.TransactionAccessor.Transaction = transaction;
+            return transaction;
         }
 
         /// <summary>
@@ -51,13 +43,9 @@ namespace Core.EventBus.Transaction
         /// </summary>
         /// <param name="database"></param>
         /// <param name="publisher"></param>
-        /// <param name="autoCommit"></param>
-        /// <param name="transaction"></param>
         /// <returns></returns>
-        public static bool TryBeginTransaction(this DatabaseFacade database,
-            IMessagePublisher publisher,
-            bool autoCommit,
-            out ITransaction transaction)
+        public static ITransaction BeginTransaction(this DatabaseFacade database,
+            IMessagePublisher publisher)
         {
             if (database == null)
             {
@@ -67,19 +55,21 @@ namespace Core.EventBus.Transaction
             {
                 throw new ArgumentNullException(nameof(publisher));
             }
-
             var publisherBase = (MessagePublisherBase)publisher;
-            transaction = publisherBase.ServiceScopeFactory.CreateScope().ServiceProvider
-               .GetService<ITransaction>();
-            if (transaction == null)
-                return false;
-
-            var transactionBase = (TransactionBase)transaction;
+            VerifyStorageServicesAreRegistered(publisherBase.ServiceProvider);
             var dbTransaction = database.BeginTransaction();
-            transactionBase.DbTransaction = dbTransaction;
-            transactionBase.AutoCommit = autoCommit;
-            ((MessagePublisherBase)publisher).TransactionAccessor.Transaction = transactionBase;
-            return true;
+
+            var transaction = (TransactionBase)publisherBase.ServiceProvider.GetRequiredService<ITransaction>();
+
+            transaction.DbTransaction = dbTransaction;
+            publisherBase.TransactionAccessor.Transaction = transaction;
+            return transaction;
+        }
+
+        private static void VerifyStorageServicesAreRegistered(IServiceProvider service)
+        {
+            if (service.GetService(typeof(StorageMarkerService)) == null)
+                throw new InvalidOperationException("Event storage service not registered");
         }
     }
 }

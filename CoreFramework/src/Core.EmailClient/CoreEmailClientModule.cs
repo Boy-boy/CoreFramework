@@ -22,21 +22,9 @@ namespace Core.EmailClient
 
         public override void PostConfigureServices(ServiceCollectionContext context)
         {
-            //TODO:兼容客户端注入EmailClientOptions
-            var implementationInstances = context.Services
-                .Where(p => p.ServiceType == typeof(IConfigureOptions<EmailClientOptions>))
-                .Select(p => (IConfigureOptions<EmailClientOptions>)p.ImplementationInstance)
-                .ToList();
-
-            if (!implementationInstances.Any())
-                return;
-
-            var emailClientOptions = new EmailClientOptions();
-            foreach (var implementationInstance in implementationInstances)
-            {
-                implementationInstance.Configure(emailClientOptions);
-            }
-            emailClientOptions.Configure(context.Services);
+            var serviceProvider = context.Services.BuildServiceProvider();
+            var options = serviceProvider.GetRequiredService<IOptions<EmailClientOptions>>().Value;
+            options.Configure(context.Services);
         }
     }
 }

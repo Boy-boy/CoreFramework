@@ -17,7 +17,7 @@ namespace Core.EntityFrameworkCore
             : base(options)
         {
             var serviceProvider = options.FindExtension<CoreOptionsExtension>()?.ApplicationServiceProvider;
-            MessagePublisher = serviceProvider?.GetService<IMessagePublisher>();
+            MessagePublisher = serviceProvider?.GetRequiredService<IMessagePublisher>();
         }
         private IMessagePublisher MessagePublisher { get; }
 
@@ -25,25 +25,15 @@ namespace Core.EntityFrameworkCore
         {
             var events = GetDomainEvents();
             var result = events.Count;
-            if (events.Count > 0 && MessagePublisher != null)
+            if (events.Count > 0)
             {
-                if (Database.TryBeginTransaction(MessagePublisher, false, out var transaction))
+                using var transaction = Database.BeginTransaction(MessagePublisher);
+                foreach (var item in events)
                 {
-                    foreach (var item in events)
-                    {
-                        MessagePublisher.PublishAsync(item).GetAwaiter().GetResult();
-                    }
-                    result += base.SaveChanges(acceptAllChangesOnSuccess);
-                    transaction.Commit();
+                    MessagePublisher.PublishAsync(item).GetAwaiter().GetResult();
                 }
-                else
-                {
-                    result = base.SaveChanges(acceptAllChangesOnSuccess);
-                    foreach (var item in events)
-                    {
-                        MessagePublisher.PublishAsync(item).GetAwaiter().GetResult();
-                    }
-                }
+                result += base.SaveChanges(acceptAllChangesOnSuccess);
+                transaction.Commit();
                 return result;
             }
             result = base.SaveChanges(acceptAllChangesOnSuccess);
@@ -55,25 +45,15 @@ namespace Core.EntityFrameworkCore
         {
             var events = GetDomainEvents();
             var result = events.Count;
-            if (events.Count > 0 && MessagePublisher != null)
+            if (events.Count > 0)
             {
-                if (Database.TryBeginTransaction(MessagePublisher, false, out var transaction))
+                using var transaction = Database.BeginTransaction(MessagePublisher);
+                foreach (var item in events)
                 {
-                    foreach (var item in events)
-                    {
-                        await MessagePublisher.PublishAsync(item);
-                    }
-                    result += await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
-                    await transaction.CommitAsync(cancellationToken);
+                    await MessagePublisher.PublishAsync(item);
                 }
-                else
-                {
-                    result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
-                    foreach (var item in events)
-                    {
-                        await MessagePublisher.PublishAsync(item);
-                    }
-                }
+                result += await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
                 return result;
             }
             result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);

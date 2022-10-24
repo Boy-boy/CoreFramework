@@ -60,7 +60,7 @@
         /// <summary>
         /// 创建人
         /// </summary>
-        public string CreationUserId { get; set; }
+        public string CreatorId { get; set; }
 
         /// <summary>
         /// 创建时间

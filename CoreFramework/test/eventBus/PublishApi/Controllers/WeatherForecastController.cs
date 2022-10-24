@@ -30,21 +30,12 @@ namespace PublishApi.Controllers
             var sw = new Stopwatch();
             sw.Start();
             var connection = new NpgsqlConnection(_configuration.GetConnectionString("customer"));
-            if (connection.TryBeginTransaction(_publisher, false, out var transaction))
+            using var transaction = connection.BeginTransaction(_publisher);
+            for (var i = 0; i < 500; i++)
             {
-                for (var i = 0; i < 500; i++)
-                {
-                    await _publisher.PublishAsync(new CustomerEvent());
-                }
-                await transaction.CommitAsync();
+                await _publisher.PublishAsync(new CustomerEvent());
             }
-            else
-            {
-                for (var i = 0; i < 100; i++)
-                {
-                    await _publisher.PublishAsync(new CustomerEvent());
-                }
-            }
+            await transaction.CommitAsync();
             sw.Stop();
             return $"500个事件，耗时：{sw.ElapsedMilliseconds}";
         }

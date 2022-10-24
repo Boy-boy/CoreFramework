@@ -14,15 +14,13 @@ namespace Microsoft.Extensions.DependencyInjection
             if (configureOptions == null)
                 throw new ArgumentNullException(nameof(configureOptions));
 
-            var options = new EmailClientOptions();
-            configureOptions.Invoke(options);
-            options.Configure(services);
-            services.AddLogging();
-            services.AddOptions();
             services.Configure(configureOptions);
             services.TryAddSingleton<IEmailClient, DefaultEmailClient>();
             services.AddHostedService<EmailClientBackgroundService>();
 
+            var options = new EmailClientOptions();
+            configureOptions.Invoke(options);
+            options.Configure(services);
             return services;
         }
     }

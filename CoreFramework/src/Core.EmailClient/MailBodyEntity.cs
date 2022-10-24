@@ -8,7 +8,7 @@
         /// <summary>
         /// 邮件创建人
         /// </summary>
-        public string CreationUserId { get; set; }
+        public string CreatorId { get; set; }
 
         /// <summary>
         /// 邮件内容

@@ -17,7 +17,10 @@ namespace Core.EmailClient.PostgreSql
 
         public override void ConfigureServices(ServiceCollectionContext context)
         {
-            context.Services.AddPostgreSql(Configuration.GetSection("EmailClient:Storage"));
+            context.Services.Configure<EmailClientOptions>(options =>
+            {
+                options.AddPostgreSql(Configuration.GetSection("EmailClient:Storage"));
+            });
         }
     }
 }

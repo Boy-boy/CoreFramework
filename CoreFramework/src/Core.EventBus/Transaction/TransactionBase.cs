@@ -14,11 +14,9 @@ namespace Core.EventBus.Transaction
 
         public object DbTransaction { get; set; }
 
-        public bool AutoCommit { get; set; }
-
         protected TransactionBase(IServiceProvider serviceProvider)
         {
-            _publisher = serviceProvider.GetService<IMessagePublisher>();
+            _publisher = serviceProvider.GetRequiredService<IMessagePublisher>();
             _messages = new ConcurrentQueue<IMessage>();
         }
 
@@ -37,8 +35,6 @@ namespace Core.EventBus.Transaction
 
         protected virtual void Flush()
         {
-            if (_publisher == null)
-                return;
             Task.Run(() =>
             {
                 while (!_messages.IsEmpty)

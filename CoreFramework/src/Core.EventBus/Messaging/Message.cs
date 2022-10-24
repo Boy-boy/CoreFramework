@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 
 namespace Core.EventBus
@@ -8,22 +7,19 @@ namespace Core.EventBus
     {
         public Message()
         {
-            Id = Guid.NewGuid().ToString();
+            Id = Guid.NewGuid();
             Timestamp = DateTime.UtcNow;
             Items = new Dictionary<string, string>();
         }
 
-        public string Id { get; set; }
+        public Guid Id { get; set; }
         public DateTime Timestamp { get; set; }
         public IDictionary<string, string> Items { get; protected set; }
 
         public void AddItems(IDictionary<string, string> items)
         {
-            if (items == null || Items.Count == 0)
+            if (items == null || items.Count == 0)
                 return;
-
-            if (Items == null)
-                Items = new ConcurrentDictionary<string, string>();
 
             foreach (var entry in items)
             {

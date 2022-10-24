@@ -55,7 +55,7 @@
         /// <summary>
         /// 创建人
         /// </summary>
-        public string CreationUserId { get; set; }
+        public string CreatorId { get; set; }
 
         public bool IsSend { get; set; }
     }

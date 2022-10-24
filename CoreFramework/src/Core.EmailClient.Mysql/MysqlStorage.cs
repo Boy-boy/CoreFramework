@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS {GetTableName()} (
   BodyType int NOT NULL,
   MailFiles json  NULL,
   LinkedResources json  NULL,
-  CreationUserId VARCHAR(200) NOT NULL,
+  CreatorId VARCHAR(200) NOT NULL,
   CreateTime DATETIME(6) NOT NULL,
   UpdateTime DATETIME(6) NOT NULL,
   IsSend bool NOT NULL,
@@ -76,14 +76,14 @@ CREATE TABLE IF NOT EXISTS {GetTableName()} (
                 new MySqlParameter("@BodyType", (int)model.BodyType),
                 new MySqlParameter("@MailFiles", model.MailFiles?.ToJson()),
                 new MySqlParameter("@LinkedResources",model.LinkedResources?.ToJson()),
-                new MySqlParameter("@CreationUserId", model.CreationUserId),
+                new MySqlParameter("@CreatorId", model.CreatorId),
                 new MySqlParameter("@CreateTime",now),
                 new MySqlParameter("@UpdateTime", now),
                 new MySqlParameter("@IsSend", model.IsSend)
             };
 
-            var sql = $@"INSERT INTO {GetTableName()} (Id,Sender,SenderAddress,Recipients,Cc,Bcc,Subject,Body,BodyType,MailFiles,LinkedResources,CreationUserId,CreateTime,UpdateTime,IsSend) 
-VALUES (@Id,@Sender,@SenderAddress,@Recipients,@Cc,@Bcc,@Subject,@Body,@BodyType,@MailFiles,@LinkedResources,@CreationUserId,@CreateTime,@UpdateTime,@IsSend);";
+            var sql = $@"INSERT INTO {GetTableName()} (Id,Sender,SenderAddress,Recipients,Cc,Bcc,Subject,Body,BodyType,MailFiles,LinkedResources,CreatorId,CreateTime,UpdateTime,IsSend) 
+VALUES (@Id,@Sender,@SenderAddress,@Recipients,@Cc,@Bcc,@Subject,@Body,@BodyType,@MailFiles,@LinkedResources,@CreatorId,@CreateTime,@UpdateTime,@IsSend);";
 
             if (dbTransaction == null)
             {
@@ -163,7 +163,7 @@ WHERE Id=@Id";
                     BodyType = (MailTextFormat)Enum.Parse(typeof(MailTextFormat), reader["BodyType"].ToString()),
                     MailFiles = reader["MailFiles"].ToString().ToObject<List<MailFile>>(),
                     LinkedResources = reader["LinkedResources"].ToString().ToObject<List<MailFile>>(),
-                    CreationUserId = reader["CreationUserId"].ToString(),
+                    CreatorId = reader["CreatorId"].ToString(),
                     CreateTime = Convert.ToDateTime(reader["CreateTime"].ToString()),
                     UpdateTime = Convert.ToDateTime(reader["UpdateTime"].ToString()),
                     IsSend = Convert.ToBoolean(reader["IsSend"].ToString())
@@ -200,7 +200,7 @@ WHERE Id=@Id";
                     BodyType = (MailTextFormat)Enum.Parse(typeof(MailTextFormat), reader["BodyType"].ToString()),
                     MailFiles = reader["MailFiles"].ToString().ToObject<List<MailFile>>(),
                     LinkedResources = reader["LinkedResources"].ToString().ToObject<List<MailFile>>(),
-                    CreationUserId = reader["CreationUserId"].ToString(),
+                    CreatorId = reader["CreatorId"].ToString(),
                     CreateTime = Convert.ToDateTime(reader["CreateTime"].ToString()),
                     UpdateTime = Convert.ToDateTime(reader["UpdateTime"].ToString()),
                     IsSend = Convert.ToBoolean(reader["IsSend"].ToString())

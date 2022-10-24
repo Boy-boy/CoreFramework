@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Core.EventBus.Local
 {
-    public class EventBusLocalOptionsExtensions : IEventBusOptionsExtensions
+    public class EventBusOptionsExtensions : IEventBusOptionsExtensions
     {
         public void AddServices(IServiceCollection services)
         {

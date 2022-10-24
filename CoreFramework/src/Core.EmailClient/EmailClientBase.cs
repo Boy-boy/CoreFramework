@@ -47,7 +47,7 @@ namespace Core.EmailClient
                 BodyType = mailBodyEntity.BodyType,
                 MailFiles = mailBodyEntity.MailFiles,
                 LinkedResources = mailBodyEntity.LinkedResources,
-                CreationUserId = mailBodyEntity.CreationUserId,
+                CreatorId = mailBodyEntity.CreatorId,
                 IsSend = false
             };
             return addEmailModel;

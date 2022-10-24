@@ -6,8 +6,6 @@ namespace Core.EventBus.Transaction
 {
     public interface ITransaction : IDisposable
     {
-        bool AutoCommit { get; set; }
-
         void Commit();
 
         Task CommitAsync(CancellationToken cancellationToken = default);

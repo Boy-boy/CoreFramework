@@ -1,9 +1,8 @@
-﻿using System;
+﻿using Core.EventBus.Diagnostics;
+using Microsoft.Extensions.Logging;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
-using Core.EventBus.Diagnostics;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 namespace Core.EventBus.Local
 {
@@ -13,10 +12,10 @@ namespace Core.EventBus.Local
         private readonly IMessageHandlerProvider _messageHandlerProvider;
 
         public LocalMessagePublisher(
-            IServiceScopeFactory serviceScopeFactory,
+            IServiceProvider serviceProvider,
             ILogger<LocalMessagePublisher> logger,
             IMessageHandlerProvider messageHandlerProvider)
-        : base(serviceScopeFactory)
+        : base(serviceProvider)
         {
             _logger = logger;
             _messageHandlerProvider = messageHandlerProvider;

@@ -19,8 +19,10 @@ namespace Core.EventBus.RabbitMQ
 
         public override void ConfigureServices(ServiceCollectionContext context)
         {
-            context.Items.TryGetValue(nameof(EventBusBuilder), out var eventBusBuilder);
-            ((EventBusBuilder)eventBusBuilder).AddRabbitMq(Configuration.GetSection("EventBus:RabbitMq"));
+            context.Services.Configure<EventBusOptions>(options =>
+            {
+                options.AddRabbitMq(Configuration.GetSection("EventBus:RabbitMq"));
+            });
         }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using Core.Modularity;
 using Core.Modularity.Attribute;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Core.EventBus.Local
 {
@@ -8,8 +9,10 @@ namespace Core.EventBus.Local
     {
         public override void ConfigureServices(ServiceCollectionContext context)
         {
-            context.Items.TryGetValue(nameof(EventBusBuilder), out var eventBusBuilder);
-            ((EventBusBuilder)eventBusBuilder).AddLocalMq();
+            context.Services.Configure<EventBusOptions>(options =>
+            {
+                options.AddLocalMq();
+            });
         }
     }
 }

@@ -23,11 +23,11 @@ namespace Core.EventBus.RabbitMQ
         private readonly ILogger<RabbitMqMessagePublisher> _logger;
 
         public RabbitMqMessagePublisher(
-            IServiceScopeFactory serviceScopeFactory,
+            IServiceProvider serviceProvider,
             IRabbitMqPersistentConnection persistentConnection,
             IOptions<EventBusRabbitMqOptions> options,
             ILogger<RabbitMqMessagePublisher> logger)
-        : base(serviceScopeFactory)
+        : base(serviceProvider)
         {
             _persistentConnection = persistentConnection;
             _options = options;

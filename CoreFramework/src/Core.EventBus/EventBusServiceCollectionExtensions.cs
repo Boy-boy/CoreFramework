@@ -1,13 +1,13 @@
 ﻿using Core.EventBus;
+using Core.EventBus.Transaction;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using System;
-using Core.EventBus.Transaction;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
     public static class EventBusServiceCollectionExtensions
     {
-        public static EventBusBuilder AddEventBus(this IServiceCollection services, Action<EventBusOptions> configureOptions)
+        public static IServiceCollection AddEventBus(this IServiceCollection services, Action<EventBusOptions> configureOptions)
         {
             if (services == null)
                 throw new ArgumentNullException(nameof(services));
@@ -24,7 +24,7 @@ namespace Microsoft.Extensions.DependencyInjection
             var options = new EventBusOptions();
             configureOptions.Invoke(options);
             options.Configure(services);
-            return new EventBusBuilder(services);
+            return services;
         }
     }
 }

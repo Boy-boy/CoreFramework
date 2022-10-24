@@ -1,6 +1,7 @@
 ﻿using Core.Modularity;
 using Core.Modularity.Attribute;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Core.EventBus.PostgreSql
 {
@@ -13,10 +14,13 @@ namespace Core.EventBus.PostgreSql
         {
             Configuration = configuration;
         }
+
         public override void ConfigureServices(ServiceCollectionContext context)
         {
-            context.Items.TryGetValue(nameof(EventBusBuilder), out var eventBusBuilder);
-            ((EventBusBuilder)eventBusBuilder).AddPostgreSql(Configuration.GetSection("EventBus:Storage"));
+            context.Services.Configure<EventBusOptions>(options =>
+            {
+                options.AddPostgreSql(Configuration.GetSection("EventBus:Storage"));
+            });
         }
     }
 }

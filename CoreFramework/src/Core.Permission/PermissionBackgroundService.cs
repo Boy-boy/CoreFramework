@@ -20,7 +20,7 @@ namespace Core.Permission
             using var scope = _serviceScopeFactory.CreateScope();
             var provider = scope.ServiceProvider;
 
-            var storage = provider.GetRequiredService<IPermissionRoleStorage>();
+            var storage = provider.GetRequiredService<IPermissionGrantsStorage>();
             await storage.InitializeAsync(stoppingToken);
         }
     }

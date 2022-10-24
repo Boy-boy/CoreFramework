@@ -2,6 +2,6 @@
 {
     public class MessageQueryModel : PageBaseDto
     {
-        public string ApiRoute { get; set; }
+        public string Name { get; set; }
     }
 }

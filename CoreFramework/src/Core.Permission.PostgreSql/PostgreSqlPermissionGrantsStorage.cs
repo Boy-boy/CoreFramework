@@ -10,18 +10,18 @@ using Core.Json.Newtonsoft;
 
 namespace Core.Permission.PostgreSql
 {
-    public class PostgreSqlPermissionRoleStorage : IPermissionRoleStorage
+    public class PostgreSqlPermissionGrantsStorage : IPermissionGrantsStorage
     {
         private readonly IOptions<PermissionPostgreSqlOptions> _options;
 
-        public PostgreSqlPermissionRoleStorage(IOptions<PermissionPostgreSqlOptions> options)
+        public PostgreSqlPermissionGrantsStorage(IOptions<PermissionPostgreSqlOptions> options)
         {
             _options = options;
         }
 
-        public async Task<List<RouteRoleEntity>> GetAllAsync(CancellationToken cancellationToken = default)
+        public async Task<List<PermissionGrantsEntity>> GetAllAsync(CancellationToken cancellationToken = default)
         {
-            var result = new List<RouteRoleEntity>();
+            var result = new List<PermissionGrantsEntity>();
             if (cancellationToken.IsCancellationRequested) return result;
 
             var sqlParams = new List<object>
@@ -35,12 +35,11 @@ namespace Core.Permission.PostgreSql
             var reader = connection.ExecuteQuery(sql, sqlParams.ToArray());
             while (reader.Read())
             {
-                result.Add(new RouteRoleEntity
+                result.Add(new PermissionGrantsEntity
                 {
                     Id = Convert.ToInt32(reader["Id"]),
-                    Roles = reader["Roles"].ToString().ToObject<List<string>>(),
-                    ApiName = reader["ApiName"].ToString(),
-                    ApiRoute = reader["ApiRoute"].ToString(),
+                    Name = reader["Name"].ToString(),
+                    Value = reader["Value"].ToString(),
                     IsValid = Convert.ToBoolean(reader["IsValid"].ToString()),
                     CreateTime = Convert.ToDateTime(reader["CreateTime"].ToString()),
                     UpdateTime = Convert.ToDateTime(reader["UpdateTime"].ToString()),
@@ -49,9 +48,9 @@ namespace Core.Permission.PostgreSql
             return await Task.FromResult(result);
         }
 
-        public async Task<PageResultDto<RouteRoleEntity>> GetAsync(MessageQueryModel query, CancellationToken cancellationToken = default)
+        public async Task<PageResultDto<PermissionGrantsEntity>> GetAsync(MessageQueryModel query, CancellationToken cancellationToken = default)
         {
-            var result = new PageResultDto<RouteRoleEntity>();
+            var result = new PageResultDto<PermissionGrantsEntity>();
             if (cancellationToken.IsCancellationRequested) return result;
 
             var sqlParams = new List<object>
@@ -60,24 +59,23 @@ namespace Core.Permission.PostgreSql
             };
             var sqlWhere = new StringBuilder("WHERE IsValid=@IsValid ");
 
-            if (!string.IsNullOrEmpty(query.ApiRoute))
+            if (!string.IsNullOrEmpty(query.Name))
             {
-                sqlWhere = sqlWhere.Append("AND ApiRoute LIKE CONCAT('%',@ApiRoute,'%')");
-                sqlParams.Add(new NpgsqlParameter("@ApiRoute", query.ApiRoute));
+                sqlWhere = sqlWhere.Append("AND Name LIKE CONCAT('%',@Name,'%')");
+                sqlParams.Add(new NpgsqlParameter("@Name", query.Name));
             }
 
             var sql = $@"SELECT * FROM {GetTableName()} {sqlWhere} ORDER BY UpdateTime DESC  LIMIT {query.PageSize} OFFSET {query.PageIndex * query.PageSize}";
             await using var connection = new NpgsqlConnection(_options.Value.DbConnection);
             var reader = connection.ExecuteQuery(sql, sqlParams.ToArray());
-            var list = new List<RouteRoleEntity>();
+            var list = new List<PermissionGrantsEntity>();
             while (reader.Read())
             {
-                list.Add(new RouteRoleEntity
+                list.Add(new PermissionGrantsEntity
                 {
                     Id = Convert.ToInt32(reader["Id"]),
-                    Roles = reader["Roles"].ToString().ToObject<List<string>>(),
-                    ApiName = reader["ApiName"].ToString(),
-                    ApiRoute = reader["ApiRoute"].ToString(),
+                    Name = reader["Name"].ToString(),
+                    Value = reader["Value"].ToString(),
                     IsValid = Convert.ToBoolean(reader["IsValid"].ToString()),
                     CreateTime = Convert.ToDateTime(reader["CreateTime"].ToString()),
                     UpdateTime = Convert.ToDateTime(reader["UpdateTime"].ToString()),
@@ -98,10 +96,10 @@ namespace Core.Permission.PostgreSql
             };
             var sqlWhere = new StringBuilder("WHERE IsValid=@IsValid ");
 
-            if (!string.IsNullOrEmpty(query.ApiRoute))
+            if (!string.IsNullOrEmpty(query.Name))
             {
-                sqlWhere = sqlWhere.Append("AND ApiRoute LIKE CONCAT('%',@ApiRoute,'%')");
-                sqlParams.Add(new NpgsqlParameter("@ApiRoute", query.ApiRoute));
+                sqlWhere = sqlWhere.Append("AND Name LIKE CONCAT('%',@Name,'%')");
+                sqlParams.Add(new NpgsqlParameter("@Name", query.Name));
             }
 
             var sql = $"SELECT COUNT(1) AS count FROM {GetTableName()} {sqlWhere}";
@@ -123,9 +121,8 @@ CREATE SCHEMA IF NOT EXISTS {_options.Value.DbSchema};
 
 CREATE TABLE IF NOT EXISTS {GetTableName()} (
   Id INT NOT NULL GENERATED BY DEFAULT AS IDENTITY,
-  Roles jsonb NOT NULL,
-  ApiName VARCHAR(100),
-  ApiRoute VARCHAR(100) NOT NULL,
+  Name VARCHAR(100) NOT NULL,
+  Value VARCHAR(100) NOT NULL,
   IsValid boolean default true NOT NULL,
   CreateTime timestamp(6) NOT NULL,
   UpdateTime timestamp(6) NOT NULL,
@@ -142,11 +139,11 @@ CREATE TABLE IF NOT EXISTS {GetTableName()} (
             object[] sqlParams =
             {
                 new NpgsqlParameter("@Id", message.Id),
-                new NpgsqlParameter("@Roles", message.Roles??new List<string>()),
+                new NpgsqlParameter("@Value", message.Value),
                 new NpgsqlParameter("@UpdateTime", DateTime.Now)
             };
             var sql = $@"UPDATE {GetTableName()} 
-SET Roles=@Roles,UpdateTime=@UpdateTime
+SET Value=@Value,UpdateTime=@UpdateTime
 WHERE Id=@Id";
 
             await using var connection = new NpgsqlConnection(_options.Value.DbConnection);

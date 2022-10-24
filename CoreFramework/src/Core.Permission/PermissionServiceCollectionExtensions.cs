@@ -19,11 +19,9 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 extension.AddServices(services);
             }
-           
-            services.TryAddEnumerable(ServiceDescriptor.Scoped<IPermissionHandler, DefaultPermissionHandler>());
+
+            services.TryAddEnumerable(ServiceDescriptor.Scoped<IPermissionHandler, DefaultRolePermissionHandler>());
             services.TryAddScoped<IPermissionService, DefaultPermissionService>();
-            services.TryAddSingleton<IPermissionRoleProvider, DefaultPermissionRoleProvider>();
-            services.AddMemoryCache();
             services.AddHostedService<PermissionBackgroundService>();
 
             services.AddHttpContextAccessor();

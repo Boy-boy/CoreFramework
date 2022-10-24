@@ -6,18 +6,18 @@ namespace Core.Permission
 {
     public class PermissionAttribute : Attribute
     {
-        private readonly string _permissions;
+        private readonly string _policy;
 
-        public PermissionAttribute(string permissions)
+        public PermissionAttribute(string policy)
         {
-            if (string.IsNullOrWhiteSpace(permissions))
-                throw new ArgumentNullException(nameof(permissions));
-            _permissions = permissions;
+            if (string.IsNullOrWhiteSpace(policy))
+                throw new ArgumentNullException(nameof(policy));
+            _policy = policy;
         }
 
-        public List<string> GetPermissions()
+        public List<string> GetPolicies()
         {
-            return _permissions.Split(',').ToList();
+            return _policy.Split(',').ToList();
         }
     }
 }

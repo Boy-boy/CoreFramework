@@ -16,7 +16,7 @@ namespace Core.Permission.Storage
         public void AddServices(IServiceCollection services)
         {
             services.Configure(_actionOptions);
-            services.TryAddSingleton(typeof(IPermissionRoleStorage), typeof(PostgreSqlPermissionRoleStorage));
+            services.TryAddSingleton(typeof(IPermissionGrantsStorage), typeof(PostgreSqlPermissionGrantsStorage));
         }
     }
 }

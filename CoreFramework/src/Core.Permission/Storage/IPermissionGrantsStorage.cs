@@ -4,13 +4,13 @@ using System.Threading.Tasks;
 
 namespace Core.Permission.Storage
 {
-    public interface IPermissionRoleStorage
+    public interface IPermissionGrantsStorage
     {
         Task InitializeAsync(CancellationToken cancellationToken = default);
 
-        Task<PageResultDto<RouteRoleEntity>> GetAsync(MessageQueryModel query, CancellationToken cancellationToken = default);
+        Task<PageResultDto<PermissionGrantsEntity>> GetAsync(MessageQueryModel query, CancellationToken cancellationToken = default);
 
-        Task<List<RouteRoleEntity>> GetAllAsync(CancellationToken cancellationToken = default);
+        Task<List<PermissionGrantsEntity>> GetAllAsync(CancellationToken cancellationToken = default);
 
         Task<int> GetCountAsync(MessageQueryModel query, CancellationToken cancellationToken);
 

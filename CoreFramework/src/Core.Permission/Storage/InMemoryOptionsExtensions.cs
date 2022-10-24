@@ -7,7 +7,7 @@ namespace Core.Permission.Storage
     {
         public void AddServices(IServiceCollection services)
         {
-            services.TryAddSingleton(typeof(IPermissionRoleStorage),typeof(InMemoryPermissionRoleStorage));
+            services.TryAddSingleton(typeof(IPermissionGrantsStorage),typeof(InMemoryPermissionGrantsStorage));
         }
     }
 }

@@ -50,7 +50,7 @@ namespace Core.Permission
             var permissions = new List<string>();
             foreach (var permissionAttribute in permissionAttributes)
             {
-                permissions = permissions.Union(permissionAttribute.GetPermissions()).ToList();
+                permissions = permissions.Union(permissionAttribute.GetPolicies()).ToList();
             }
 
             var permissionResult = await _permissionService.AuthorizeAsync(permissions);

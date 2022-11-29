@@ -7,12 +7,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Core.EntityFrameworkCore;
+using Core.EntityFrameworkCore.UnitOfWork;
+using Core.Uow;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
     public static class EfCoreServiceCollectionExtensions
     {
-
         public static IServiceCollection AddDbContextAndEfRepositories<TDbContext>(this IServiceCollection services,
             Action<DbContextOptionsBuilder> optionsAction = null)
             where TDbContext : DbContext
@@ -50,6 +52,8 @@ namespace Microsoft.Extensions.DependencyInjection
 
         public static IServiceCollection AddRepositories(this IServiceCollection services, Type entityType, Type dbContextType)
         {
+            AddCore(services);
+
             if (!typeof(IEntity).IsAssignableFrom(entityType))
                 throw new ArgumentException($"parameter type error,the type must inherit from [{nameof(IEntity)}]");
 
@@ -73,6 +77,13 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddTransient(repositoryType1, efCoreRepositoryType1);
             return services;
 
+        }
+
+        private static IServiceCollection AddCore(this IServiceCollection services)
+        {
+            services.TryAddScoped(typeof(IDbContextProvider<>), typeof(DefaultDbContextProvider<>));
+            services.TryAddScoped<IUnitOfWork, EfCoreUnitOfWork>();
+            return services;
         }
 
         private static IEnumerable<Type> GetEntityTypes(Type dbContextType)

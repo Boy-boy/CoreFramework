@@ -1,14 +1,11 @@
-﻿using System;
-using System.Linq;
-using Core.Modularity;
-using Core.Modularity.Attribute;
-using Core.Uow;
+﻿using Core.Modularity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using System;
+using System.Linq;
 
 namespace Core.EntityFrameworkCore
 {
-    [DependsOn(typeof(CoreUowModule))]
     public class CoreEfCoreModule : CoreModuleBase
     {
         public override void ConfigureServices(ServiceCollectionContext context)

@@ -1,5 +1,6 @@
 ﻿using Core.Ddd.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using System.Threading.Tasks;
 
 namespace Core.EntityFrameworkCore.Repositories
 {
@@ -7,11 +8,11 @@ namespace Core.EntityFrameworkCore.Repositories
     {
     }
 
-    public interface IEfCoreRepository<TEntity>: IEfCoreRepository
+    public interface IEfCoreRepository<TEntity> : IEfCoreRepository
         where TEntity : class, IEntity
     {
-        DbContext GetDbContext();
+        Task<DbContext> GetDbContextAsync();
 
-        DbSet<TEntity> GetDbSet();
+        Task<DbSet<TEntity>> GetDbSetAsync();
     }
 }

@@ -3,9 +3,10 @@ using System.Threading.Tasks;
 
 namespace Core.Uow
 {
-    public interface IUnitOfWork
+    public interface IUnitOfWork : IDatabaseApiContainer
     {
         void Commit();
-        Task CommitAsync(CancellationToken cancellationToken=default);
+
+        Task CommitAsync(CancellationToken cancellationToken = default);
     }
 }

@@ -1,4 +1,6 @@
 ﻿using Core.EntityFrameworkCore;
+using Core.EventBus.Local;
+using Core.EventBus.PostgreSql;
 using Core.Modularity;
 using Core.Modularity.Attribute;
 using Microsoft.AspNetCore.Builder;
@@ -10,8 +12,8 @@ using Microsoft.Extensions.Hosting;
 namespace EntityFrameworkCore.Api
 {
     [DependsOn(typeof(CoreEfCoreModule)
-       /*,typeof(CoreEventBusRabbitMqModule)*/
-       /* typeof(CoreEventBusSqlServerModule)*/)]
+       , typeof(CoreEventBusLocalModule),
+        typeof(CoreEventBusPostgreSqlModule))]
     public class StartupModule : CoreModuleBase
     {
         public StartupModule(IConfiguration configuration)
@@ -34,7 +36,7 @@ namespace EntityFrameworkCore.Api
             //方式一
             context.Services.AddDbContext<CustomerDbContext>(options =>
             {
-                options.UseInMemoryDatabase("customer");
+                options.UseNpgsql(Configuration.GetConnectionString("customer"));
             });
 
             //方式二

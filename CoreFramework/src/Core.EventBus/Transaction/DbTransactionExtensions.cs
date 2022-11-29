@@ -69,7 +69,7 @@ namespace Core.EventBus.Transaction
         private static void VerifyStorageServicesAreRegistered(IServiceProvider service)
         {
             if (service.GetService(typeof(StorageMarkerService)) == null)
-                throw new InvalidOperationException("Event storage service not registered");
+                throw new InvalidOperationException("Failed to open transaction,event storage service not registered");
         }
     }
 }

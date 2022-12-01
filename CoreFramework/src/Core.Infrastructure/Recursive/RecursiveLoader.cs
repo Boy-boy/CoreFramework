@@ -44,6 +44,10 @@ namespace Core.Infrastructure.Recursive
                     {
                         dtoMap[item.Instance.ParentId].SetNode(item);
                     }
+                    else
+                    {
+                        throw new RecursiveException("error in original data");
+                    }
                 }
             }
             return newModelDescriptors;

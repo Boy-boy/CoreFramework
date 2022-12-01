@@ -1,14 +1,14 @@
 ﻿using Core.Ddd.Domain.Entities;
 using Core.Ddd.Domain.Repositories;
+using Core.EntityFrameworkCore;
 using Core.EntityFrameworkCore.Repositories;
+using Core.EntityFrameworkCore.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using Core.EntityFrameworkCore;
-using Core.EntityFrameworkCore.UnitOfWork;
 using Core.Uow;
 
 namespace Microsoft.Extensions.DependencyInjection
@@ -81,8 +81,9 @@ namespace Microsoft.Extensions.DependencyInjection
 
         private static IServiceCollection AddCore(this IServiceCollection services)
         {
+            services.TryAddSingleton<IUnitOfWorkAccessor, UnitOfWorkAccessor>();
             services.TryAddScoped(typeof(IDbContextProvider<>), typeof(DefaultDbContextProvider<>));
-            services.TryAddScoped<IUnitOfWork, EfCoreUnitOfWork>();
+            services.TryAddScoped(provider => provider.GetRequiredService<IUnitOfWorkAccessor>().UnitOfWork);
             return services;
         }
 

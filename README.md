@@ -143,9 +143,9 @@
         public override void ConfigureServices(ServiceCollectionContext context)
         {                              
             //若该服务是订阅服务，则需配置以下代码
-            context.Services.ConfigureEventBusOptions(options =>
+            context.Services.Configure<EventBusOptions>(options =>
             {
-                options.AutoRegistrarHandlersAssemblies = new[] { typeof(StartupModule).Assembly };
+                options.AddConsumers(typeof(Startup).Assembly);
             });    
         }
     }
@@ -320,7 +320,7 @@ public class Startup
         {
             //services.AddEventBus(options =>
             //{
-            //    options.AutoRegistrarHandlersAssemblies = new[] { typeof(Startup).Assembly };
+            //    options.AddConsumers(typeof(Startup).Assembly);
             //    options.AddRabbitMq(rabbitOptions =>
             //    {
             //        rabbitOptions.ExchangeName = "demo";
@@ -349,15 +349,14 @@ public class Startup
           services.AddDbContextAndEfRepositories<CustomerDbContext>(options =>
           {
               options.UseInMemoryDatabase("customer");
-          }) .AddUnitOfWork();
+          });
           
           //方式二
            services.AddDbContext<CustomerDbContext>(options =>
           {
               options.UseInMemoryDatabase("customer");
           })
-          .AddEfRepositories<CustomerDbContext>()
-          .AddUnitOfWork();
+          .AddEfRepositories<CustomerDbContext>();
         }   
     }
 ```

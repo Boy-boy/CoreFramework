@@ -1,4 +1,5 @@
-﻿using Core.EventBus.Storage;
+﻿using Core.EventBus.Integration;
+using Core.EventBus.Storage;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using System;
@@ -15,7 +16,7 @@ namespace Core.EventBus.Transaction
         /// <param name="publisher"></param>
         /// <returns></returns>
         public static ITransaction BeginTransaction(this IDbConnection dbConnection,
-            IMessagePublisher publisher)
+            IIntegrationMessagePublisher publisher)
         {
             if (dbConnection == null)
             {
@@ -25,7 +26,7 @@ namespace Core.EventBus.Transaction
             {
                 throw new ArgumentNullException(nameof(publisher));
             }
-            var publisherBase = (MessagePublisherBase)publisher;
+            var publisherBase = (IntegrationMessagePublisherBase)publisher;
             VerifyStorageServicesAreRegistered(publisherBase.ServiceProvider);
             if (dbConnection.State == ConnectionState.Closed)
                 dbConnection.Open();
@@ -45,7 +46,7 @@ namespace Core.EventBus.Transaction
         /// <param name="publisher"></param>
         /// <returns></returns>
         public static ITransaction BeginTransaction(this DatabaseFacade database,
-            IMessagePublisher publisher)
+            IIntegrationMessagePublisher publisher)
         {
             if (database == null)
             {
@@ -55,7 +56,7 @@ namespace Core.EventBus.Transaction
             {
                 throw new ArgumentNullException(nameof(publisher));
             }
-            var publisherBase = (MessagePublisherBase)publisher;
+            var publisherBase = (IntegrationMessagePublisherBase)publisher;
             VerifyStorageServicesAreRegistered(publisherBase.ServiceProvider);
             var dbTransaction = database.BeginTransaction();
 

@@ -6,26 +6,25 @@ using System.Threading.Tasks;
 
 namespace Core.EventBus.Local
 {
-    public class LocalMessagePublisher : MessagePublisherBase
+    public class LocalMessagePublisher : ILocalMessagePublisher
     {
         private readonly ILogger<LocalMessagePublisher> _logger;
-        private readonly IMessageHandlerProvider _messageHandlerProvider;
+        private readonly ILocalMessageHandlerProvider _messageHandlerProvider;
 
         public LocalMessagePublisher(
-            IServiceProvider serviceProvider,
             ILogger<LocalMessagePublisher> logger,
-            IMessageHandlerProvider messageHandlerProvider)
-        : base(serviceProvider)
+            ILocalMessageHandlerProvider messageHandlerProvider)
         {
             _logger = logger;
             _messageHandlerProvider = messageHandlerProvider;
         }
 
-        public override async Task SendAsync<T>(T message)
+        public async Task PublishAsync<T>(T message)
+            where T : class, IMessage
         {
             var messageHandlers = _messageHandlerProvider
-                .GetHandlers(message.GetType())
-                .ToList();
+                 .GetHandlers(message.GetType())
+                 .ToList();
 
             if (messageHandlers.Any())
             {
@@ -66,5 +65,6 @@ namespace Core.EventBus.Local
             }
             await Task.CompletedTask;
         }
+
     }
 }

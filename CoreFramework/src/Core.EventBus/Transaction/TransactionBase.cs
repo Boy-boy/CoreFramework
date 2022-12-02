@@ -2,13 +2,14 @@
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
+using Core.EventBus.Integration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Core.EventBus.Transaction
 {
     public abstract class TransactionBase : ITransaction
     {
-        private readonly IMessagePublisher _publisher;
+        private readonly IIntegrationMessagePublisher _publisher;
 
         private readonly ConcurrentQueue<IMessage> _messages;
 
@@ -16,7 +17,7 @@ namespace Core.EventBus.Transaction
 
         protected TransactionBase(IServiceProvider serviceProvider)
         {
-            _publisher = serviceProvider.GetRequiredService<IMessagePublisher>();
+            _publisher = serviceProvider.GetRequiredService<IIntegrationMessagePublisher>();
             _messages = new ConcurrentQueue<IMessage>();
         }
 
@@ -35,12 +36,12 @@ namespace Core.EventBus.Transaction
 
         protected virtual void Flush()
         {
-            Task.Run(() =>
+            Task.Run(async () =>
             {
                 while (!_messages.IsEmpty)
                 {
                     _messages.TryDequeue(out var message);
-                    ((MessagePublisherBase)_publisher).MessagePublisherMailBox.EnqueueMessage(message);
+                    await ((IntegrationMessagePublisherBase)_publisher).SendAsync(message);
                 }
             });
         }

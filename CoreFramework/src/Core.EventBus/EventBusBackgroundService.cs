@@ -3,6 +3,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using System.Threading;
 using System.Threading.Tasks;
+using Core.EventBus.Integration;
+using Core.EventBus.Local;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Core.EventBus
@@ -22,8 +24,10 @@ namespace Core.EventBus
             var options = provider.GetRequiredService<IOptions<EventBusOptions>>();
 
             //初始化订阅
-            var messageSubscribe = provider.GetRequiredService<IMessageSubscribe>();
-            messageSubscribe.Initialize(options.Value.MessageHandlerAssemblies);
+            var localMessageSubscribe = provider.GetService<ILocalMessageSubscribe>();
+            var integrationMessageSubscribe = provider.GetService<IIntegrationMessageSubscribe>();
+            localMessageSubscribe?.Initialize(options.Value.MessageHandlerAssemblies);
+            integrationMessageSubscribe?.Initialize(options.Value.MessageHandlerAssemblies);
 
             //初始化消息存储
             var storage = provider.GetService<IStorage>();

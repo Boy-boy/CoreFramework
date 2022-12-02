@@ -7,8 +7,10 @@ namespace Core.EventBus.Local
     {
         public void AddServices(IServiceCollection services)
         {
-            services.TryAddSingleton<IMessagePublisher, LocalMessagePublisher>();
-            services.TryAddSingleton<IMessageSubscribe, LocalMessageSubscribe>();
+            services.TryAddSingleton<ILocalMessagePublisher, LocalMessagePublisher>();
+            services.TryAddSingleton<ILocalMessageSubscribe, LocalMessageSubscribe>();
+            services.TryAddSingleton<ILocalMessageHandlerManager, LocalMessageHandlerManager>();
+            services.TryAddSingleton<ILocalMessageHandlerProvider, LocalMessageHandlerProvider>();
         }
     }
 }

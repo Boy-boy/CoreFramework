@@ -1,4 +1,5 @@
 ﻿using Core.EntityFrameworkCore;
+using Core.EventBus;
 using Core.EventBus.Local;
 using Core.EventBus.PostgreSql;
 using Core.Modularity;
@@ -12,8 +13,8 @@ using Microsoft.Extensions.Hosting;
 namespace EntityFrameworkCore.Api
 {
     [DependsOn(typeof(CoreEfCoreModule)
-       , typeof(CoreEventBusLocalModule),
-        typeof(CoreEventBusPostgreSqlModule))]
+       , typeof(CoreEventBusLocalModule)
+       /* ,typeof(CoreEventBusPostgreSqlModule)*/)]
     public class StartupModule : CoreModuleBase
     {
         public StartupModule(IConfiguration configuration)
@@ -26,7 +27,7 @@ namespace EntityFrameworkCore.Api
         public override void PreConfigureServices(ServiceCollectionContext context)
         {
             //方式一
-            context.Items.Add(nameof(CustomerDbContext), typeof(CustomerDbContext));
+            // context.Items.Add(nameof(CustomerDbContext), typeof(CustomerDbContext));
         }
 
         public override void ConfigureServices(ServiceCollectionContext context)
@@ -34,17 +35,22 @@ namespace EntityFrameworkCore.Api
             context.Services.AddControllers();
 
             //方式一
-            context.Services.AddDbContext<CustomerDbContext>(options =>
-            {
-                options.UseNpgsql(Configuration.GetConnectionString("customer"));
-            });
+            //context.Services.AddDbContext<CustomerDbContext>(options =>
+            //{
+            //    options.UseNpgsql(Configuration.GetConnectionString("customer"));
+            //});
 
             //方式二
-            //context.Services
-            //    .AddDbContextAndEfRepositories<CustomerDbContext>(options =>
-            //{
-            //    options.UseInMemoryDatabase("customer");
-            //});
+            context.Services
+                .AddDbContextAndEfRepositories<CustomerDbContext>(options =>
+            {
+                options.UseInMemoryDatabase("customer");
+            });
+
+            context.Services.Configure<EventBusOptions>(options =>
+            {
+                options.AddConsumers(typeof(Startup).Assembly);
+            });
 
             //方式三
             //context.Services

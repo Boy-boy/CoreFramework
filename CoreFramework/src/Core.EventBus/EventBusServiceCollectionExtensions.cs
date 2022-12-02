@@ -15,8 +15,6 @@ namespace Microsoft.Extensions.DependencyInjection
             if (configureOptions == null)
                 throw new ArgumentNullException(nameof(configureOptions));
 
-            services.TryAddSingleton<IMessageHandlerManager, MessageHandlerManager>();
-            services.TryAddSingleton<IMessageHandlerProvider, MessageHandlerProvider>();
             services.TryAddSingleton<ITransactionAccessor, TransactionAccessor>();
             services.AddHostedService<EventBusBackgroundService>();
             services.Configure(configureOptions);

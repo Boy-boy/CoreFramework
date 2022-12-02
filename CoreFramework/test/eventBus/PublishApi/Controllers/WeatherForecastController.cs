@@ -1,6 +1,8 @@
 ﻿using System.Diagnostics;
 using System.Threading.Tasks;
 using Core.EventBus;
+using Core.EventBus.Integration;
+using Core.EventBus.Local;
 using Core.EventBus.Transaction;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -13,14 +15,17 @@ namespace PublishApi.Controllers
     [Route("[controller]")]
     public class WeatherForecastController : ControllerBase
     {
-        private readonly IMessagePublisher _publisher;
+        private readonly IIntegrationMessagePublisher _publisher;
+        private readonly ILocalMessagePublisher _localPublisher;
         private readonly IConfiguration _configuration;
 
         public WeatherForecastController(
-            IMessagePublisher publisher,
+            IIntegrationMessagePublisher publisher,
+            ILocalMessagePublisher localPublisher,
             IConfiguration configuration)
         {
             _publisher = publisher;
+            _localPublisher = localPublisher;
             _configuration = configuration;
         }
 
@@ -34,6 +39,7 @@ namespace PublishApi.Controllers
             for (var i = 0; i < 500; i++)
             {
                 await _publisher.PublishAsync(new CustomerEvent());
+                await _localPublisher.PublishAsync(new CustomerEvent());
             }
             await transaction.CommitAsync();
             sw.Stop();

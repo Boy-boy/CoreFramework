@@ -10,21 +10,22 @@ using System;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Core.EventBus.Integration;
 
 namespace Core.EventBus.RabbitMQ
 {
-    public class RabbitMqMessageSubscribe : MessageSubscribeBase
+    public class RabbitMqMessageSubscribe : MessageSubscribeBase, IIntegrationMessageSubscribe
     {
-        private readonly IMessageHandlerManager _messageHandlerManager;
-        private readonly IMessageHandlerProvider _messageHandlerProvider;
+        private readonly IIntegrationMessageHandlerManager _messageHandlerManager;
+        private readonly IIntegrationMessageHandlerProvider _messageHandlerProvider;
         private readonly IRabbitMqMessageConsumerManager _rabbitMqMessageConsumerManager;
         private readonly IOptions<EventBusRabbitMqOptions> _options;
         private readonly ILogger<RabbitMqMessageSubscribe> _logger;
         private readonly object _lock = new();
 
         public RabbitMqMessageSubscribe(
-            IMessageHandlerManager messageHandlerManager,
-            IMessageHandlerProvider messageHandlerProvider,
+            IIntegrationMessageHandlerManager messageHandlerManager,
+            IIntegrationMessageHandlerProvider messageHandlerProvider,
             IRabbitMqMessageConsumerManager rabbitMqMessageConsumerManager,
             IOptions<EventBusRabbitMqOptions> options,
             ILogger<RabbitMqMessageSubscribe> logger)

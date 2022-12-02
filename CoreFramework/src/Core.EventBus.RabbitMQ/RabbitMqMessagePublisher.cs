@@ -1,7 +1,7 @@
-﻿using Core.EventBus.Messaging;
+﻿using Core.EventBus.Diagnostics;
+using Core.EventBus.Integration;
 using Core.Json.Newtonsoft;
 using Core.RabbitMQ;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Polly;
@@ -11,11 +11,10 @@ using System.Collections.Concurrent;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
-using Core.EventBus.Diagnostics;
 
 namespace Core.EventBus.RabbitMQ
 {
-    public class RabbitMqMessagePublisher : MessagePublisherBase
+    public class RabbitMqMessagePublisher : IntegrationMessagePublisherBase, IIntegrationMessagePublisher
     {
         private readonly int _retryCount = 3;
         private readonly IRabbitMqPersistentConnection _persistentConnection;

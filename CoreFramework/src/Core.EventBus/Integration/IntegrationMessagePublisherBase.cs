@@ -4,27 +4,24 @@ using Core.EventBus.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 
-namespace Core.EventBus
+namespace Core.EventBus.Integration
 {
-    public abstract class MessagePublisherBase : IMessagePublisher
+    public abstract class IntegrationMessagePublisherBase : IMessagePublisher
     {
         public IServiceProvider ServiceProvider { get; }
 
         public ITransactionAccessor TransactionAccessor { get; }
 
-        public MessagePublisherMailBox MessagePublisherMailBox { get; }
-
         protected IStorage Storage { get; }
 
-        protected MessagePublisherBase(IServiceProvider serviceProvider)
+        protected IntegrationMessagePublisherBase(IServiceProvider serviceProvider)
         {
             ServiceProvider = serviceProvider;
             TransactionAccessor = serviceProvider.GetRequiredService<ITransactionAccessor>();
             Storage = serviceProvider.GetService<IStorage>();
-            MessagePublisherMailBox = ActivatorUtilities.CreateInstance<MessagePublisherMailBox>(serviceProvider, this);
         }
 
-        public async Task PublishAsync<T>(T message)
+        public virtual async Task PublishAsync<T>(T message)
             where T : class, IMessage
         {
             var transaction = (TransactionBase)TransactionAccessor.Transaction;
@@ -32,7 +29,7 @@ namespace Core.EventBus
 
             if (transaction == null)
             {
-                MessagePublisherMailBox.EnqueueMessage(message);
+                await SendAsync(message);
             }
             else
             {

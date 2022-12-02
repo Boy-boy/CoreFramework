@@ -33,13 +33,13 @@ namespace EntityFrameworkCore.Api.Controllers
         }
 
         [HttpGet("add")]
-        public async Task<Student> Add()
+        public async Task<List<Student>> Add()
         {
             var student = new Student("张三", 24);
             student.AddEvent(new AddStudentEvent { AggregateRootId = student.Id });
             _repository.Add(student);
             await _unitOfWork.CommitAsync();
-            return await _repository.FindAsync(s => s.Id == student.Id);
+            return await _repository.FindAllAsync(x => true);
         }
     }
 }

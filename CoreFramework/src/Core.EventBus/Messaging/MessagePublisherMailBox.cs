@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading.Tasks;
+using Core.EventBus.Integration;
 using Microsoft.Extensions.Logging;
 
 namespace Core.EventBus
@@ -9,13 +10,13 @@ namespace Core.EventBus
     public class MessagePublisherMailBox
     {
         private readonly ILogger<MessagePublisherMailBox> _logger;
-        private readonly IMessagePublisher _publisher;
+        private readonly IIntegrationMessagePublisher _publisher;
         private readonly ConcurrentQueue<IMessage> _queue;
         private readonly object _lock = new();
 
         public bool IsRunning { get; private set; }
 
-        public MessagePublisherMailBox(IMessagePublisher messagePublisher,
+        public MessagePublisherMailBox(IIntegrationMessagePublisher messagePublisher,
             ILogger<MessagePublisherMailBox> logger)
         {
             _logger = logger;
@@ -63,7 +64,7 @@ namespace Core.EventBus
             {
                 if (_queue.TryDequeue(out var message))
                 {
-                    await ((MessagePublisherBase)_publisher).SendAsync(message);
+                    await ((IntegrationMessagePublisherBase)_publisher).SendAsync(message);
                 }
             }
             catch (Exception ex)

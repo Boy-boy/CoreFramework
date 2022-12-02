@@ -1,7 +1,8 @@
-﻿using System;
+﻿using Core.EventBus.Integration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using System;
 
 namespace Core.EventBus.RabbitMQ
 {
@@ -12,12 +13,12 @@ namespace Core.EventBus.RabbitMQ
 
         public EventBusOptionsExtensions(Action<EventBusRabbitMqOptions> options)
         {
-            _options = options;
+            _options = options ?? throw new ArgumentNullException(nameof(options));
         }
 
         public EventBusOptionsExtensions(IConfiguration configuration)
         {
-            _configuration = configuration;
+            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         }
 
         public void AddServices(IServiceCollection services)
@@ -32,7 +33,6 @@ namespace Core.EventBus.RabbitMQ
             {
                 services.Configure<EventBusRabbitMqOptions>(_configuration);
                 options = _configuration.Get<EventBusRabbitMqOptions>();
-
             }
 
             AddCore(services, options);
@@ -44,8 +44,9 @@ namespace Core.EventBus.RabbitMQ
             {
                 rabbitMqOptions.Connection = options.Connection;
             });
-            services.TryAddSingleton<IMessagePublisher, RabbitMqMessagePublisher>();
-            services.TryAddSingleton<IMessageSubscribe, RabbitMqMessageSubscribe>();
+            services.TryAddSingleton<IIntegrationMessagePublisher, RabbitMqMessagePublisher>();
+            services.TryAddSingleton<IIntegrationMessageSubscribe, RabbitMqMessageSubscribe>();
+            services.AddIntegrationCore();
             return services;
         }
     }

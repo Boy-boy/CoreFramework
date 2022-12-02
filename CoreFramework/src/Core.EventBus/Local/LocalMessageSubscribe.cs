@@ -3,11 +3,11 @@ using System;
 
 namespace Core.EventBus.Local
 {
-    public class LocalMessageSubscribe : MessageSubscribeBase
+    public class LocalMessageSubscribe : MessageSubscribeBase, ILocalMessageSubscribe
     {
-        private readonly IMessageHandlerManager _messageHandlerManager;
+        private readonly ILocalMessageHandlerManager _messageHandlerManager;
 
-        public LocalMessageSubscribe(IMessageHandlerManager messageHandlerManager)
+        public LocalMessageSubscribe(ILocalMessageHandlerManager messageHandlerManager)
         {
             _messageHandlerManager = messageHandlerManager;
         }

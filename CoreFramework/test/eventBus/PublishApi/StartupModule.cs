@@ -1,4 +1,6 @@
-﻿using Core.EventBus.PostgreSql;
+﻿using Core.EventBus;
+using Core.EventBus.Local;
+using Core.EventBus.PostgreSql;
 using Core.EventBus.RabbitMQ;
 using Core.Modularity;
 using Core.Modularity.Attribute;
@@ -11,6 +13,7 @@ namespace PublishApi
 {
     [DependsOn(
         typeof(CoreEventBusRabbitMqModule)
+       , typeof(CoreEventBusLocalModule)
         , typeof(CoreEventBusPostgreSqlModule))]
     public class StartupModule : CoreModuleBase
     {
@@ -24,6 +27,10 @@ namespace PublishApi
         public override void ConfigureServices(ServiceCollectionContext context)
         {
             context.Services.AddControllers();
+            context.Services.Configure<EventBusOptions>(options =>
+            {
+                options.AddConsumers(typeof(Startup).Assembly);
+            });
         }
 
         public override void Configure(ApplicationBuilderContext context)

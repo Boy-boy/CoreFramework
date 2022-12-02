@@ -2,7 +2,7 @@
 
 namespace Core.Ddd.Domain.Events
 {
-    public class DomainEvent : Message
+    public class DomainEvent : Message,IDomainEvent
     {
     }
 }

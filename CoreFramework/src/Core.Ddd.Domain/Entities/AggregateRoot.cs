@@ -6,14 +6,14 @@ namespace Core.Ddd.Domain.Entities
 {
     public class AggregateRoot : Entity, IAggregateRoot
     {
-        private readonly ICollection<AggregateRootEvent> _events = new Collection<AggregateRootEvent>();
+        private readonly ICollection<IDomainEvent> _events = new Collection<IDomainEvent>();
 
-        public void AddEvent(AggregateRootEvent @event)
+        public void AddEvent(IDomainEvent @event)
         {
             _events.Add(@event);
         }
 
-        public IEnumerable<AggregateRootEvent> GetEvents()
+        public IEnumerable<IDomainEvent> GetEvents()
         {
             return _events;
         }

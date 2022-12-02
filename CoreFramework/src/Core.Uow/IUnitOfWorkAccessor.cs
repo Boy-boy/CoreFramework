@@ -1,8 +1,7 @@
-﻿
-namespace Core.Uow
+﻿namespace Core.Uow
 {
     public interface IUnitOfWorkAccessor
     {
-        IUnitOfWork UnitOfWork { get; }
+        IUnitOfWork UnitOfWork { get; set; }
     }
 }

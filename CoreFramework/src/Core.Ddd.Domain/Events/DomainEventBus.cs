@@ -40,6 +40,14 @@ namespace Core.Ddd.Domain.Events
             }
         }
 
+        public async Task PublishQueueAsync()
+        {
+            while (_eventQueue.TryDequeue(out var @event))
+            {
+                await PublishAsync(@event);
+            }
+        }
+
         public Task Enqueue<TDomainEvent>(TDomainEvent @event)
             where TDomainEvent : class, IDomainEvent
         {

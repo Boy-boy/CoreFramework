@@ -1,10 +1,12 @@
-﻿using Core.EntityFrameworkCore;
+﻿using System.Net.Http;
+using Core.EntityFrameworkCore;
 using Core.EventBus;
 using Core.EventBus.Local;
 using Core.EventBus.PostgreSql;
 using Core.Modularity;
 using Core.Modularity.Attribute;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -33,7 +35,7 @@ namespace EntityFrameworkCore.Api
         public override void ConfigureServices(ServiceCollectionContext context)
         {
             context.Services.AddControllers();
-
+            
             //方式一
             //context.Services.AddDbContext<CustomerDbContext>(options =>
             //{

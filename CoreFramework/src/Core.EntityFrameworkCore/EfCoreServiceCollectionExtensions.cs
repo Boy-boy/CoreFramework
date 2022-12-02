@@ -1,15 +1,16 @@
 ﻿using Core.Ddd.Domain.Entities;
+using Core.Ddd.Domain.Events;
 using Core.Ddd.Domain.Repositories;
 using Core.EntityFrameworkCore;
 using Core.EntityFrameworkCore.Repositories;
 using Core.EntityFrameworkCore.UnitOfWork;
+using Core.Uow;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using Core.Uow;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -81,9 +82,13 @@ namespace Microsoft.Extensions.DependencyInjection
 
         private static IServiceCollection AddCore(this IServiceCollection services)
         {
-            services.TryAddSingleton<IUnitOfWorkAccessor, UnitOfWorkAccessor>();
+            services.TryAddSingleton<IUnitOfWorkFactory, EfCoreUnitOfWorkFactory>();
             services.TryAddScoped(typeof(IDbContextProvider<>), typeof(DefaultDbContextProvider<>));
-            services.TryAddScoped(provider => provider.GetRequiredService<IUnitOfWorkAccessor>().UnitOfWork);
+            services.TryAddScoped(provider =>
+                provider.GetRequiredService<IUnitOfWorkAccessor>().UnitOfWork ?? provider.GetRequiredService<IUnitOfWorkFactory>().CreateUow());
+            services
+                .AddUowCore()
+                .AddDomainEventBus();
             return services;
         }
 

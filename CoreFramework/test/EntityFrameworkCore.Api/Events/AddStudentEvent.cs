@@ -4,8 +4,8 @@ using Core.EventBus;
 namespace EntityFrameworkCore.Api.Events
 {
     [MessageName("customer")]
-    public class AddStudentEvent: AggregateRootEvent
+    public class AddStudentEvent : DomainEvent
     {
-        public string AggregateRootId{ get; set; }
+        public string AggregateRootId { get; set; }
     }
 }

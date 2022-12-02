@@ -1,6 +1,5 @@
 ﻿using Core.Ddd.Domain.Entities;
-using Core.EventBus;
-using Core.EventBus.Transaction;
+using Core.Ddd.Domain.Events;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,52 +16,38 @@ namespace Core.EntityFrameworkCore
             : base(options)
         {
             var serviceProvider = options.FindExtension<CoreOptionsExtension>()?.ApplicationServiceProvider;
-            MessagePublisher = serviceProvider?.GetRequiredService<IMessagePublisher>();
+            DomainEventBus = serviceProvider?.GetRequiredService<IDomainEventBus>();
         }
-        private IMessagePublisher MessagePublisher { get; }
+        private IDomainEventBus DomainEventBus { get; }
 
         public override int SaveChanges(bool acceptAllChangesOnSuccess)
         {
             var events = GetDomainEvents();
-            var result = events.Count;
-            if (events.Count > 0)
+            if (events.Count <= 0)
+                return base.SaveChanges(acceptAllChangesOnSuccess);
+            foreach (var @event in events)
             {
-                using var transaction = Database.BeginTransaction(MessagePublisher);
-                foreach (var item in events)
-                {
-                    MessagePublisher.PublishAsync(item).GetAwaiter().GetResult();
-                }
-                result += base.SaveChanges(acceptAllChangesOnSuccess);
-                transaction.Commit();
-                return result;
+                DomainEventBus.PublishAsync(@event).GetAwaiter().GetResult();
             }
-            result = base.SaveChanges(acceptAllChangesOnSuccess);
-            return result;
+            return base.SaveChanges(acceptAllChangesOnSuccess);
         }
 
         public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess,
             CancellationToken cancellationToken = default)
         {
             var events = GetDomainEvents();
-            var result = events.Count;
-            if (events.Count > 0)
+            if (events.Count <= 0)
+                return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+            foreach (var @event in events)
             {
-                using var transaction = Database.BeginTransaction(MessagePublisher);
-                foreach (var item in events)
-                {
-                    await MessagePublisher.PublishAsync(item);
-                }
-                result += await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
-                await transaction.CommitAsync(cancellationToken);
-                return result;
+                await DomainEventBus.PublishAsync(@event);
             }
-            result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
-            return result;
+            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
         }
 
-        protected virtual List<IMessage> GetDomainEvents()
+        protected virtual List<IDomainEvent> GetDomainEvents()
         {
-            var events = new List<IMessage>();
+            var events = new List<IDomainEvent>();
             foreach (var entry in ChangeTracker.Entries().ToList())
             {
                 if (entry.Entity is not AggregateRoot domainEntity) continue;

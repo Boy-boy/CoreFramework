@@ -9,5 +9,7 @@ namespace Core.Ddd.Domain.Events
 
         Task Enqueue<TDomainEvent>(TDomainEvent @event)
             where TDomainEvent : class, IDomainEvent;
+
+        Task PublishQueueAsync();
     }
 }

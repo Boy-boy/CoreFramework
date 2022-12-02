@@ -11,7 +11,7 @@ namespace Core.EntityFrameworkCore.UnitOfWork
     {
         private readonly Dictionary<string, IDatabaseApi> _databaseApis;
 
-        public EfCoreUnitOfWork()
+        public EfCoreUnitOfWork(IServiceProvider serviceProvider)
         {
             _databaseApis = new Dictionary<string, IDatabaseApi>();
         }

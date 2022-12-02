@@ -1,7 +1,6 @@
-﻿using Core.Uow;
-using System.Threading;
+﻿using System.Threading;
 
-namespace Core.EntityFrameworkCore.UnitOfWork
+namespace Core.Uow
 {
     public class UnitOfWorkAccessor : IUnitOfWorkAccessor
     {
@@ -11,14 +10,9 @@ namespace Core.EntityFrameworkCore.UnitOfWork
             get
             {
                 var uow = UnitOfWorkAsyncLocal.Value;
-                if (uow != null)
-                {
-                    return uow;
-                }
-
-                uow = UnitOfWorkAsyncLocal.Value = new EfCoreUnitOfWork();
                 return uow;
             }
+            set => UnitOfWorkAsyncLocal.Value = value;
         }
     }
 }

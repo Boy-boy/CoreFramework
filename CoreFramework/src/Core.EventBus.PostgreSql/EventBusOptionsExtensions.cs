@@ -1,9 +1,8 @@
-﻿using System;
-using Core.EventBus.Storage;
-using Core.EventBus.Transaction;
+﻿using Core.EventBus.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using System;
 
 namespace Core.EventBus.PostgreSql
 {
@@ -38,7 +37,6 @@ namespace Core.EventBus.PostgreSql
         private IServiceCollection AddCore(IServiceCollection services)
         {
             services.TryAddSingleton<IStorage, PostgreSqlStorage>();
-            services.TryAddTransient<ITransaction, PostgreSqlTransaction>();
             services.TryAddSingleton<StorageMarkerService>();
             return services;
         }

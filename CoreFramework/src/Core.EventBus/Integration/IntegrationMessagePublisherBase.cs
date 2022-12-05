@@ -24,7 +24,7 @@ namespace Core.EventBus.Integration
         public virtual async Task PublishAsync<T>(T message)
             where T : class, IMessage
         {
-            var transaction = (TransactionBase)TransactionAccessor.Transaction;
+            var transaction = (Transaction.Transaction)TransactionAccessor.Transaction;
             Storage?.StoreMessage(new MediumMessage(message), transaction?.DbTransaction);
 
             if (transaction == null)

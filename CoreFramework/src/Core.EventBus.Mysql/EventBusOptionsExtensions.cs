@@ -1,9 +1,8 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using System;
+﻿using Core.EventBus.Storage;
 using Microsoft.Extensions.Configuration;
-using Core.EventBus.Storage;
-using Core.EventBus.Transaction;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using System;
 
 namespace Core.EventBus.Mysql
 {
@@ -38,7 +37,6 @@ namespace Core.EventBus.Mysql
         private IServiceCollection AddCore(IServiceCollection services)
         {
             services.TryAddSingleton<IStorage, MysqlStorage>();
-            services.TryAddTransient<ITransaction, MysqlTransaction>();
             services.TryAddSingleton<StorageMarkerService>();
             return services;
         }

@@ -1,20 +1,34 @@
 ﻿using System;
-using Core.EventBus.Transaction;
-using Microsoft.EntityFrameworkCore.Storage;
+using System.Collections.Concurrent;
 using System.Data;
 using System.Threading;
 using System.Threading.Tasks;
+using Core.EventBus.Integration;
+using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.DependencyInjection;
 
-namespace Core.EventBus.Mysql
+namespace Core.EventBus.Transaction
 {
-    public class MysqlTransaction : TransactionBase
+    public class Transaction : ITransaction
     {
-        public MysqlTransaction(IServiceProvider serviceProvider)
-        : base(serviceProvider)
+        private readonly IIntegrationMessagePublisher _publisher;
+
+        private readonly ConcurrentQueue<IMessage> _messages;
+
+        public object DbTransaction { get; set; }
+
+        protected Transaction(IServiceProvider serviceProvider)
         {
+            _publisher = serviceProvider.GetRequiredService<IIntegrationMessagePublisher>();
+            _messages = new ConcurrentQueue<IMessage>();
         }
 
-        public override void Commit()
+        public void AddMessage(IMessage message)
+        {
+            _messages.Enqueue(message);
+        }
+
+        public virtual void Commit()
         {
             switch (DbTransaction)
             {
@@ -28,7 +42,7 @@ namespace Core.EventBus.Mysql
             Flush();
         }
 
-        public override async Task CommitAsync(CancellationToken cancellationToken = default)
+        public virtual async Task CommitAsync(CancellationToken cancellationToken = default)
         {
             switch (DbTransaction)
             {
@@ -42,7 +56,7 @@ namespace Core.EventBus.Mysql
             Flush();
         }
 
-        public override void Rollback()
+        public virtual void Rollback()
         {
             switch (DbTransaction)
             {
@@ -55,7 +69,7 @@ namespace Core.EventBus.Mysql
             }
         }
 
-        public override async Task RollbackAsync(CancellationToken cancellationToken = default)
+        public virtual async Task RollbackAsync(CancellationToken cancellationToken = default)
         {
             switch (DbTransaction)
             {
@@ -68,7 +82,7 @@ namespace Core.EventBus.Mysql
             }
         }
 
-        public override void Dispose()
+        public virtual void Dispose()
         {
             switch (DbTransaction)
             {
@@ -79,6 +93,18 @@ namespace Core.EventBus.Mysql
                     dbContextTransaction.Dispose();
                     break;
             }
+        }
+
+        protected virtual void Flush()
+        {
+            Task.Run(async () =>
+            {
+                while (!_messages.IsEmpty)
+                {
+                    _messages.TryDequeue(out var message);
+                    await ((IntegrationMessagePublisherBase)_publisher).SendAsync(message);
+                }
+            });
         }
     }
 }

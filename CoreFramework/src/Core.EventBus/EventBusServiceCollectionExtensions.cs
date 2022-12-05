@@ -16,6 +16,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(configureOptions));
 
             services.TryAddSingleton<ITransactionAccessor, TransactionAccessor>();
+            services.TryAddTransient<ITransaction, Transaction>();
             services.AddHostedService<EventBusBackgroundService>();
             services.Configure(configureOptions);
 

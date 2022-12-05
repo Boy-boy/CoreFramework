@@ -32,7 +32,7 @@ namespace Core.EventBus.Transaction
                 dbConnection.Open();
             var dbTransaction = dbConnection.BeginTransaction();
 
-            var transaction = (TransactionBase)publisherBase.ServiceProvider.GetRequiredService<ITransaction>();
+            var transaction = (Transaction)publisherBase.ServiceProvider.GetRequiredService<ITransaction>();
 
             transaction.DbTransaction = dbTransaction;
             publisherBase.TransactionAccessor.Transaction = transaction;
@@ -60,7 +60,7 @@ namespace Core.EventBus.Transaction
             VerifyStorageServicesAreRegistered(publisherBase.ServiceProvider);
             var dbTransaction = database.BeginTransaction();
 
-            var transaction = (TransactionBase)publisherBase.ServiceProvider.GetRequiredService<ITransaction>();
+            var transaction = (Transaction)publisherBase.ServiceProvider.GetRequiredService<ITransaction>();
 
             transaction.DbTransaction = dbTransaction;
             publisherBase.TransactionAccessor.Transaction = transaction;

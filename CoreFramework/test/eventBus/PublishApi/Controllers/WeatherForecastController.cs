@@ -5,6 +5,7 @@ using Core.EventBus.Integration;
 using Core.EventBus.Local;
 using Core.EventBus.Transaction;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
 using PublishApi.Event;
@@ -34,7 +35,7 @@ namespace PublishApi.Controllers
         {
             var sw = new Stopwatch();
             sw.Start();
-            var connection = new NpgsqlConnection(_configuration.GetConnectionString("customer"));
+            var connection = new SqlConnection(_configuration.GetConnectionString("customer"));
             using var transaction = connection.BeginTransaction(_publisher);
             for (var i = 0; i < 500; i++)
             {

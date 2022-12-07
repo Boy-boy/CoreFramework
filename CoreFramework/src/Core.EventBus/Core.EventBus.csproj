@@ -17,6 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Core.Infrastructure\Core.Infrastructure.csproj" />
     <ProjectReference Include="..\Core.Json\Core.Json.csproj" />
     <ProjectReference Include="..\Core.Modularity\Core.Modularity.csproj" />
   </ItemGroup>

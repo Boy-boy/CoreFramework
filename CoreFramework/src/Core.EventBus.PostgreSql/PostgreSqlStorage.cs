@@ -6,6 +6,8 @@ using System.Data;
 using System.Threading;
 using System.Threading.Tasks;
 using Npgsql;
+using System.Collections.Generic;
+using System;
 
 namespace Core.EventBus.PostgreSql
 {
@@ -34,16 +36,17 @@ namespace Core.EventBus.PostgreSql
 CREATE SCHEMA IF NOT EXISTS {_options.Value.DbSchema};
 
 CREATE TABLE IF NOT EXISTS {GetTableName()} (
-  Id VARCHAR(200) NOT NULL,
+  Id uuid NOT NULL,
   Version INT NOT NULL,
-  MessageType TEXT NOT NULL,
+  AssemblyName TEXT NOT NULL,
+  MessageName TEXT NOT NULL,
   MessageData TEXT NOT NULL,
   CreateTime timestamp(6) NOT NULL,
   UtcTime timestamp(6) NOT NULL,
   PRIMARY KEY (Id)
 );";
 
-            using var connection = new NpgsqlConnection(_options.Value.DbConnection);
+            await using var connection = new NpgsqlConnection(_options.Value.DbConnection);
             connection.ExecuteNonQuery(sql);
 
             _logger.LogInformation($"initial message table successfully. table name is [{GetTableName()}]");
@@ -61,14 +64,15 @@ CREATE TABLE IF NOT EXISTS {GetTableName()} (
             {
                 new NpgsqlParameter("@Id", message.Id),
                 new NpgsqlParameter("@Version", message.Version),
-                new NpgsqlParameter("@MessageType", message.MessageType),
+                new NpgsqlParameter("@AssemblyName", message.AssemblyName),
+                new NpgsqlParameter("@MessageName", message.MessageName),
                 new NpgsqlParameter("@MessageData", message.MessageData),
                 new NpgsqlParameter("@CreateTime", message.CreateTime),
                 new NpgsqlParameter("@UtcTime", message.UtcTime)
             };
 
-            var sql = $@"INSERT INTO {GetTableName()} (Id,Version,MessageType,MessageData,CreateTime,UtcTime) 
-VALUES (@Id,@Version,@MessageType,@MessageData,@CreateTime,@UtcTime);";
+            var sql = $@"INSERT INTO {GetTableName()} (Id,Version,AssemblyName,MessageName,MessageData,CreateTime,UtcTime) 
+VALUES (@Id,@Version,@AssemblyName,@MessageName,@MessageData,@CreateTime,@UtcTime);";
 
             if (dbTransaction == null)
             {
@@ -93,7 +97,46 @@ VALUES (@Id,@Version,@MessageType,@MessageData,@CreateTime,@UtcTime);";
             }
         }
 
-        public virtual string GetTableName()
+        public List<MediumMessage> GetMessages(int maxCount)
+        {
+            object[] sqlParams =
+            {
+                new NpgsqlParameter("@Limit",maxCount),
+            };
+
+            var sql = $@"SELECT * FROM {GetTableName()} ORDER BY UtcTime LIMIT @Limit;";
+            using var connection = new NpgsqlConnection(_options.Value.DbConnection);
+            var reader = connection.ExecuteQuery(sql, sqlParams: sqlParams);
+            var list = new List<MediumMessage>();
+            while (reader.Read())
+            {
+                list.Add(new MediumMessage
+                {
+                    Id = Guid.Parse(reader["Id"].ToString() ?? string.Empty),
+                    Version = Convert.ToInt32(reader["Version"].ToString()),
+                    AssemblyName = reader["AssemblyName"].ToString(),
+                    MessageName = reader["MessageName"].ToString(),
+                    MessageData = reader["MessageData"].ToString(),
+                    CreateTime = Convert.ToDateTime(reader["CreateTime"].ToString()),
+                    UtcTime = Convert.ToDateTime(reader["UtcTime"].ToString())
+                });
+            }
+            return list;
+        }
+
+        public void Delete(Guid id)
+        {
+            object[] sqlParams =
+            {
+                new NpgsqlParameter("@Id",id),
+            };
+
+            var sql = $@"DELETE FROM {GetTableName()} WHERE Id=@Id;";
+            using var connection = new NpgsqlConnection(_options.Value.DbConnection);
+            connection.ExecuteNonQuery(sql, sqlParams: sqlParams);
+        }
+
+        private string GetTableName()
         {
             return $"{_options.Value.DbSchema}.{_options.Value.DbTable}";
         }

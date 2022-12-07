@@ -10,20 +10,20 @@ namespace Core.EntityFrameworkCore
     public class DefaultDbContextProvider<TDbContext> : IDbContextProvider<TDbContext>
     where TDbContext : DbContext
     {
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly IUnitOfWorkAccessor _unitOfWorkAccessor;
         private readonly IServiceProvider _serviceProvider;
 
-        public DefaultDbContextProvider(IUnitOfWork unitOfWork,
+        public DefaultDbContextProvider(IUnitOfWorkAccessor unitOfWorkAccessor,
             IServiceProvider serviceProvider)
         {
-            _unitOfWork = unitOfWork;
+            _unitOfWorkAccessor = unitOfWorkAccessor;
             _serviceProvider = serviceProvider;
         }
 
         public Task<TDbContext> GetDbContextAsync()
         {
             var dbContextName = DbContextNameAttribute.GetNameOrDefault(typeof(TDbContext));
-            var databaseApi = (EfCoreDatabaseApi)_unitOfWork.GetOrAddDatabaseApi(dbContextName, () => new EfCoreDatabaseApi(CreateDbContext()));
+            var databaseApi = (EfCoreDatabaseApi)_unitOfWorkAccessor.UnitOfWork.GetOrAddDatabaseApi(dbContextName, () => new EfCoreDatabaseApi(CreateDbContext()));
             return Task.FromResult((TDbContext)databaseApi.DbContext);
         }
 

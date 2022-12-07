@@ -2,6 +2,7 @@
 using Core.EventBus.Local;
 using Core.EventBus.PostgreSql;
 using Core.EventBus.RabbitMQ;
+using Core.EventBus.SqlServer;
 using Core.Modularity;
 using Core.Modularity.Attribute;
 using Microsoft.AspNetCore.Builder;
@@ -14,7 +15,8 @@ namespace PublishApi
     [DependsOn(
         typeof(CoreEventBusRabbitMqModule)
        , typeof(CoreEventBusLocalModule)
-        , typeof(CoreEventBusPostgreSqlModule))]
+        , typeof(CoreEventBusSqlServerModule)
+       /* , typeof(CoreEventBusPostgreSqlModule)*/)]
     public class StartupModule : CoreModuleBase
     {
         public IConfiguration Configuration { get; }

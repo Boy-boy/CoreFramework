@@ -12,30 +12,24 @@ namespace Core.EventBus.Integration
 
         public ITransactionAccessor TransactionAccessor { get; }
 
-        protected IStorage Storage { get; }
-
         protected IntegrationMessagePublisherBase(IServiceProvider serviceProvider)
         {
             ServiceProvider = serviceProvider;
             TransactionAccessor = serviceProvider.GetRequiredService<ITransactionAccessor>();
-            Storage = serviceProvider.GetService<IStorage>();
         }
 
         public virtual async Task PublishAsync<T>(T message)
             where T : class, IMessage
         {
             var transaction = (Transaction.Transaction)TransactionAccessor.Transaction;
-            Storage?.StoreMessage(new MediumMessage(message), transaction?.DbTransaction);
-
-            if (transaction == null)
+            if (transaction != null)
             {
-                await SendAsync(message);
+                //开启事务，表示使用发件箱模式
+                var storage = ServiceProvider.GetRequiredService<IStorage>();
+                storage.StoreMessage(new MediumMessage(message), transaction.DbTransaction);
+                return;
             }
-            else
-            {
-                transaction.AddMessage(message);
-            }
-            await Task.CompletedTask;
+            await SendAsync(message);
         }
 
         public abstract Task SendAsync<T>(T message)

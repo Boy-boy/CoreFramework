@@ -9,16 +9,18 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Core.EventBus
 {
-    public class EventBusBackgroundService : BackgroundService
+    public class EventBusBackgroundService : IHostedService
     {
         private readonly IServiceScopeFactory _serviceScopeFactory;
+        private IOutBoxSender _outBoxSender;
 
         public EventBusBackgroundService(
             IServiceScopeFactory serviceScopeFactory)
         {
             _serviceScopeFactory = serviceScopeFactory;
         }
-        protected override Task ExecuteAsync(CancellationToken stoppingToken)
+
+        public async Task StartAsync(CancellationToken cancellationToken)
         {
             var provider = _serviceScopeFactory.CreateScope().ServiceProvider;
             var options = provider.GetRequiredService<IOptions<EventBusOptions>>();
@@ -31,9 +33,22 @@ namespace Core.EventBus
 
             //初始化消息存储
             var storage = provider.GetService<IStorage>();
-            storage?.InitializeAsync(stoppingToken);
+            storage?.InitializeAsync(cancellationToken);
 
-            return Task.CompletedTask;
+            if (integrationMessageSubscribe != null && storage != null)
+            {
+                //开启发件箱
+                _outBoxSender = provider.GetRequiredService<IOutBoxSender>();
+                await _outBoxSender.StartAsync(cancellationToken);
+            }
         }
+
+        public async Task StopAsync(CancellationToken cancellationToken)
+        {
+            var stopAsync = _outBoxSender?.StopAsync(cancellationToken);
+            if (stopAsync != null)
+                await stopAsync;
+        }
+
     }
 }

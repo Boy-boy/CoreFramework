@@ -3,6 +3,8 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Threading;
 using System.Threading.Tasks;
@@ -31,24 +33,22 @@ namespace Core.EventBus.SqlServer
         {
             if (cancellationToken.IsCancellationRequested) return;
             var sql = $@"
-IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = '{_options.Value.DbSchema}')
-BEGIN
-	EXEC('CREATE SCHEMA [{_options.Value.DbSchema}]')
-END;
+
 
 IF OBJECT_ID(N'{GetTableName()}',N'U') IS NULL
 BEGIN
 CREATE TABLE [{GetTableName()}](
-	[Id] [varchar](200) NOT NULL PRIMARY KEY,
+	[Id] [uniqueidentifier] NOT NULL PRIMARY KEY,
     [Version] [int] NOT NULL,
-	[MessageType] [text] NOT NULL,
+    [AssemblyName] [text] NOT NULL,
+	[MessageName] [text] NOT NULL,
 	[MessageData] [text] NOT NULL,
 	[CreateTime] [datetime2](6) NOT NULL,
 	[UtcTime] [datetime2](6) NOT NULL
 	)
 END;";
-            using (var connection = new SqlConnection(_options.Value.DbConnection))
-                connection.ExecuteNonQuery(sql);
+            await using var connection = new SqlConnection(_options.Value.DbConnection);
+            connection.ExecuteNonQuery(sql);
 
             _logger.LogInformation($"initial message table successfully. table name is [{GetTableName()}]");
             await Task.CompletedTask;
@@ -65,14 +65,15 @@ END;";
             {
                 new SqlParameter("@Id", message.Id),
                 new SqlParameter("@Version", message.Version),
-                new SqlParameter("@MessageType", message.MessageType),
+                new SqlParameter("@AssemblyName", message.AssemblyName),
+                new SqlParameter("@MessageName", message.MessageName),
                 new SqlParameter("@MessageData", message.MessageData),
                 new SqlParameter("@CreateTime", message.CreateTime),
                 new SqlParameter("@UtcTime", message.UtcTime)
             };
 
-            var sql = $@"INSERT INTO {GetTableName()} ([Id],[Version],[MessageType],[MessageData],[CreateTime],[UtcTime]) 
-VALUES (@Id,@Version,@MessageType,@MessageData,@CreateTime,@UtcTime);";
+            var sql = $@"INSERT INTO {GetTableName()} ([Id],[Version],[AssemblyName],[MessageName],[MessageData],[CreateTime],[UtcTime]) 
+VALUES (@Id,@Version,@AssemblyName,@MessageName,@MessageData,@CreateTime,@UtcTime);";
 
             if (dbTransaction == null)
             {
@@ -99,7 +100,41 @@ VALUES (@Id,@Version,@MessageType,@MessageData,@CreateTime,@UtcTime);";
 
         public virtual string GetTableName()
         {
-            return $"{_options.Value.DbSchema}.{_options.Value.DbTable}";
+            return $"{_options.Value.DbTable}";
+        }
+
+        public List<MediumMessage> GetMessages(int maxCount)
+        {
+            var sql = $@"SELECT TOP {maxCount} * FROM {GetTableName()} ORDER BY UtcTime;";
+            using var connection = new SqlConnection(_options.Value.DbConnection);
+            var reader = connection.ExecuteQuery(sql);
+            var list = new List<MediumMessage>();
+            while (reader.Read())
+            {
+                list.Add(new MediumMessage
+                {
+                    Id = Guid.Parse(reader["Id"].ToString() ?? string.Empty),
+                    Version = Convert.ToInt32(reader["Version"].ToString()),
+                    AssemblyName = reader["AssemblyName"].ToString(),
+                    MessageName = reader["MessageName"].ToString(),
+                    MessageData = reader["MessageData"].ToString(),
+                    CreateTime = Convert.ToDateTime(reader["CreateTime"].ToString()),
+                    UtcTime = Convert.ToDateTime(reader["UtcTime"].ToString())
+                });
+            }
+            return list;
+        }
+
+        public void Delete(Guid id)
+        {
+            object[] sqlParams =
+            {
+                new SqlParameter("@Id",id),
+            };
+
+            var sql = $@"DELETE FROM {GetTableName()} WHERE [Id]=@Id;";
+            using var connection = new SqlConnection(_options.Value.DbConnection);
+            connection.ExecuteNonQuery(sql, sqlParams: sqlParams);
         }
     }
 }

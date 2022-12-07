@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MySqlConnector;
+using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Threading;
 using System.Threading.Tasks;
@@ -32,16 +34,17 @@ namespace Core.EventBus.Mysql
             if (cancellationToken.IsCancellationRequested) return;
             var sql = $@"
 CREATE TABLE IF NOT EXISTS {_options.Value.DbTable} (
-  `Id` VARCHAR(200) NOT NULL,
+  `Id` uuid NOT NULL,
   `Version` INT NOT NULL,
-  `MessageType` TEXT NOT NULL,
+  `AssemblyName` TEXT NOT NULL,
+  `MessageName` TEXT NOT NULL,
   `MessageData` TEXT NOT NULL,
   `CreateTime` DATETIME(6) NOT NULL,
   `UtcTime` DATETIME(6) NOT NULL,
    PRIMARY KEY (`Id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
 
-            using (var connection = new MySqlConnection(_options.Value.DbConnection))
+            await using var connection = new MySqlConnection(_options.Value.DbConnection);
                 connection.ExecuteNonQuery(sql);
 
             _logger.LogInformation($"initial message table successfully. table name is [{_options.Value.DbTable}]");
@@ -59,14 +62,15 @@ CREATE TABLE IF NOT EXISTS {_options.Value.DbTable} (
             {
                 new MySqlParameter("@Id", message.Id),
                 new MySqlParameter("@Version", message.Version),
-                new MySqlParameter("@MessageType", message.MessageType),
+                new MySqlParameter("@AssemblyName", message.AssemblyName),
+                new MySqlParameter("@MessageName", message.MessageName),
                 new MySqlParameter("@MessageData", message.MessageData),
                 new MySqlParameter("@CreateTime", message.CreateTime),
                 new MySqlParameter("@UtcTime", message.UtcTime)
             };
 
-            var sql = $@"INSERT INTO {_options.Value.DbTable} (`Id`,`Version`,`MessageType`,`MessageData`,`CreateTime`,`UtcTime`) 
-VALUES (@Id,@Version,@MessageType,@MessageData,@CreateTime,@UtcTime);";
+            var sql = $@"INSERT INTO {_options.Value.DbTable} (`Id`,`Version`,`AssemblyName`,`MessageName`,`MessageData`,`CreateTime`,`UtcTime`) 
+VALUES (@Id,@Version,@AssemblyName,@MessageName,@MessageData,@CreateTime,@UtcTime);";
 
             if (dbTransaction == null)
             {
@@ -89,6 +93,45 @@ VALUES (@Id,@Version,@MessageType,@MessageData,@CreateTime,@UtcTime);";
                 var conn = dbTrans?.Connection;
                 conn?.ExecuteNonQuery(sql, dbTrans, sqlParams);
             }
+        }
+
+        public List<MediumMessage> GetMessages(int maxCount)
+        {
+            object[] sqlParams =
+            {
+                new MySqlParameter("@Limit",maxCount),
+            };
+
+            var sql = $@"SELECT * FROM {_options.Value.DbTable} ORDER BY UtcTime LIMIT @Limit;";
+            using var connection = new MySqlConnection(_options.Value.DbConnection);
+            var reader = connection.ExecuteQuery(sql, sqlParams: sqlParams);
+            var list = new List<MediumMessage>();
+            while (reader.Read())
+            {
+                list.Add(new MediumMessage
+                {
+                    Id = Guid.Parse(reader["Id"].ToString() ?? string.Empty),
+                    Version = Convert.ToInt32(reader["Version"].ToString()),
+                    AssemblyName = reader["AssemblyName"].ToString(),
+                    MessageName = reader["MessageName"].ToString(),
+                    MessageData = reader["MessageData"].ToString(),
+                    CreateTime = Convert.ToDateTime(reader["CreateTime"].ToString()),
+                    UtcTime = Convert.ToDateTime(reader["UtcTime"].ToString())
+                });
+            }
+            return list;
+        }
+
+        public void Delete(Guid id)
+        {
+            object[] sqlParams =
+            {
+                new MySqlParameter("@Id",id),
+            };
+
+            var sql = $@"DELETE FROM {_options.Value.DbTable} WHERE `Id`=@Id;";
+            using var connection = new MySqlConnection(_options.Value.DbConnection);
+            connection.ExecuteNonQuery(sql, sqlParams: sqlParams);
         }
     }
 }

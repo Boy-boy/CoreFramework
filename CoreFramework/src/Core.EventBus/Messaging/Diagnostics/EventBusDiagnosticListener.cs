@@ -17,7 +17,8 @@ namespace Core.EventBus.Diagnostics
                 return;
             var result = new
             {
-                Message = message,
+                MessageType = message.GetType(),
+                MessageData = message,
                 ExecutionTime = DateTime.UtcNow
             };
             EventBusDiagnostics.Write(DiagnosticListenerConstants.BeforePublish, result);
@@ -34,7 +35,8 @@ namespace Core.EventBus.Diagnostics
 
             var result = new
             {
-                Message = message,
+                MessageType = message.GetType(),
+                MessageData = message,
                 ExecutionTime = DateTime.UtcNow
             };
             EventBusDiagnostics.Write(DiagnosticListenerConstants.AfterPublish, result);
@@ -52,7 +54,8 @@ namespace Core.EventBus.Diagnostics
 
             var result = new
             {
-                Message = message,
+                MessageType = message.GetType(),
+                MessageData = message,
                 ExecutionTime = DateTime.UtcNow,
                 ErrorMessage = errorMessage
             };
@@ -70,7 +73,8 @@ namespace Core.EventBus.Diagnostics
 
             var result = new
             {
-                Message = message,
+                MessageType = message.GetType(),
+                MessageData = message,
                 ExecutionTime = DateTime.UtcNow
             };
             EventBusDiagnostics.Write(DiagnosticListenerConstants.BeforeConsume, result);
@@ -87,7 +91,8 @@ namespace Core.EventBus.Diagnostics
 
             var result = new
             {
-                Message = message,
+                MessageType = message.GetType(),
+                MessageData = message,
                 ExecutionTime = DateTime.UtcNow
             };
             EventBusDiagnostics.Write(DiagnosticListenerConstants.AfterConsume, result);
@@ -106,7 +111,8 @@ namespace Core.EventBus.Diagnostics
 
             var result = new
             {
-                Message = message,
+                MessageType = message.GetType(),
+                MessageData = message,
                 HandlerType = handlerType,
                 ExecutionTime = DateTime.UtcNow,
                 ErrorMessage = errorMessage
@@ -125,7 +131,8 @@ namespace Core.EventBus.Diagnostics
 
             var result = new
             {
-                Message = message,
+                MessageType = message.GetType(),
+                MessageData = message,
                 ExecutionTime = DateTime.UtcNow
             };
             EventBusDiagnostics.Write(DiagnosticListenerConstants.NotSubscribed, result);

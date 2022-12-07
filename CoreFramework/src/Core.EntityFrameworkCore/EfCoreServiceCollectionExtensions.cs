@@ -82,13 +82,10 @@ namespace Microsoft.Extensions.DependencyInjection
 
         private static IServiceCollection AddCore(this IServiceCollection services)
         {
-            services.TryAddSingleton<IUnitOfWorkFactory, EfCoreUnitOfWorkFactory>();
-            services.TryAddScoped(typeof(IDbContextProvider<>), typeof(DefaultDbContextProvider<>));
-            services.TryAddScoped(provider =>
-                provider.GetRequiredService<IUnitOfWorkAccessor>().UnitOfWork ?? provider.GetRequiredService<IUnitOfWorkFactory>().CreateUow());
-            services
-                .AddUowCore()
-                .AddDomainEventBus();
+            services.TryAddTransient(typeof(IDbContextProvider<>), typeof(DefaultDbContextProvider<>));
+            services.TryAddSingleton<IUnitOfWorkAccessor, EfCoreUnitOfWorkAccessor>();
+            services.TryAddTransient(provider => provider.GetRequiredService<IUnitOfWorkAccessor>().UnitOfWork);
+            services.AddDomainEventBus();
             return services;
         }
 

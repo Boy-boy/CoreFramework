@@ -9,6 +9,7 @@ namespace Core.EventBus.Integration
         {
             services.TryAddSingleton<IIntegrationMessageHandlerManager, IntegrationMessageHandlerManager>();
             services.TryAddSingleton<IIntegrationMessageHandlerProvider, IntegrationMessageHandlerProvider>();
+            services.TryAddTransient<IOutBoxSender, OutBoxSender>();
             return services;
         }
     }

@@ -1,25 +1,32 @@
-﻿using System;
-using Core.Json.Newtonsoft;
+﻿using Core.Json.Newtonsoft;
+using System;
 
 namespace Core.EventBus.Storage
 {
     public class MediumMessage
     {
+        public MediumMessage()
+        {
+        }
+
         public MediumMessage(IMessage aggregateRootEvent)
         {
-            Id = Guid.NewGuid().ToString();
+            Id = Guid.NewGuid();
             Version = 1;
-            MessageType = aggregateRootEvent.GetType().ToString();
+            AssemblyName = aggregateRootEvent.GetType().Assembly.GetName().Name;
+            MessageName = aggregateRootEvent.GetType().FullName;
             MessageData = aggregateRootEvent.ToJson();
             CreateTime = DateTime.Now;
             UtcTime = DateTime.UtcNow;
         }
 
-        public string Id { get; set; }
+        public Guid Id { get; set; }
 
         public int Version { get; set; }
 
-        public string MessageType { get; set; }
+        public string AssemblyName { get; set; }
+
+        public string MessageName { get; set; }
 
         public string MessageData { get; set; }
 

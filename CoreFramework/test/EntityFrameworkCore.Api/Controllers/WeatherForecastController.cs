@@ -27,6 +27,7 @@ namespace EntityFrameworkCore.Api.Controllers
         }
 
         [HttpGet]
+        [UnitOfWork]
         public IEnumerable<Student> Get()
         {
             return _repository.FindAll(s => true);
@@ -36,7 +37,7 @@ namespace EntityFrameworkCore.Api.Controllers
         public async Task<List<Student>> Add()
         {
             var student = new Student("张三", 24);
-            student.AddEvent(new AddStudentEvent { AggregateRootId = student.Id });
+            student.AddLocalEvent(new AddStudentEvent { AggregateRootId = student.Id });
             _repository.Add(student);
             await _unitOfWork.CommitAsync();
             return await _repository.FindAllAsync(x => true);

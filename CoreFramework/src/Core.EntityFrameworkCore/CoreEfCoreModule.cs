@@ -3,9 +3,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Linq;
+using Core.Modularity.Attribute;
+using Core.Uow;
 
 namespace Core.EntityFrameworkCore
 {
+    [DependsOn(typeof(CoreUnitOfWorkModule))]
     public class CoreEfCoreModule : CoreModuleBase
     {
         public override void ConfigureServices(ServiceCollectionContext context)

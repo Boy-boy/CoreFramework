@@ -1,9 +1,9 @@
 ﻿using Core.Ddd.Domain.Entities;
 using Core.Ddd.Domain.Events;
+using Core.Uow;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,47 +16,67 @@ namespace Core.EntityFrameworkCore
             : base(options)
         {
             var serviceProvider = options.FindExtension<CoreOptionsExtension>()?.ApplicationServiceProvider;
-            DomainEventBus = serviceProvider?.GetRequiredService<IDomainEventBus>();
+            UnitOfWorkAccessor = serviceProvider?.GetRequiredService<IUnitOfWorkAccessor>();
         }
-        private IDomainEventBus DomainEventBus { get; }
+        private IUnitOfWorkAccessor UnitOfWorkAccessor { get; }
 
         public override int SaveChanges(bool acceptAllChangesOnSuccess)
         {
-            var events = GetDomainEvents();
-            if (events.Count <= 0)
-                return base.SaveChanges(acceptAllChangesOnSuccess);
-            foreach (var @event in events)
-            {
-                DomainEventBus.PublishAsync(@event).GetAwaiter().GetResult();
-            }
-            return base.SaveChanges(acceptAllChangesOnSuccess);
+            var eventReport = CreateEventReport();
+
+            var result = base.SaveChanges(acceptAllChangesOnSuccess);
+
+            PublishEntityEvents(eventReport);
+            return result;
         }
 
         public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess,
             CancellationToken cancellationToken = default)
         {
-            var events = GetDomainEvents();
-            if (events.Count <= 0)
-                return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
-            foreach (var @event in events)
-            {
-                await DomainEventBus.PublishAsync(@event);
-            }
-            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+            var eventReport = CreateEventReport();
+
+            var result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+
+            PublishEntityEvents(eventReport);
+            return result;
         }
 
-        protected virtual List<IDomainEvent> GetDomainEvents()
+        private void PublishEntityEvents(EntityEventReport changeReport)
         {
-            var events = new List<IDomainEvent>();
+            var unitOfWork = UnitOfWorkAccessor.UnitOfWork;
+            foreach (var localEvent in changeReport.DomainEvents)
+            {
+                unitOfWork.AddLocalEvent(localEvent);
+            }
+
+            foreach (var distributedEvent in changeReport.DistributedEvents)
+            {
+                unitOfWork.AddDistributedEvent(distributedEvent);
+            }
+        }
+
+        protected virtual EntityEventReport CreateEventReport()
+        {
+            var eventReport = new EntityEventReport();
             foreach (var entry in ChangeTracker.Entries().ToList())
             {
                 if (entry.Entity is not AggregateRoot domainEntity) continue;
-                var domainEvents = domainEntity.GetEvents().ToList();
-                if (!domainEvents.Any()) continue;
-                events.AddRange(domainEvents);
-                domainEntity.CleanEvents();
+
+                var domainEvents = domainEntity.GetLocalEvents().ToList();
+                if (domainEvents.Any())
+                {
+                    eventReport.DomainEvents.AddRange(domainEvents);
+                    domainEntity.CleanLocalEvents();
+                }
+
+                var distributedEvents = domainEntity.GetDistributedEvents().ToList();
+                if (distributedEvents.Any())
+                {
+                    eventReport.DistributedEvents.AddRange(distributedEvents);
+                    domainEntity.CleanDistributedEvents();
+                }
             }
-            return events;
+            return eventReport;
         }
     }
 }

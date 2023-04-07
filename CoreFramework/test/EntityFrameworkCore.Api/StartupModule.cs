@@ -5,6 +5,7 @@ using Core.EventBus.Local;
 using Core.EventBus.PostgreSql;
 using Core.Modularity;
 using Core.Modularity.Attribute;
+using Core.Uow;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -35,7 +36,7 @@ namespace EntityFrameworkCore.Api
         public override void ConfigureServices(ServiceCollectionContext context)
         {
             context.Services.AddControllers();
-            
+
             //方式一
             //context.Services.AddDbContext<CustomerDbContext>(options =>
             //{
@@ -74,6 +75,7 @@ namespace EntityFrameworkCore.Api
 
             app.UseRouting();
 
+            app.UseUnitOfWork();
             app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>

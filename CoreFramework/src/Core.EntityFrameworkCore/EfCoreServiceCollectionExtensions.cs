@@ -1,9 +1,7 @@
 ﻿using Core.Ddd.Domain.Entities;
-using Core.Ddd.Domain.Events;
 using Core.Ddd.Domain.Repositories;
 using Core.EntityFrameworkCore;
 using Core.EntityFrameworkCore.Repositories;
-using Core.EntityFrameworkCore.UnitOfWork;
 using Core.Uow;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -83,9 +81,6 @@ namespace Microsoft.Extensions.DependencyInjection
         private static IServiceCollection AddCore(this IServiceCollection services)
         {
             services.TryAddTransient(typeof(IDbContextProvider<>), typeof(DefaultDbContextProvider<>));
-            services.TryAddSingleton<IUnitOfWorkAccessor, EfCoreUnitOfWorkAccessor>();
-            services.TryAddTransient(provider => provider.GetRequiredService<IUnitOfWorkAccessor>().UnitOfWork);
-            services.AddDomainEventBus();
             return services;
         }
 

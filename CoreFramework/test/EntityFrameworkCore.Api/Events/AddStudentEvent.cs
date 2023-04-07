@@ -1,10 +1,9 @@
-﻿using Core.Ddd.Domain.Events;
-using Core.EventBus;
+﻿using Core.EventBus;
 
 namespace EntityFrameworkCore.Api.Events
 {
     [MessageName("customer")]
-    public class AddStudentEvent : DomainEvent
+    public class AddStudentEvent : Message
     {
         public string AggregateRootId { get; set; }
     }

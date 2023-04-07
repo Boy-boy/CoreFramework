@@ -1,26 +1,43 @@
-﻿using System.Collections.Generic;
+﻿using Core.EventBus;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using Core.Ddd.Domain.Events;
 
 namespace Core.Ddd.Domain.Entities
 {
     public class AggregateRoot : Entity, IAggregateRoot
     {
-        private readonly ICollection<IDomainEvent> _events = new Collection<IDomainEvent>();
+        private readonly ICollection<IMessage> _localEvents = new Collection<IMessage>();
 
-        public void AddEvent(IDomainEvent @event)
+        private readonly ICollection<IMessage> _distributedEvents = new Collection<IMessage>();
+
+        public void AddLocalEvent(Message @event)
         {
-            _events.Add(@event);
+            _localEvents.Add(@event);
         }
 
-        public IEnumerable<IDomainEvent> GetEvents()
+        public void AddDistributedEvent(Message @event)
         {
-            return _events;
+            _distributedEvents.Add(@event);
         }
 
-        public void CleanEvents()
+        public IEnumerable<IMessage> GetLocalEvents()
         {
-            _events.Clear();
+            return _localEvents;
+        }
+
+        public IEnumerable<IMessage> GetDistributedEvents()
+        {
+            return _distributedEvents;
+        }
+
+        public void CleanLocalEvents()
+        {
+            _localEvents.Clear();
+        }
+
+        public void CleanDistributedEvents()
+        {
+            _distributedEvents.Clear();
         }
     }
 

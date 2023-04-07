@@ -1,9 +1,8 @@
-﻿using System;
-using Microsoft.EntityFrameworkCore;
-using System.Threading.Tasks;
-using Core.EntityFrameworkCore.EntityFrameworkCore;
+﻿using Core.EntityFrameworkCore.EntityFrameworkCore;
 using Core.Uow;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using System.Threading.Tasks;
 
 namespace Core.EntityFrameworkCore
 {
@@ -11,25 +10,65 @@ namespace Core.EntityFrameworkCore
     where TDbContext : DbContext
     {
         private readonly IUnitOfWorkAccessor _unitOfWorkAccessor;
-        private readonly IServiceProvider _serviceProvider;
+        private readonly IServiceScopeFactory _serviceScopeFactory;
 
         public DefaultDbContextProvider(IUnitOfWorkAccessor unitOfWorkAccessor,
-            IServiceProvider serviceProvider)
+            IServiceScopeFactory serviceScopeFactory)
         {
             _unitOfWorkAccessor = unitOfWorkAccessor;
-            _serviceProvider = serviceProvider;
+            _serviceScopeFactory = serviceScopeFactory;
         }
 
-        public Task<TDbContext> GetDbContextAsync()
+        public async Task<TDbContext> GetDbContextAsync()
+        {
+            var uow = _unitOfWorkAccessor.UnitOfWork;
+            if (uow == null)
+            {
+                uow = (_unitOfWorkAccessor.UnitOfWork = CreateUnitOfWork());
+            }
+
+            var dbContextName = DbContextNameAttribute.GetNameOrDefault(typeof(TDbContext));
+
+            var databaseApi = uow.FindDatabaseApi(dbContextName);
+            if (databaseApi == null)
+            {
+                var dbContext = await CreateDbContextAsync();
+                databaseApi = uow.GetOrAddDatabaseApi(dbContextName, () => new EfCoreDatabaseApi(dbContext));
+            }
+
+            return (TDbContext)((EfCoreDatabaseApi)databaseApi).DbContext;
+        }
+
+        private async Task<TDbContext> CreateDbContextAsync()
         {
             var dbContextName = DbContextNameAttribute.GetNameOrDefault(typeof(TDbContext));
-            var databaseApi = (EfCoreDatabaseApi)_unitOfWorkAccessor.UnitOfWork.GetOrAddDatabaseApi(dbContextName, () => new EfCoreDatabaseApi(CreateDbContext()));
-            return Task.FromResult((TDbContext)databaseApi.DbContext);
+            var scope = _serviceScopeFactory.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<TDbContext>();
+
+            var uow = _unitOfWorkAccessor.UnitOfWork;
+            if (uow.Options.IsTransactional)
+            {
+                var dbTransaction = uow.Options.IsolationLevel.HasValue
+                    ? await dbContext.Database.BeginTransactionAsync(uow.Options.IsolationLevel.Value)
+                    : await dbContext.Database.BeginTransactionAsync();
+
+                uow.AddTransactionApi(
+                    dbContextName,
+                    new EfCoreTransactionApi(
+                        dbTransaction
+                    )
+                );
+            }
+
+            return dbContext;
         }
 
-        private TDbContext CreateDbContext()
+        private IUnitOfWork CreateUnitOfWork()
         {
-            return _serviceProvider.GetRequiredService<TDbContext>();
+            var scope = _serviceScopeFactory.CreateScope();
+            var uow = ActivatorUtilities.CreateInstance<DefaultUnitOfWork>(scope.ServiceProvider);
+            uow.Initialize(new UnitOfWorkOptions());
+            return uow;
         }
     }
 }

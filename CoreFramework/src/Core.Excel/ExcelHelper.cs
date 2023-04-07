@@ -1,5 +1,8 @@
 ﻿using OfficeOpenXml;
-using System.Reflection;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 
 namespace Core.Excel
 {
@@ -13,77 +16,72 @@ namespace Core.Excel
         /// <param name="sheetName">sheet名字</param>
         /// <returns></returns>
         public static MemoryStream GetExcelMemoryStreams<T>(this IList<T> sources, string sheetName = "sheet1")
+        where T : class
         {
-            var ms = new MemoryStream();
-            if (sources.Any())
-            {
-                ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-                using var package = new ExcelPackage();
-                var sheet = package.Workbook.Worksheets.Add(sheetName);
+            var columns = ExcelColumnExtensions.GetExportColumns<T>();
+            return GetExcelMemoryStreams(sources, columns, sheetName);
+        }
 
-                //获取传入的数据类型
-                var propertiesList = GetPropertyInfos<T>();
-                for (var row = 1; row <= sources.Count + 1; row++)
-                {
-                    var index = 1;
-                    for (var cl = 1; cl <= propertiesList.Length; cl++)
-                    {
-                        //获取备注名字
-                        var hasDisplayName = propertiesList[cl - 1].TryGetExportExcelColumnDisplayName(out var displayName);
-                        //判断字段是否有自定义属性
-                        if (!hasDisplayName) continue;
-                        if (row == 1) //设置表头
-                            sheet.Cells[row, index].Value = displayName;
-                        else
-                        {
-                            //获取字段名字
-                            var name = propertiesList[cl - 1].Name;
-                            //获取对应的值
-                            var value = sources[row - 2]?.GetType().GetProperty(name)?.GetValue(sources[row - 2])?.ToString();
-                            sheet.Cells[row, index].Value = value;
-                        }
-                        index++;
-                    }
-                }
-                //设置Excel列宽
-                sheet.Cells.AutoFitColumns(1.5);
-                package.SaveAs(ms);
-                ms.Position = 0;
-            }
-            else
+        /// <summary>
+        /// 传入数据，返回Excel流文件
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="sources">数据源</param>
+        /// <param name="columns"></param>
+        /// <param name="sheetName">sheet名字</param>
+        /// <returns></returns>
+        public static MemoryStream GetExcelMemoryStreams<T>(this IList<T> sources, IList<ExcelColumn> columns, string sheetName = "sheet1")
+        {
+            if (sources == null || !sources.Any())
+            {
                 throw new Exception($"{sheetName}暂无数据！");
+            }
+
+            if (columns == null || !columns.Any())
+            {
+                throw new Exception($"{sheetName}暂无数据！");
+            }
+
+            columns = columns
+                .OrderBy(p => p.Order)
+                .ToList();
+
+            var ms = new MemoryStream();
+
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+            using var package = new ExcelPackage();
+            var sheet = package.Workbook.Worksheets.Add(sheetName);
+
+            for (var row = 1; row <= sources.Count + 1; row++)
+            {
+                var index = 1;
+                for (var cl = 1; cl <= columns.Count; cl++)
+                {
+                    if (row == 1) //设置表头
+                    {
+                        sheet.Cells[row, index].Value = columns[cl - 1].DisplayName;
+                    }
+                    else
+                    {
+                        var excelCellStyle = columns[cl - 1].CellStyle;
+                        sheet.Cells[row, index].Style.HorizontalAlignment = excelCellStyle.HorizontalAlignment;
+                        sheet.Cells[row, index].Style.Numberformat.Format = excelCellStyle.NumberFormat;
+
+                        //获取字段名字
+                        var name = columns[cl - 1].Name;
+                        //获取对应的值
+                        var value = sources[row - 2]?.GetType().GetProperty(name)?.GetValue(sources[row - 2]);
+                        sheet.Cells[row, index].Value = value;
+                    }
+                    index++;
+                }
+            }
+            //设置Excel列宽
+            sheet.Cells.AutoFitColumns(1.5);
+            package.SaveAs(ms);
+            ms.Position = 0;
 
             return ms;
-        }
-
-
-        public static PropertyInfo[] GetPropertyInfos<T>()
-        {
-            var propertyInfoList = new List<PropertyInfoWrapper>();
-            var propertiesList = typeof(T).GetProperties();
-            foreach (var propertyInfo in propertiesList)
-            {
-                propertyInfoList.Add(new PropertyInfoWrapper(propertyInfo));
-            }
-
-            return propertyInfoList
-                .OrderBy(p => p.Order)
-                .Select(p => p.PropertyInfo)
-                .ToArray();
-        }
-    }
-
-    public struct PropertyInfoWrapper
-    {
-        public PropertyInfo PropertyInfo { get; }
-
-        public int Order { get; }
-
-        public PropertyInfoWrapper(PropertyInfo propertyInfo)
-        {
-            PropertyInfo = propertyInfo;
-            propertyInfo.TryGetExportExcelColumnOrder(out var order);
-            Order = order;
         }
     }
 }

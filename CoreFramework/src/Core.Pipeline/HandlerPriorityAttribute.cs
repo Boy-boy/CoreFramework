@@ -1,16 +1,16 @@
 ﻿namespace Core.Pipeline
 {
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
-    public class PipelinePriorityAttribute : Attribute
+    public class HandlerPriorityAttribute : Attribute
     {
         public virtual int Priority { get; }
 
-        public PipelinePriorityAttribute()
+        public HandlerPriorityAttribute()
         : this(0)
         {
         }
 
-        public PipelinePriorityAttribute(int priority)
+        public HandlerPriorityAttribute(int priority)
         {
             Priority = priority;
         }
@@ -28,19 +28,19 @@
             }
             var pipelineMethods = pipelineHandlerType
                 .GetMethods()
-                .Where(x => x.Name == "InvokeAsync");
+                .Where(x => x.Name == "HandleAsync");
             foreach (var method in pipelineMethods)
             {
                 var methodParameterTypes = method.GetParameters().Select(x => x.ParameterType).ToArray();
-                if (methodParameterTypes.Length != 2 || messageType != methodParameterTypes[0] || typeof(RequestHandlerDelegate) != methodParameterTypes[1])
+                if (methodParameterTypes.Length != 2 || messageType != methodParameterTypes[0] || typeof(CancellationToken) != methodParameterTypes[1])
                     continue;
-                var methodPriorityAttribute = method.GetCustomAttributes(true).OfType<PipelinePriorityAttribute>().FirstOrDefault();
+                var methodPriorityAttribute = method.GetCustomAttributes(true).OfType<HandlerPriorityAttribute>().FirstOrDefault();
                 if (methodPriorityAttribute != null)
                 {
                     return methodPriorityAttribute.Priority;
                 }
             }
-            return pipelineHandlerType.GetCustomAttributes(true).OfType<PipelinePriorityAttribute>().FirstOrDefault()?.Priority ?? 0;
+            return pipelineHandlerType.GetCustomAttributes(true).OfType<HandlerPriorityAttribute>().FirstOrDefault()?.Priority ?? 0;
         }
     }
 }

@@ -4,7 +4,7 @@
     {
         public IPipelineBuilder CreateBuilder()
         {
-            return new RequestPipelineBuilder();
+            return new DefaultPipelineBuilder();
         }
     }
 }

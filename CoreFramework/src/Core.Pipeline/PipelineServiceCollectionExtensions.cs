@@ -11,47 +11,68 @@ namespace Microsoft.Extensions.DependencyInjection
             if (services == null)
                 throw new ArgumentNullException(nameof(services));
 
-            services.TryAddScoped(typeof(IPipelineProvider), typeof(DefaultPipelineProvider));
             services.TryAddSingleton(typeof(IPipelineBuilderFactory), typeof(DefaultPipelineBuilderFactory));
+            services.TryAddTransient(typeof(IPipelineProvider), typeof(DefaultPipelineProvider));
+            services.AddTransient(typeof(IPipeline<>), typeof(RequestPrePipeline<>));
+            services.AddTransient(typeof(IPipeline<>), typeof(RequestProPipeline<>));
 
-            services.RegistrarPipeline(assemblies);
+            services.RegistrarClass(assemblies);
             return services;
         }
 
-        private static void RegistrarPipeline(this IServiceCollection services, params Assembly[] assemblies)
+        private static void RegistrarClass(this IServiceCollection services, params Assembly[] assemblies)
         {
             if (assemblies == null)
                 return;
 
-            var handlerTypes = GetPipelineTypes(assemblies);
-            foreach (var handlerType in handlerTypes)
+            var typeArray = new[]
             {
-                var baseHandlerTypes = GetBasePipelineTypes(handlerType);
-                foreach (var baseHandlerType in baseHandlerTypes)
+                typeof(IPipeline<>),
+                typeof(IRequestHandler<>),
+                typeof(IRequestPreHandler<>),
+                typeof(IRequestProHandler<>),
+            };
+            foreach (var type in typeArray)
+            {
+                services.RegistrarClass(type, assemblies);
+            }
+        }
+
+        private static void RegistrarClass(this IServiceCollection services, Type parentType, params Assembly[] assemblies)
+        {
+            if (assemblies == null)
+                return;
+
+            var registerTypes = GetRegisterTypes(parentType, assemblies);
+            foreach (var registerType in registerTypes)
+            {
+                var baseRegisterTypes = GetBaseRegisterTypes(parentType, registerType);
+                foreach (var baseRegisterType in baseRegisterTypes)
                 {
-                    services.AddTransient(baseHandlerType, handlerType);
-                    services.AddTransient(handlerType);
+                    services.AddTransient(baseRegisterType, registerType);
+                    services.AddTransient(registerType);
                 }
             }
         }
 
-        public static IEnumerable<Type> GetPipelineTypes(params Assembly[] assemblies)
+        public static IEnumerable<Type> GetRegisterTypes(Type parentType, params Assembly[] assemblies)
         {
             if (assemblies == null || assemblies.Length == 0)
                 return new List<Type>();
             return assemblies.SelectMany(a => a.DefinedTypes)
-                .Where(t => typeof(IPipeline).GetTypeInfo().IsAssignableFrom(t))
+                .Where(t => t.GetInterfaces().Any(f => f.IsGenericType && f.GetGenericTypeDefinition() == parentType))
                 .ToList();
         }
 
-        public static IEnumerable<Type> GetBasePipelineTypes(Type handlerType)
+        public static IEnumerable<Type> GetBaseRegisterTypes(Type parentType, Type registerType)
         {
-            var baseHandlerTypes = handlerType
+            var baseRegisterTypes = registerType
                 .GetInterfaces()
                 .Where(t =>
-                    t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IPipeline<>));
-            baseHandlerTypes = baseHandlerTypes.Distinct();
-            return baseHandlerTypes;
+                    t.IsGenericType && t.GetGenericTypeDefinition() == parentType);
+            baseRegisterTypes = baseRegisterTypes.Distinct();
+            return baseRegisterTypes;
         }
+
     }
 }

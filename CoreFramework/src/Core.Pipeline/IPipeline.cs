@@ -7,6 +7,6 @@
 
     public interface IPipeline<in TRequest> : IPipeline where TRequest : IRequest
     {
-        Task InvokeAsync(TRequest request, RequestHandlerDelegate next);
+        Task InvokeAsync(TRequest request, RequestPipelineDelegate next, CancellationToken cancellationToken = default);
     }
 }

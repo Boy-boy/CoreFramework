@@ -2,6 +2,6 @@
 {
     public interface IPipelineProvider
     {
-        RequestHandlerDelegate Get<TRequest>() where TRequest : IRequest;
+        RequestPipelineDelegate Get<TRequest>() where TRequest : IRequest;
     }
 }

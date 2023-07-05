@@ -4,6 +4,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace Test
 {
@@ -14,34 +15,63 @@ namespace Test
         public void TestMethod1()
         {
             var pipeline = ServiceProvider.GetRequiredService<IPipelineProvider>();
-            pipeline.Get<PipelineModel>()(new PipelineModel());
+            pipeline.Get<PipelineModel>()(new PipelineModel(), default);
         }
     }
 
-    public class FistPipeline : IPipeline<PipelineModel>
+    public class PipelineHandler : IPipeline<PipelineModel>
     {
-        public async Task InvokeAsync(PipelineModel request, RequestHandlerDelegate next)
+        public async Task InvokeAsync(PipelineModel request, RequestPipelineDelegate next, CancellationToken cancellationToken = default)
+        {
+            Console.WriteLine("自定义管道");
+            await next(request, cancellationToken);
+        }
+    }
+
+    public class PreRequestHandler : IRequestPreHandler<PipelineModel>
+    {
+        public async Task HandleAsync(PipelineModel request, CancellationToken cancellationToken)
+        {
+            Console.WriteLine("第一个管道执行处理器");
+            await Task.CompletedTask;
+        }
+    }
+
+    public class ProRequestHandler : IRequestProHandler<PipelineModel>
+    {
+        public async Task HandleAsync(PipelineModel request, CancellationToken cancellationToken)
+        {
+            Console.WriteLine("最后管道执行处理器");
+            await Task.CompletedTask;
+        }
+
+    }
+
+    public class FistRequestHandler : IRequestHandler<PipelineModel>
+    {
+        public async Task HandleAsync(PipelineModel request, CancellationToken cancellationToken)
         {
             Console.WriteLine("第一个管道处理器");
-            await next(request);
+            await Task.CompletedTask;
         }
+
     }
 
-    public class TwoPipeline : IPipeline<PipelineModel>
+    public class TwoRequestHandler : IRequestHandler<PipelineModel>
     {
-        public async Task InvokeAsync(PipelineModel request, RequestHandlerDelegate next)
+        public async Task HandleAsync(PipelineModel request, CancellationToken cancellationToken)
         {
             Console.WriteLine("第二个管道处理器");
-            await next(request);
+            await Task.CompletedTask;
         }
     }
 
-    public class ThreePipeline : IPipeline<PipelineModel>
+    public class ThreeRequestHandler : IRequestHandler<PipelineModel>
     {
-        public async Task InvokeAsync(PipelineModel request, RequestHandlerDelegate next)
+        public async Task HandleAsync(PipelineModel request, CancellationToken cancellationToken)
         {
             Console.WriteLine("第三个管道处理器");
-            await next(request);
+            await Task.CompletedTask;
         }
     }
 

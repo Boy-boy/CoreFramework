@@ -2,8 +2,8 @@
 {
     public interface IPipelineBuilder
     {
-        IPipelineBuilder Use(Func<RequestHandlerDelegate, RequestHandlerDelegate> middleware);
+        IPipelineBuilder Use(Func<RequestPipelineDelegate, RequestPipelineDelegate> middleware);
 
-        RequestHandlerDelegate Build();
+        RequestPipelineDelegate Build();
     }
 }

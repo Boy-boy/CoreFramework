@@ -11,7 +11,7 @@ namespace Microsoft.Extensions.DependencyInjection
             if (services == null)
                 throw new ArgumentNullException(nameof(services));
 
-            services.TryAddSingleton(typeof(IPipelineProvider), typeof(DefaultPipelineProvider));
+            services.TryAddScoped(typeof(IPipelineProvider), typeof(DefaultPipelineProvider));
             services.TryAddSingleton(typeof(IPipelineBuilderFactory), typeof(DefaultPipelineBuilderFactory));
 
             services.RegistrarPipeline(assemblies);

@@ -14,7 +14,7 @@ namespace Core.Infrastructure.Recursive
 
         public RecursiveModelDescriptor(T instance)
         {
-            Instance = instance ?? throw new ArgumentNullException(nameof(instance)); ;
+            Instance = instance ?? throw new ArgumentNullException(nameof(instance));
             _nodes = new List<RecursiveModelDescriptor<T>>();
         }
 

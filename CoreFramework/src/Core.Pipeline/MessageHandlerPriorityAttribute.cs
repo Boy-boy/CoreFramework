@@ -1,6 +1,4 @@
-﻿using System.Reflection;
-
-namespace Core.Pipeline
+﻿namespace Core.Pipeline
 {
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
     public class PipelinePriorityAttribute : Attribute
@@ -8,7 +6,7 @@ namespace Core.Pipeline
         public virtual int Priority { get; }
 
         public PipelinePriorityAttribute()
-        : this(int.MaxValue)
+        : this(0)
         {
         }
 
@@ -17,8 +15,13 @@ namespace Core.Pipeline
             Priority = priority;
         }
 
-        public static int GetPriority(Type pipelineHandlerType)
+        public static int GetPriority(Type messageType, Type pipelineHandlerType)
         {
+            if (messageType == null)
+            {
+                throw new ArgumentNullException(nameof(messageType));
+            }
+
             if (pipelineHandlerType == null)
             {
                 throw new ArgumentNullException(nameof(pipelineHandlerType));
@@ -29,14 +32,15 @@ namespace Core.Pipeline
             foreach (var method in pipelineMethods)
             {
                 var methodParameterTypes = method.GetParameters().Select(x => x.ParameterType).ToArray();
-                if (methodParameterTypes.Length != 2 || !typeof(IRequest).GetTypeInfo().IsAssignableFrom(methodParameterTypes[0]) || methodParameterTypes[1].FullName != "Core.Pipeline.RequestHandlerDelegate") continue;
-                var methodPriorityAttributes = method.GetCustomAttributes(true).OfType<PipelinePriorityAttribute>().ToList();
-                if (methodPriorityAttributes.Any())
+                if (methodParameterTypes.Length != 2 || messageType != methodParameterTypes[0] || typeof(RequestHandlerDelegate) != methodParameterTypes[1])
+                    continue;
+                var methodPriorityAttribute = method.GetCustomAttributes(true).OfType<PipelinePriorityAttribute>().FirstOrDefault();
+                if (methodPriorityAttribute != null)
                 {
-                    return methodPriorityAttributes.First().Priority;
+                    return methodPriorityAttribute.Priority;
                 }
             }
-            return pipelineHandlerType.GetCustomAttributes(true).OfType<PipelinePriorityAttribute>().FirstOrDefault()?.Priority ?? int.MaxValue;
+            return pipelineHandlerType.GetCustomAttributes(true).OfType<PipelinePriorityAttribute>().FirstOrDefault()?.Priority ?? 0;
         }
     }
 }

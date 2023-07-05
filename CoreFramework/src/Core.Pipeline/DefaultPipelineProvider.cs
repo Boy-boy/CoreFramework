@@ -30,7 +30,7 @@ namespace Core.Pipeline
             {
                 var pipelines = _serviceProvider.GetRequiredService<IEnumerable<IPipeline<TRequest>>>();
 
-                pipelines = pipelines.OrderBy(pipeline => PipelinePriorityAttribute.GetPriority(pipeline.GetType()));
+                pipelines = pipelines.OrderBy(pipeline => PipelinePriorityAttribute.GetPriority(typeof(TRequest), pipeline.GetType()));
 
                 var pipelineBuilder = _pipelineBuilderFactory.CreateBuilder();
 

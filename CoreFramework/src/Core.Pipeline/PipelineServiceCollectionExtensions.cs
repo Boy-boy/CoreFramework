@@ -14,6 +14,7 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton(typeof(IPipelineBuilderFactory), typeof(DefaultPipelineBuilderFactory));
             services.TryAddTransient(typeof(IPipelineProvider), typeof(DefaultPipelineProvider));
             services.AddTransient(typeof(IPipeline<>), typeof(RequestPrePipeline<>));
+            services.AddTransient(typeof(IPipeline<>), typeof(RequestHandlerPipeline<>));
             services.AddTransient(typeof(IPipeline<>), typeof(RequestProPipeline<>));
 
             services.RegistrarClass(assemblies);
@@ -27,7 +28,6 @@ namespace Microsoft.Extensions.DependencyInjection
 
             var typeArray = new[]
             {
-                typeof(IPipeline<>),
                 typeof(IRequestHandler<>),
                 typeof(IRequestPreHandler<>),
                 typeof(IRequestProHandler<>),

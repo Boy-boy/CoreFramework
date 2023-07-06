@@ -19,15 +19,6 @@ namespace Test
         }
     }
 
-    public class PipelineHandler : IPipeline<PipelineModel>
-    {
-        public async Task InvokeAsync(PipelineModel request, RequestPipelineDelegate next, CancellationToken cancellationToken = default)
-        {
-            Console.WriteLine("自定义管道");
-            await next(request, cancellationToken);
-        }
-    }
-
     public class PreRequestHandler : IRequestPreHandler<PipelineModel>
     {
         public async Task HandleAsync(PipelineModel request, CancellationToken cancellationToken)
@@ -35,16 +26,6 @@ namespace Test
             Console.WriteLine("第一个管道执行处理器");
             await Task.CompletedTask;
         }
-    }
-
-    public class ProRequestHandler : IRequestProHandler<PipelineModel>
-    {
-        public async Task HandleAsync(PipelineModel request, CancellationToken cancellationToken)
-        {
-            Console.WriteLine("最后管道执行处理器");
-            await Task.CompletedTask;
-        }
-
     }
 
     public class FistRequestHandler : IRequestHandler<PipelineModel>
@@ -73,6 +54,16 @@ namespace Test
             Console.WriteLine("第三个管道处理器");
             await Task.CompletedTask;
         }
+    }
+
+    public class ProRequestHandler : IRequestProHandler<PipelineModel>
+    {
+        public async Task HandleAsync(PipelineModel request, CancellationToken cancellationToken)
+        {
+            Console.WriteLine("最后一个管道执行处理器");
+            await Task.CompletedTask;
+        }
+
     }
 
     public class PipelineModel : IRequest

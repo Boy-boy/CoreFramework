@@ -4,7 +4,7 @@
     {
     }
 
-    public interface IRequestProHandler<in TRequest> : IRequestHandler
+    public interface IRequestProHandler<in TRequest> : IRequestProHandler
     where TRequest : IRequest
     {
         Task HandleAsync(TRequest request, CancellationToken cancellationToken);

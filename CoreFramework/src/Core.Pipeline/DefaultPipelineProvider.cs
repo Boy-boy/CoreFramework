@@ -22,41 +22,35 @@ namespace Core.Pipeline
 
         public RequestPipelineDelegate Get<TRequest>() where TRequest : IRequest
         {
+            return BuildPipeline<TRequest>();
+        }
+
+        private RequestPipelineDelegate BuildPipeline<TRequest>() where TRequest : IRequest
+        {
             if (_requestHandlerDelegates.TryGetValue(typeof(TRequest), out var handlerDelegate))
                 return handlerDelegate;
 
             lock (_handlerLock)
             {
-                var requestHandlers = _serviceProvider.GetRequiredService<IEnumerable<IRequestHandler<TRequest>>>();
-                var handlerPipeline = new RequestHandlerPipeline<TRequest>(requestHandlers);
-                return BuildPipeline(handlerPipeline);
-            }
-        }
+                var pipelines = _serviceProvider.GetRequiredService<IEnumerable<IPipeline<TRequest>>>().ToList();
+                pipelines = pipelines.OrderBy(pipeline => PipelinePriorityAttribute.GetPriority(typeof(TRequest), pipeline.GetType())).ToList();
 
-        private RequestPipelineDelegate BuildPipeline<TRequest>(IPipeline<TRequest> handlerPipeline) where TRequest : IRequest
-        {
-            if (_requestHandlerDelegates.TryGetValue(typeof(TRequest), out var handlerDelegate))
-                return handlerDelegate;
+                var pipelineBuilder = _pipelineBuilderFactory.CreateBuilder();
 
-            var pipelines = _serviceProvider.GetRequiredService<IEnumerable<IPipeline<TRequest>>>().ToList();
-            pipelines = pipelines.Append(handlerPipeline).ToList();
-            pipelines = pipelines.OrderBy(pipeline => PipelinePriorityAttribute.GetPriority(typeof(TRequest), pipeline.GetType())).ToList();
-
-            var pipelineBuilder = _pipelineBuilderFactory.CreateBuilder();
-
-            foreach (var pipeline in pipelines)
-            {
-                pipelineBuilder.Use(next =>
+                foreach (var pipeline in pipelines)
                 {
-                    return async (req, cancellationToken) =>
+                    pipelineBuilder.Use(next =>
                     {
-                        await pipeline.InvokeAsync((TRequest)req, next, cancellationToken);
-                    };
-                });
+                        return async (req, cancellationToken) =>
+                        {
+                            await pipeline.InvokeAsync((TRequest)req, next, cancellationToken);
+                        };
+                    });
+                }
+                handlerDelegate = pipelineBuilder.Build();
+                _requestHandlerDelegates.TryAdd(typeof(TRequest), handlerDelegate);
+                return handlerDelegate;
             }
-            handlerDelegate = pipelineBuilder.Build();
-            _requestHandlerDelegates.TryAdd(typeof(TRequest), handlerDelegate);
-            return handlerDelegate;
         }
     }
 }

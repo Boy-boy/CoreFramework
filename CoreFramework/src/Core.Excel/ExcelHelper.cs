@@ -1,8 +1,4 @@
 ﻿using OfficeOpenXml;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 
 namespace Core.Excel
 {
@@ -15,11 +11,11 @@ namespace Core.Excel
         /// <param name="sources">数据源</param>
         /// <param name="sheetName">sheet名字</param>
         /// <returns></returns>
-        public static MemoryStream GetExcelMemoryStreams<T>(this IList<T> sources, string sheetName = "sheet1")
+        public static MemoryStream GetExcelStream<T>(this IList<T> sources, string sheetName = "sheet1")
         where T : class
         {
             var columns = ExcelColumnExtensions.GetExportColumns<T>();
-            return GetExcelMemoryStreams(sources, columns, sheetName);
+            return GetExcelStream(sources, columns, sheetName);
         }
 
         /// <summary>
@@ -30,7 +26,7 @@ namespace Core.Excel
         /// <param name="columns"></param>
         /// <param name="sheetName">sheet名字</param>
         /// <returns></returns>
-        public static MemoryStream GetExcelMemoryStreams<T>(this IList<T> sources, IList<ExcelColumn> columns, string sheetName = "sheet1")
+        public static MemoryStream GetExcelStream<T>(this IList<T> sources, IList<ExcelColumn> columns, string sheetName = "sheet1")
         {
             if (sources == null || !sources.Any())
             {
@@ -82,6 +78,81 @@ namespace Core.Excel
             ms.Position = 0;
 
             return ms;
+        }
+
+        /// <summary>
+        /// 传入excel流,返回IList集合
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="excelStream"></param>
+        /// <param name="sheetName"></param>
+        /// <returns></returns>
+        public static IList<T> GetExcelData<T>(this Stream excelStream, string sheetName = "sheet1")
+            where T : class, new()
+        {
+            var columns = ExcelColumnExtensions.GetExportColumns<T>();
+            return GetExcelData<T>(excelStream, columns, sheetName);
+        }
+
+        /// <summary>
+        ///  传入excel流,返回IList集合
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="excelStream"></param>
+        /// <param name="columns"></param>
+        /// <param name="sheetName"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
+        public static IList<T> GetExcelData<T>(this Stream excelStream, IList<ExcelColumn> columns, string sheetName = "sheet1")
+            where T : class, new()
+        {
+            if (excelStream == null)
+            {
+                throw new Exception($"{sheetName}暂无数据！");
+            }
+
+            if (columns == null || !columns.Any())
+            {
+                throw new Exception($"{sheetName}暂无数据！");
+            }
+
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+            using var package = new ExcelPackage(excelStream);
+            var worksheet = package.Workbook.Worksheets[sheetName];
+            var rowCount = worksheet.Dimension.Rows;
+            var colCount = worksheet.Dimension.Columns;
+
+            var result = new List<T>();
+
+            var excelColumns = new Dictionary<int, string>();
+
+            for (var col = 1; col <= colCount; col++)
+            {
+                var cellValue = worksheet.Cells[1, col].Value?.ToString() ?? "";
+                var excelColumn = columns.FirstOrDefault(c => string.Equals(c.DisplayName, cellValue, StringComparison.OrdinalIgnoreCase));
+                if (excelColumn != null)
+                {
+                    excelColumns.Add(col, excelColumn.Name);
+                }
+            }
+
+            if (!excelColumns.Any())
+                return result;
+
+            for (var row = 2; row <= rowCount; row++)
+            {
+                var data = new T();
+                for (var col = 1; col <= colCount; col++)
+                {
+                    if (!excelColumns.TryGetValue(col, out var propertyName))
+                        continue;
+
+                    var cellValue = worksheet.Cells[row, col].Value?.ToString() ?? "";
+                    typeof(T).GetProperty(propertyName)?.SetValue(data, cellValue);
+                }
+                result.Add(data);
+            }
+            return result;
         }
     }
 }

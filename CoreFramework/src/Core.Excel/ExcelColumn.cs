@@ -1,6 +1,6 @@
 ﻿namespace Core.Excel
 {
-    public struct ExcelColumn
+    public class ExcelColumn
     {
         public ExcelColumn(string name, string displayName, int order, ExcelCellStyle cellStyle)
         {

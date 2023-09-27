@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Security.Claims;
@@ -38,15 +37,7 @@ namespace Core.Authentication.ThirdParty.Sso.Oauth
         {
             var byteArray = Options.TicketSerializer.Serialize(new AuthenticationTicket(user, properties, Scheme.Name));
             var cookieValue = Convert.ToBase64String(_dataProtector.Protect(byteArray));
-            var cookieBuilder = new CookieBuilder()
-            {
-                Name = CookieDefault.CookieName,
-                Path = CookieDefault.CookiePath,
-                SameSite = SameSiteMode.Unspecified,
-                HttpOnly = false,
-                IsEssential = false,
-            };
-            Response.Cookies.Append(CookieDefault.CookieName, cookieValue, cookieBuilder.Build(Context));
+            Response.Cookies.Append(CookieDefault.CookieName, cookieValue, Options.CookieBuilder.Build(Context));
             await Task.CompletedTask;
         }
 

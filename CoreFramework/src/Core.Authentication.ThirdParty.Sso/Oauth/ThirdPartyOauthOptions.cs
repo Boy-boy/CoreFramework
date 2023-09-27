@@ -35,10 +35,5 @@ namespace Core.Authentication.ThirdParty.Sso.Oauth
         /// 登出scheme
         /// </summary>
         public string SignOutScheme { get; set; }
-
-        /// <summary>
-        /// 远程登出清除客户端cookie名称
-        /// </summary>
-        public string RemoteSignOutClearCookieName { get; set; }
     }
 }

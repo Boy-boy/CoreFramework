@@ -44,14 +44,12 @@ namespace Core.Authentication.ThirdParty.Sso.Oauth
 
         protected virtual async Task<bool> HandleRemoteSignOutAsync()
         {
-            if (!string.IsNullOrEmpty(Options.RemoteSignOutClearCookieName))
-            {
-                //TODO:使用SignalR通知前端删除cookie 
-                await using var scope = ServiceScopeFactory.CreateAsyncScope();
-                var serviceProvider = scope.ServiceProvider;
-                var hubContext = serviceProvider.GetRequiredService<IHubContext<SignOutNotificationHub>>();
-                await hubContext.Clients.All.SendAsync("DeleteCookie", Options.RemoteSignOutClearCookieName);
-            }
+            //TODO:使用SignalR通知前端删除cookie 
+            await using var scope = ServiceScopeFactory.CreateAsyncScope();
+            var serviceProvider = scope.ServiceProvider;
+            var hubContext = serviceProvider.GetRequiredService<IHubContext<SignOutNotificationHub>>();
+            await hubContext.Clients.All.SendAsync("OnLogout");
+
             await Context.SignOutAsync(Options.SignOutScheme);
             return true;
         }

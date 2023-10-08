@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<script src="./js/signalr/dist/browser/signalr.js"></script>
+<script>
+    const connection = new signalR.HubConnectionBuilder()
+                          .withUrl("http://127.0.0.1:31089/signOutHub")
+                          .build();
+
+    connection.start().then(function () {
+        console.log("Connected to SignalR Hub");
+    }).catch(function (err) {
+        console.error(err.toString());
+    });
+
+    connection.on("OnLogout", function () {
+        console.log("删除cookie");
+        // 使用 JavaScript 删除对应的 cookie
+        document.cookie = ".AspNetCore.ThirdParty.Cookie" + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    });
+</script>
+<h1>Hello world</h1>
+</html>

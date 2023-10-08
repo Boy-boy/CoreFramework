@@ -10,26 +10,15 @@ using System.Text.Encodings.Web;
 
 namespace Core.Authentication.ThirdParty.Sso.Oauth
 {
-    public interface IThirdPartyAuthenticationHandler
-    {
-        string BuildSignedInRedirectUri(Dictionary<string, string> @params);
-
-        string BuildSignedOutRedirectUri();
-    }
-
-    public abstract class ThirdPartyAuthenticationHandler<TOptions> : OAuthHandler<TOptions>, IThirdPartyAuthenticationHandler
+    public abstract class ThirdPartyAuthenticationHandler<TOptions> : OAuthHandler<TOptions>
         where TOptions : ThirdPartyOauthOptions, new()
     {
-        public IServiceScopeFactory ServiceScopeFactory { get; }
-
         protected ThirdPartyAuthenticationHandler(IOptionsMonitor<TOptions> options,
             ILoggerFactory logger,
             UrlEncoder encoder,
-            ISystemClock clock,
-            IServiceScopeFactory serviceScopeFactory)
+            ISystemClock clock)
             : base(options, logger, encoder, clock)
         {
-            ServiceScopeFactory = serviceScopeFactory;
         }
 
         public override Task<bool> HandleRequestAsync()
@@ -45,8 +34,7 @@ namespace Core.Authentication.ThirdParty.Sso.Oauth
         protected virtual async Task<bool> HandleRemoteSignOutAsync()
         {
             //TODO:使用SignalR通知前端删除cookie 
-            await using var scope = ServiceScopeFactory.CreateAsyncScope();
-            var serviceProvider = scope.ServiceProvider;
+            var serviceProvider = Context.RequestServices;
             var hubContext = serviceProvider.GetRequiredService<IHubContext<SignOutNotificationHub>>();
             await hubContext.Clients.All.SendAsync("OnLogout");
 

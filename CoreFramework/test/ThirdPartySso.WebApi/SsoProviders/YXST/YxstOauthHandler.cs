@@ -20,9 +20,8 @@ namespace ThirdPartySso.WebApi.SsoProviders.YXST
         public YxstOauthHandler(IOptionsMonitor<TOptions> options,
             ILoggerFactory logger,
             UrlEncoder encoder,
-            ISystemClock clock,
-            IServiceScopeFactory serviceScopeFactory)
-            : base(options, logger, encoder, clock, serviceScopeFactory)
+            ISystemClock clock)
+            : base(options, logger, encoder, clock)
         {
         }
 

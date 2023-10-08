@@ -36,6 +36,7 @@ namespace ThirdPartySso.WebApi
 
             app.UseSwagger();
             app.UseSwaggerUI();
+            app.UseStaticFiles();
             app.UseRouting();
             app.UseEndpoints(endpoints =>
             {

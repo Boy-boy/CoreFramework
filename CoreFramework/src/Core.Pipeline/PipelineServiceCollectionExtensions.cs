@@ -60,7 +60,7 @@ namespace Microsoft.Extensions.DependencyInjection
             if (assemblies == null || assemblies.Length == 0)
                 return new List<Type>();
             return assemblies.SelectMany(a => a.DefinedTypes)
-                .Where(t => t.GetInterfaces().Any(f => f.IsGenericType && f.GetGenericTypeDefinition() == parentType))
+                .Where(t => !t.IsAbstract && !t.IsInterface && t.GetInterfaces().Any(f => f.IsGenericType && f.GetGenericTypeDefinition() == parentType))
                 .ToList();
         }
 

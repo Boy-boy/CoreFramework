@@ -18,7 +18,7 @@ namespace Core.Authentication.ThirdParty.Sso
 
         public override void PostConfigureServices(ServiceCollectionContext context)
         {
-            context.Services.AddThirdPartyAuthentication(_configuration);
+            context.Services.AddThirdPartyAuthentication(_configuration.GetSection("ThirdPartyAuthentication"));
         }
 
         public override void PreConfigure(ApplicationBuilderContext context)

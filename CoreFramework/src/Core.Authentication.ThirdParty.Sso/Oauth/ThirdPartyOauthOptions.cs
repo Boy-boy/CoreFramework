@@ -9,6 +9,7 @@ namespace Core.Authentication.ThirdParty.Sso.Oauth
         {
             CallbackPath = "/signin-callback";
             RemoteSignOutPath = "/signout-callback";
+            CorrelationCookie.SameSite = SameSiteMode.Lax;
         }
 
         /// <summary>
@@ -24,7 +25,7 @@ namespace Core.Authentication.ThirdParty.Sso.Oauth
         /// <summary>
         /// 登出后重定向地址
         /// </summary>
-        public string SignedOutRedirectUri { get; set; }
+        public PathString SignedOutRedirectUri { get; set; }
 
         /// <summary>
         /// 登入后重定向地址

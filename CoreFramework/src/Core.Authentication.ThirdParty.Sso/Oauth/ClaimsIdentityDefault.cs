@@ -9,6 +9,5 @@
         public static readonly string Phone = "Phone";
 
         public static readonly string Sex = "Sex";
-
     }
 }

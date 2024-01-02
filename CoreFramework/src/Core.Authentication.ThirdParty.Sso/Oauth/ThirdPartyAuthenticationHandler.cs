@@ -1,9 +1,6 @@
-﻿using Core.Authentication.ThirdParty.Sso.Oauth.SignalR;
-using Microsoft.AspNetCore.Authentication;
+﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.OAuth;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Text.Encodings.Web;
@@ -33,11 +30,6 @@ namespace Core.Authentication.ThirdParty.Sso.Oauth
 
         protected virtual async Task<bool> HandleRemoteSignOutAsync()
         {
-            //TODO:使用SignalR通知前端删除cookie 
-            var serviceProvider = Context.RequestServices;
-            var hubContext = serviceProvider.GetRequiredService<IHubContext<SignOutNotificationHub>>();
-            await hubContext.Clients.All.SendAsync("OnLogout");
-
             await Context.SignOutAsync(Options.SignOutScheme);
             return true;
         }

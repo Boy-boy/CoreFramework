@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace Core.Authentication.ThirdParty.Sso.Oauth
 {
@@ -10,18 +10,18 @@ namespace Core.Authentication.ThirdParty.Sso.Oauth
     internal class ThirdPartyAuthenticationSignOutMiddleware
     {
         private readonly RequestDelegate _next;
-        private readonly IConfiguration _configuration;
+        private readonly ThirdPartyAuthenticationOptions _options;
 
         public ThirdPartyAuthenticationSignOutMiddleware(RequestDelegate next,
-            IConfiguration configuration)
+            IOptions<ThirdPartyAuthenticationOptions> options)
         {
             _next = next;
-            _configuration = configuration;
+            _options = options.Value;
         }
 
         public async Task Invoke(HttpContext context)
         {
-            var schemeName = _configuration.GetValue<string>("ThirdPartyAuthentication:DefaultScheme");
+            var schemeName = _options.DefaultScheme;
             if (string.IsNullOrWhiteSpace(schemeName))
             {
                 await _next(context);
@@ -34,7 +34,7 @@ namespace Core.Authentication.ThirdParty.Sso.Oauth
                 OriginalPathBase = context.Request.PathBase
             });
 
-            var signOutPath = _configuration.GetValue<string>("ThirdPartyAuthentication:SignOutPath");
+            var signOutPath = _options.SignOutPath;
             if (context.Request.Path.HasValue && context.Request.Path == signOutPath)
             {
                 await context.SignOutAsync(schemeName);

@@ -1,8 +1,7 @@
-﻿using Core.Authentication.ThirdParty.Sso.Oauth;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Core.Authentication.ThirdParty.Sso
+namespace Core.Authentication.ThirdParty.Sso.Oauth
 {
     public static class ThirdPartyAuthenticationServiceCollectionsExtensions
     {
@@ -14,9 +13,14 @@ namespace Core.Authentication.ThirdParty.Sso
             if (configuration == null)
                 throw new ArgumentNullException(nameof(configuration));
 
-            services.AddSignalR();
+            services.Configure<ThirdPartyAuthenticationOptions>(configuration);
+            services.AddHostedService<ThirdPartyAuthenticationBackgroundService>();
+
             services.AddAuthentication()
-                .AddThirdPartyCookie();
+                .AddCookie(CookieDefault.AuthenticationScheme, CookieDefault.DisplayName, options =>
+                {
+                    options.Cookie.Name = CookieDefault.CookieName;
+                });
 
             return services;
         }

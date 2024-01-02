@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Core.Authentication.ThirdParty.Sso.Oauth
 {
@@ -12,25 +12,27 @@ namespace Core.Authentication.ThirdParty.Sso.Oauth
     {
         private readonly RequestDelegate _next;
         private readonly IAuthenticationSchemeProvider _schemes;
-        private readonly IConfiguration _configuration;
+        private readonly ThirdPartyAuthenticationOptions _options;
+
 
         public ThirdPartyAuthenticationMiddleware(RequestDelegate next,
             IAuthenticationSchemeProvider schemes,
-            IConfiguration configuration)
+            IOptions<ThirdPartyAuthenticationOptions> options)
         {
             _next = next;
             _schemes = schemes;
-            _configuration = configuration;
+            _options = options.Value;
         }
 
         public async Task Invoke(HttpContext context)
         {
-            var schemeName = _configuration.GetValue<string>("ThirdPartyAuthentication:DefaultScheme");
+            var schemeName = _options.DefaultScheme;
             if (string.IsNullOrWhiteSpace(schemeName))
             {
                 await _next(context);
                 return;
             }
+
             context.Features.Set<IAuthenticationFeature>(new AuthenticationFeature
             {
                 OriginalPath = context.Request.Path,

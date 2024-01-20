@@ -1,4 +1,8 @@
-﻿namespace Core.PersistentLogging.MvcFilters.PersistentLogging
+﻿using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+
+namespace Core.PersistentLogging.MvcFilters.PersistentLogging
 {
     public class DefaultActionFilterPersistentLoggingStorageSourceProvider : IActionFilterPersistentLoggingStorageSourceProvider
     {

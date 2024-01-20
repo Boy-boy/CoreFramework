@@ -1,4 +1,7 @@
-﻿namespace Core.PersistentLogging.HttpClientFactory.PersistentLogging
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
+
+namespace Core.PersistentLogging.HttpClientFactory.PersistentLogging
 {
     public interface IHttpClientPersistentLoggingStorageSourceProvider
     {

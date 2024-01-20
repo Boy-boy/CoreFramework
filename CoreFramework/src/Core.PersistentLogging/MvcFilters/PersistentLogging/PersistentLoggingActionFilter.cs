@@ -1,4 +1,6 @@
-﻿using Core.PersistentLogging.MvcFilters.PersistentLogging.Model;
+﻿using System;
+using System.Linq;
+using Core.PersistentLogging.MvcFilters.PersistentLogging.Model;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -6,7 +8,7 @@ using Microsoft.Extensions.Options;
 
 namespace Core.PersistentLogging.MvcFilters.PersistentLogging
 {
-    public class PersistentLoggingAttribute : ActionFilterAttribute
+    public class PersistentLogAttribute : ActionFilterAttribute
     {
         public override void OnActionExecuted(ActionExecutedContext context)
         {
@@ -19,7 +21,7 @@ namespace Core.PersistentLogging.MvcFilters.PersistentLogging
                 if (storageSourceProvider == null)
                     return;
 
-                var storageSourceNames = options.StorageSources;
+                var storageSourceNames = options.StorageSources.Distinct();
                 var httpRequest = context.HttpContext.Request;
                 var httpResponse = context.HttpContext.Response;
                 var actionNameAttribute = context.Filters.FirstOrDefault(p => p.GetType() == typeof(ActionNameAttribute));
@@ -48,7 +50,7 @@ namespace Core.PersistentLogging.MvcFilters.PersistentLogging
             }
             catch (Exception e)
             {
-                var logging = services.GetRequiredService<ILogger<PersistentLoggingAttribute>>();
+                var logging = services.GetRequiredService<ILogger<PersistentLogAttribute>>();
                 logging.LogError($"请求接口-持久化接口日志失败，错误原因：{e.Message}", e);
             }
 

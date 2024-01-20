@@ -1,4 +1,7 @@
-﻿namespace Core.PersistentLogging.HttpClientFactory.PersistentLogging.Model
+﻿using System.Collections.Generic;
+using System.Net.Http;
+
+namespace Core.PersistentLogging.HttpClientFactory.PersistentLogging.Model
 {
     public class HttpResponseDto
     {

@@ -1,4 +1,6 @@
-﻿namespace Core.PersistentLogging.MvcFilters.PersistentLogging
+﻿using System.Collections.Generic;
+
+namespace Core.PersistentLogging.MvcFilters.PersistentLogging
 {
     public class ActionFilterPersistentLoggingOptions
     {

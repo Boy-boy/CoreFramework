@@ -1,6 +1,10 @@
-﻿using Core.PersistentLogging.HttpClientFactory.PersistentLogging.Model;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
+using Core.PersistentLogging.HttpClientFactory.PersistentLogging.Model;
 
 namespace Core.PersistentLogging.HttpClientFactory.PersistentLogging
 {
@@ -8,14 +12,17 @@ namespace Core.PersistentLogging.HttpClientFactory.PersistentLogging
     {
         private readonly IHttpClientPersistentLoggingStorageSourceProvider _storageSourceProvider;
         private readonly IOptionsMonitor<HttpClientPersistentLoggingOptions> _options;
+        private readonly string _name;
         private readonly ILogger _logger;
 
         public PersistentLoggingHttpMessageHandler(IHttpClientPersistentLoggingStorageSourceProvider storageSourceProvider,
             ILoggerFactory loggerFactory,
-            IOptionsMonitor<HttpClientPersistentLoggingOptions> options)
+            IOptionsMonitor<HttpClientPersistentLoggingOptions> options,
+            string name)
         {
             _storageSourceProvider = storageSourceProvider;
             _options = options;
+            _name = name;
             _logger = loggerFactory.CreateLogger<PersistentLoggingHttpMessageHandler>();
         }
 
@@ -36,22 +43,23 @@ namespace Core.PersistentLogging.HttpClientFactory.PersistentLogging
             }
             finally
             {
-                var option = _options.CurrentValue;
-                var storageSourceNames = option.StorageSources;
-
-                foreach (var storageSourceName in storageSourceNames)
+                var option = _options.Get(_name);
+                if (option.StorageSources.TryGetValue(_name, out var storageSourceNames))
                 {
-                    var storageSource = await _storageSourceProvider.GetStorageSource(storageSourceName);
-                    if (storageSource == null)
-                        continue;
-                    var model = new PersistentLoggingDto(new HttpRequestDto(request), new HttpResponseDto(response));
-
-                    if (exception != null)
+                    foreach (var storageSourceName in storageSourceNames)
                     {
-                        model.ActionExecutionException(exception);
-                    }
+                        var storageSource = await _storageSourceProvider.GetStorageSource(storageSourceName);
+                        if (storageSource == null)
+                            continue;
+                        var model = new PersistentLoggingDto(new HttpRequestDto(request), new HttpResponseDto(response));
 
-                    await storageSource.AddLog(model);
+                        if (exception != null)
+                        {
+                            model.ActionExecutionException(exception);
+                        }
+
+                        await storageSource.AddLog(model);
+                    }
                 }
             }
         }

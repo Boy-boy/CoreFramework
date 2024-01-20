@@ -1,4 +1,6 @@
-﻿namespace Core.PersistentLogging.HttpClientFactory.PersistentLogging.Model
+﻿using System;
+
+namespace Core.PersistentLogging.HttpClientFactory.PersistentLogging.Model
 {
     public class PersistentLoggingDto
     {

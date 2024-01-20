@@ -1,4 +1,6 @@
-﻿namespace Core.PersistentLogging.MvcFilters.PersistentLogging.Model
+﻿using System;
+
+namespace Core.PersistentLogging.MvcFilters.PersistentLogging.Model
 {
     public class PersistentLoggingDto
     {

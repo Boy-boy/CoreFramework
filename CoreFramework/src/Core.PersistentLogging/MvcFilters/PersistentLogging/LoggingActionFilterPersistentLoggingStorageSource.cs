@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using System.Text.Json;
+using System.Threading.Tasks;
 using Core.PersistentLogging.MvcFilters.PersistentLogging.Model;
 
 namespace Core.PersistentLogging.MvcFilters.PersistentLogging

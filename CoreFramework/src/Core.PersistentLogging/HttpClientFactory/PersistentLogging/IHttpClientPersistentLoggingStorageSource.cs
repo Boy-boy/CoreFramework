@@ -1,4 +1,5 @@
-﻿using Core.PersistentLogging.HttpClientFactory.PersistentLogging.Model;
+﻿using System.Threading.Tasks;
+using Core.PersistentLogging.HttpClientFactory.PersistentLogging.Model;
 
 namespace Core.PersistentLogging.HttpClientFactory.PersistentLogging
 {

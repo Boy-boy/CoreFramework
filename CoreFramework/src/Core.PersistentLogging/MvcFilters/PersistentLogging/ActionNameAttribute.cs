@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc.Filters;
+﻿using System;
+using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace Core.PersistentLogging.MvcFilters.PersistentLogging
 {
@@ -8,6 +9,6 @@ namespace Core.PersistentLogging.MvcFilters.PersistentLogging
         {
             Name = name;
         }
-        public string Name { get; set; }
+        public string Name { get; }
     }
 }

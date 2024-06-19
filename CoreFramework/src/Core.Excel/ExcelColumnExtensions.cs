@@ -1,5 +1,4 @@
-﻿using OfficeOpenXml.Style;
-using System.Collections.Generic;
+﻿using System.Drawing;
 
 namespace Core.Excel
 {
@@ -8,6 +7,17 @@ namespace Core.Excel
         public static List<ExcelColumn> GetExportColumns<T>()
         where T : class
         {
+            var headStyleAttribute = typeof(T).TryGetExcelCellStyleAttribute();
+            var headCellStyle = new ExcelCellStyle
+            {
+                HorizontalAlignment = headStyleAttribute?.HorizontalAlignment,
+                FontSize = headStyleAttribute?.FontSize,
+                BackgroundColor = headStyleAttribute == null
+                    ? null
+                    : Color.FromKnownColor(headStyleAttribute.BackgroundColor),
+                NumberFormat = headStyleAttribute?.NumberFormat
+            };
+
             var properties = typeof(T).GetProperties();
 
             var columns = new List<ExcelColumn>();
@@ -24,9 +34,17 @@ namespace Core.Excel
                 propertyInfo.TryGetExportExcelColumnOrder(out var order);
 
                 var cellStyleAttribute = propertyInfo.TryGetExcelCellStyleAttribute();
-                var cellStyle = new ExcelCellStyle(cellStyleAttribute?.NumberFormat, cellStyleAttribute?.HorizontalAlignment ?? ExcelHorizontalAlignment.Left);
+                var contentCellStyle = new ExcelCellStyle
+                {
+                    HorizontalAlignment = cellStyleAttribute?.HorizontalAlignment,
+                    FontSize = cellStyleAttribute?.FontSize,
+                    BackgroundColor = cellStyleAttribute == null
+                        ? null
+                        : Color.FromKnownColor(cellStyleAttribute.BackgroundColor),
+                    NumberFormat = cellStyleAttribute?.NumberFormat
+                };
 
-                columns.Add(new ExcelColumn(propertyName, displayName, order, cellStyle));
+                columns.Add(new ExcelColumn(propertyName, displayName, order, headCellStyle, contentCellStyle));
             }
             return columns;
         }

@@ -2,11 +2,13 @@
 
 	<PropertyGroup>
 		<TargetFramework>net6.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>disable</Nullable>
 		<LangVersion>latest</LangVersion>
-		<PackageProjectUrl>https://github.com/Boy-boy/CoreFramework</PackageProjectUrl>
-		<Version>3.1.9.12</Version>
+		<Version>6.0.0</Version>
 		<Authors>gaobo</Authors>
 		<Description>asp net core basic framework</Description>
+		<PackageProjectUrl>https://github.com/Boy-boy/CoreFramework</PackageProjectUrl>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 	</PropertyGroup>
 

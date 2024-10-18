@@ -1,12 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
-    <Version>3.1.9.12</Version>
-    <Authors>gaobo</Authors>
-    <Description>asp net core basic framework</Description>
-    <Product>Core.ElasticSearch</Product>
-    <PackageProjectUrl>https://github.com/Boy-boy/CoreFramework</PackageProjectUrl>
+	  <TargetFramework>net6.0</TargetFramework>
+	  <ImplicitUsings>enable</ImplicitUsings>
+	  <Nullable>disable</Nullable>
+	  <LangVersion>latest</LangVersion>
+	  <Version>6.0.0</Version>
+	  <Authors>gaobo</Authors>
+	  <Description>asp net core basic framework</Description>
+	  <PackageProjectUrl>https://github.com/Boy-boy/CoreFramework</PackageProjectUrl>
+	  <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>

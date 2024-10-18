@@ -1,122 +1,125 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
-    <Version>3.1.9.16</Version>
-    <Authors>gaobo</Authors>
-    <Description>asp net core basic framework</Description>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/Boy-boy/CoreFramework</PackageProjectUrl>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net6.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>disable</Nullable>
+		<LangVersion>latest</LangVersion>
+		<Version>6.0.0</Version>
+		<Authors>gaobo</Authors>
+		<Description>asp net core basic framework</Description>
+		<PackageProjectUrl>https://github.com/Boy-boy/CoreFramework</PackageProjectUrl>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <None Remove="wwwroot\dist\css\chunk-1939524c.e374acd7.css" />
-    <None Remove="wwwroot\dist\css\chunk-3b55dc7e.3fa8276e.css" />
-    <None Remove="wwwroot\dist\css\chunk-7381cc8c.f3976377.css" />
-    <None Remove="wwwroot\dist\css\chunk-7592249c.200fdbc3.css" />
-    <None Remove="wwwroot\dist\css\chunk-7a1d0272.59c183eb.css" />
-    <None Remove="wwwroot\dist\css\chunk-7af68eda.af8c3925.css" />
-    <None Remove="wwwroot\dist\css\chunk-7c518a68.587716c5.css" />
-    <None Remove="wwwroot\dist\css\chunk-a5f2b902.11c50a80.css" />
-    <None Remove="wwwroot\dist\css\chunk-c1fb19f0.8e29003d.css" />
-    <None Remove="wwwroot\dist\css\chunk-de3d7390.fa808e46.css" />
-    <None Remove="wwwroot\dist\css\chunk-vendors.230de3f5.css" />
-    <None Remove="wwwroot\dist\css\chunk-vendors.230de3f5.css.gz" />
-    <None Remove="wwwroot\dist\css\index.cdb09893.css" />
-    <None Remove="wwwroot\dist\favicon.ico" />
-    <None Remove="wwwroot\dist\img\boxShadow.51818d84.png" />
-    <None Remove="wwwroot\dist\img\login_bg.993b9c92.png" />
-    <None Remove="wwwroot\dist\img\login_footer.0402bdb6.png" />
-    <None Remove="wwwroot\dist\img\logoTitleNew.201b37cb.png" />
-    <None Remove="wwwroot\dist\img\pieBg.c69b4de0.c69b4de0.png" />
-    <None Remove="wwwroot\dist\index.html" />
-    <None Remove="wwwroot\dist\js\chunk-1939524c.329bb04a.js" />
-    <None Remove="wwwroot\dist\js\chunk-1939524c.329bb04a.js.gz" />
-    <None Remove="wwwroot\dist\js\chunk-3b55dc7e.dc8c010e.js" />
-    <None Remove="wwwroot\dist\js\chunk-3b55dc7e.dc8c010e.js.gz" />
-    <None Remove="wwwroot\dist\js\chunk-7381cc8c.6bde186b.js" />
-    <None Remove="wwwroot\dist\js\chunk-7381cc8c.6bde186b.js.gz" />
-    <None Remove="wwwroot\dist\js\chunk-7592249c.311b35c7.js" />
-    <None Remove="wwwroot\dist\js\chunk-7592249c.311b35c7.js.gz" />
-    <None Remove="wwwroot\dist\js\chunk-7a1d0272.f5a9e99f.js" />
-    <None Remove="wwwroot\dist\js\chunk-7af68eda.f77c397f.js" />
-    <None Remove="wwwroot\dist\js\chunk-7af68eda.f77c397f.js.gz" />
-    <None Remove="wwwroot\dist\js\chunk-7c518a68.90291691.js" />
-    <None Remove="wwwroot\dist\js\chunk-7c518a68.90291691.js.gz" />
-    <None Remove="wwwroot\dist\js\chunk-a5f2b902.b6ea9744.js" />
-    <None Remove="wwwroot\dist\js\chunk-a5f2b902.b6ea9744.js.gz" />
-    <None Remove="wwwroot\dist\js\chunk-c1fb19f0.dac6ed4e.js" />
-    <None Remove="wwwroot\dist\js\chunk-c1fb19f0.dac6ed4e.js.gz" />
-    <None Remove="wwwroot\dist\js\chunk-de3d7390.eae09dc8.js" />
-    <None Remove="wwwroot\dist\js\chunk-vendors.2317c5e0.js" />
-    <None Remove="wwwroot\dist\js\chunk-vendors.2317c5e0.js.gz" />
-    <None Remove="wwwroot\dist\js\index.81715ba9.js" />
-    <None Remove="wwwroot\dist\js\index.81715ba9.js.gz" />
-    <None Remove="wwwroot\dist\lang\en.json" />
-    <None Remove="wwwroot\dist\lang\zh.json" />
-    <None Remove="wwwroot\dist\static\business.js" />
-    <None Remove="wwwroot\dist\static\config.js" />
-  </ItemGroup>
+	<ItemGroup>
+		<None Remove="wwwroot\dist\css\chunk-1939524c.e374acd7.css" />
+		<None Remove="wwwroot\dist\css\chunk-3b55dc7e.3fa8276e.css" />
+		<None Remove="wwwroot\dist\css\chunk-7381cc8c.f3976377.css" />
+		<None Remove="wwwroot\dist\css\chunk-7592249c.200fdbc3.css" />
+		<None Remove="wwwroot\dist\css\chunk-7a1d0272.59c183eb.css" />
+		<None Remove="wwwroot\dist\css\chunk-7af68eda.af8c3925.css" />
+		<None Remove="wwwroot\dist\css\chunk-7c518a68.587716c5.css" />
+		<None Remove="wwwroot\dist\css\chunk-a5f2b902.11c50a80.css" />
+		<None Remove="wwwroot\dist\css\chunk-c1fb19f0.8e29003d.css" />
+		<None Remove="wwwroot\dist\css\chunk-de3d7390.fa808e46.css" />
+		<None Remove="wwwroot\dist\css\chunk-vendors.230de3f5.css" />
+		<None Remove="wwwroot\dist\css\chunk-vendors.230de3f5.css.gz" />
+		<None Remove="wwwroot\dist\css\index.cdb09893.css" />
+		<None Remove="wwwroot\dist\favicon.ico" />
+		<None Remove="wwwroot\dist\img\boxShadow.51818d84.png" />
+		<None Remove="wwwroot\dist\img\login_bg.993b9c92.png" />
+		<None Remove="wwwroot\dist\img\login_footer.0402bdb6.png" />
+		<None Remove="wwwroot\dist\img\logoTitleNew.201b37cb.png" />
+		<None Remove="wwwroot\dist\img\pieBg.c69b4de0.c69b4de0.png" />
+		<None Remove="wwwroot\dist\index.html" />
+		<None Remove="wwwroot\dist\js\chunk-1939524c.329bb04a.js" />
+		<None Remove="wwwroot\dist\js\chunk-1939524c.329bb04a.js.gz" />
+		<None Remove="wwwroot\dist\js\chunk-3b55dc7e.dc8c010e.js" />
+		<None Remove="wwwroot\dist\js\chunk-3b55dc7e.dc8c010e.js.gz" />
+		<None Remove="wwwroot\dist\js\chunk-7381cc8c.6bde186b.js" />
+		<None Remove="wwwroot\dist\js\chunk-7381cc8c.6bde186b.js.gz" />
+		<None Remove="wwwroot\dist\js\chunk-7592249c.311b35c7.js" />
+		<None Remove="wwwroot\dist\js\chunk-7592249c.311b35c7.js.gz" />
+		<None Remove="wwwroot\dist\js\chunk-7a1d0272.f5a9e99f.js" />
+		<None Remove="wwwroot\dist\js\chunk-7af68eda.f77c397f.js" />
+		<None Remove="wwwroot\dist\js\chunk-7af68eda.f77c397f.js.gz" />
+		<None Remove="wwwroot\dist\js\chunk-7c518a68.90291691.js" />
+		<None Remove="wwwroot\dist\js\chunk-7c518a68.90291691.js.gz" />
+		<None Remove="wwwroot\dist\js\chunk-a5f2b902.b6ea9744.js" />
+		<None Remove="wwwroot\dist\js\chunk-a5f2b902.b6ea9744.js.gz" />
+		<None Remove="wwwroot\dist\js\chunk-c1fb19f0.dac6ed4e.js" />
+		<None Remove="wwwroot\dist\js\chunk-c1fb19f0.dac6ed4e.js.gz" />
+		<None Remove="wwwroot\dist\js\chunk-de3d7390.eae09dc8.js" />
+		<None Remove="wwwroot\dist\js\chunk-vendors.2317c5e0.js" />
+		<None Remove="wwwroot\dist\js\chunk-vendors.2317c5e0.js.gz" />
+		<None Remove="wwwroot\dist\js\index.81715ba9.js" />
+		<None Remove="wwwroot\dist\js\index.81715ba9.js.gz" />
+		<None Remove="wwwroot\dist\lang\en.json" />
+		<None Remove="wwwroot\dist\lang\zh.json" />
+		<None Remove="wwwroot\dist\static\business.js" />
+		<None Remove="wwwroot\dist\static\config.js" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <EmbeddedResource Include="wwwroot\dist\css\chunk-1939524c.e374acd7.css" />
-    <EmbeddedResource Include="wwwroot\dist\css\chunk-3b55dc7e.3fa8276e.css" />
-    <EmbeddedResource Include="wwwroot\dist\css\chunk-7381cc8c.f3976377.css" />
-    <EmbeddedResource Include="wwwroot\dist\css\chunk-7592249c.200fdbc3.css" />
-    <EmbeddedResource Include="wwwroot\dist\css\chunk-7a1d0272.59c183eb.css" />
-    <EmbeddedResource Include="wwwroot\dist\css\chunk-7af68eda.af8c3925.css" />
-    <EmbeddedResource Include="wwwroot\dist\css\chunk-7c518a68.587716c5.css" />
-    <EmbeddedResource Include="wwwroot\dist\css\chunk-a5f2b902.11c50a80.css" />
-    <EmbeddedResource Include="wwwroot\dist\css\chunk-c1fb19f0.8e29003d.css" />
-    <EmbeddedResource Include="wwwroot\dist\css\chunk-de3d7390.fa808e46.css" />
-    <EmbeddedResource Include="wwwroot\dist\css\chunk-vendors.230de3f5.css" />
-    <EmbeddedResource Include="wwwroot\dist\css\chunk-vendors.230de3f5.css.gz" />
-    <EmbeddedResource Include="wwwroot\dist\css\index.cdb09893.css" />
-    <EmbeddedResource Include="wwwroot\dist\favicon.ico" />
-    <EmbeddedResource Include="wwwroot\dist\img\boxShadow.51818d84.png" />
-    <EmbeddedResource Include="wwwroot\dist\img\login_bg.993b9c92.png" />
-    <EmbeddedResource Include="wwwroot\dist\img\login_footer.0402bdb6.png" />
-    <EmbeddedResource Include="wwwroot\dist\img\logoTitleNew.201b37cb.png" />
-    <EmbeddedResource Include="wwwroot\dist\img\pieBg.c69b4de0.c69b4de0.png" />
-    <EmbeddedResource Include="wwwroot\dist\index.html" />
-    <EmbeddedResource Include="wwwroot\dist\js\chunk-1939524c.329bb04a.js" />
-    <EmbeddedResource Include="wwwroot\dist\js\chunk-1939524c.329bb04a.js.gz" />
-    <EmbeddedResource Include="wwwroot\dist\js\chunk-3b55dc7e.dc8c010e.js" />
-    <EmbeddedResource Include="wwwroot\dist\js\chunk-3b55dc7e.dc8c010e.js.gz" />
-    <EmbeddedResource Include="wwwroot\dist\js\chunk-7381cc8c.6bde186b.js" />
-    <EmbeddedResource Include="wwwroot\dist\js\chunk-7381cc8c.6bde186b.js.gz" />
-    <EmbeddedResource Include="wwwroot\dist\js\chunk-7592249c.311b35c7.js" />
-    <EmbeddedResource Include="wwwroot\dist\js\chunk-7592249c.311b35c7.js.gz" />
-    <EmbeddedResource Include="wwwroot\dist\js\chunk-7a1d0272.f5a9e99f.js" />
-    <EmbeddedResource Include="wwwroot\dist\js\chunk-7af68eda.f77c397f.js" />
-    <EmbeddedResource Include="wwwroot\dist\js\chunk-7af68eda.f77c397f.js.gz" />
-    <EmbeddedResource Include="wwwroot\dist\js\chunk-7c518a68.90291691.js" />
-    <EmbeddedResource Include="wwwroot\dist\js\chunk-7c518a68.90291691.js.gz" />
-    <EmbeddedResource Include="wwwroot\dist\js\chunk-a5f2b902.b6ea9744.js" />
-    <EmbeddedResource Include="wwwroot\dist\js\chunk-a5f2b902.b6ea9744.js.gz" />
-    <EmbeddedResource Include="wwwroot\dist\js\chunk-c1fb19f0.dac6ed4e.js" />
-    <EmbeddedResource Include="wwwroot\dist\js\chunk-c1fb19f0.dac6ed4e.js.gz" />
-    <EmbeddedResource Include="wwwroot\dist\js\chunk-de3d7390.eae09dc8.js" />
-    <EmbeddedResource Include="wwwroot\dist\js\chunk-vendors.2317c5e0.js" />
-    <EmbeddedResource Include="wwwroot\dist\js\chunk-vendors.2317c5e0.js.gz" />
-    <EmbeddedResource Include="wwwroot\dist\js\index.81715ba9.js" />
-    <EmbeddedResource Include="wwwroot\dist\js\index.81715ba9.js.gz" />
-    <EmbeddedResource Include="wwwroot\dist\lang\en.json" />
-    <EmbeddedResource Include="wwwroot\dist\lang\zh.json" />
-    <EmbeddedResource Include="wwwroot\dist\static\business.js" />
-    <EmbeddedResource Include="wwwroot\dist\static\config.js" />
-  </ItemGroup>
+	<ItemGroup>
+		<EmbeddedResource Include="wwwroot\dist\css\chunk-1939524c.e374acd7.css" />
+		<EmbeddedResource Include="wwwroot\dist\css\chunk-3b55dc7e.3fa8276e.css" />
+		<EmbeddedResource Include="wwwroot\dist\css\chunk-7381cc8c.f3976377.css" />
+		<EmbeddedResource Include="wwwroot\dist\css\chunk-7592249c.200fdbc3.css" />
+		<EmbeddedResource Include="wwwroot\dist\css\chunk-7a1d0272.59c183eb.css" />
+		<EmbeddedResource Include="wwwroot\dist\css\chunk-7af68eda.af8c3925.css" />
+		<EmbeddedResource Include="wwwroot\dist\css\chunk-7c518a68.587716c5.css" />
+		<EmbeddedResource Include="wwwroot\dist\css\chunk-a5f2b902.11c50a80.css" />
+		<EmbeddedResource Include="wwwroot\dist\css\chunk-c1fb19f0.8e29003d.css" />
+		<EmbeddedResource Include="wwwroot\dist\css\chunk-de3d7390.fa808e46.css" />
+		<EmbeddedResource Include="wwwroot\dist\css\chunk-vendors.230de3f5.css" />
+		<EmbeddedResource Include="wwwroot\dist\css\chunk-vendors.230de3f5.css.gz" />
+		<EmbeddedResource Include="wwwroot\dist\css\index.cdb09893.css" />
+		<EmbeddedResource Include="wwwroot\dist\favicon.ico" />
+		<EmbeddedResource Include="wwwroot\dist\img\boxShadow.51818d84.png" />
+		<EmbeddedResource Include="wwwroot\dist\img\login_bg.993b9c92.png" />
+		<EmbeddedResource Include="wwwroot\dist\img\login_footer.0402bdb6.png" />
+		<EmbeddedResource Include="wwwroot\dist\img\logoTitleNew.201b37cb.png" />
+		<EmbeddedResource Include="wwwroot\dist\img\pieBg.c69b4de0.c69b4de0.png" />
+		<EmbeddedResource Include="wwwroot\dist\index.html" />
+		<EmbeddedResource Include="wwwroot\dist\js\chunk-1939524c.329bb04a.js" />
+		<EmbeddedResource Include="wwwroot\dist\js\chunk-1939524c.329bb04a.js.gz" />
+		<EmbeddedResource Include="wwwroot\dist\js\chunk-3b55dc7e.dc8c010e.js" />
+		<EmbeddedResource Include="wwwroot\dist\js\chunk-3b55dc7e.dc8c010e.js.gz" />
+		<EmbeddedResource Include="wwwroot\dist\js\chunk-7381cc8c.6bde186b.js" />
+		<EmbeddedResource Include="wwwroot\dist\js\chunk-7381cc8c.6bde186b.js.gz" />
+		<EmbeddedResource Include="wwwroot\dist\js\chunk-7592249c.311b35c7.js" />
+		<EmbeddedResource Include="wwwroot\dist\js\chunk-7592249c.311b35c7.js.gz" />
+		<EmbeddedResource Include="wwwroot\dist\js\chunk-7a1d0272.f5a9e99f.js" />
+		<EmbeddedResource Include="wwwroot\dist\js\chunk-7af68eda.f77c397f.js" />
+		<EmbeddedResource Include="wwwroot\dist\js\chunk-7af68eda.f77c397f.js.gz" />
+		<EmbeddedResource Include="wwwroot\dist\js\chunk-7c518a68.90291691.js" />
+		<EmbeddedResource Include="wwwroot\dist\js\chunk-7c518a68.90291691.js.gz" />
+		<EmbeddedResource Include="wwwroot\dist\js\chunk-a5f2b902.b6ea9744.js" />
+		<EmbeddedResource Include="wwwroot\dist\js\chunk-a5f2b902.b6ea9744.js.gz" />
+		<EmbeddedResource Include="wwwroot\dist\js\chunk-c1fb19f0.dac6ed4e.js" />
+		<EmbeddedResource Include="wwwroot\dist\js\chunk-c1fb19f0.dac6ed4e.js.gz" />
+		<EmbeddedResource Include="wwwroot\dist\js\chunk-de3d7390.eae09dc8.js" />
+		<EmbeddedResource Include="wwwroot\dist\js\chunk-vendors.2317c5e0.js" />
+		<EmbeddedResource Include="wwwroot\dist\js\chunk-vendors.2317c5e0.js.gz" />
+		<EmbeddedResource Include="wwwroot\dist\js\index.81715ba9.js" />
+		<EmbeddedResource Include="wwwroot\dist\js\index.81715ba9.js.gz" />
+		<EmbeddedResource Include="wwwroot\dist\lang\en.json" />
+		<EmbeddedResource Include="wwwroot\dist\lang\zh.json" />
+		<EmbeddedResource Include="wwwroot\dist\static\business.js" />
+		<EmbeddedResource Include="wwwroot\dist\static\config.js" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Hosting" Version="2.2.7" />
-    <PackageReference Include="System.Threading.Tasks" Version="4.3.0" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Microsoft.AspNetCore.Hosting" Version="2.2.7" />
+		<PackageReference Include="System.Threading.Tasks" Version="4.3.0" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+	<ItemGroup>
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
 
-    <ProjectReference Include="..\Core.Configuration\Core.Configuration.csproj" />
+		<ProjectReference Include="..\Core.Configuration\Core.Configuration.csproj" />
 
-    <ProjectReference Include="..\Core.Json\Core.Json.csproj" />
-  </ItemGroup>
+		<ProjectReference Include="..\Core.Json\Core.Json.csproj" />
+	</ItemGroup>
 </Project>

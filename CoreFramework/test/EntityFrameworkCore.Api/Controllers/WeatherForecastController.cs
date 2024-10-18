@@ -37,7 +37,8 @@ namespace EntityFrameworkCore.Api.Controllers
         public async Task<List<Student>> Add()
         {
             var student = new Student("张三", 24);
-            student.AddLocalEvent(new AddStudentEvent { AggregateRootId = student.Id });
+            student.AddLocalEvent(new AddLocalStudentEvent { AggregateRootId = student.Id });
+            student.AddDistributedEvent(new AddStudentEvent { AggregateRootId = student.Id });
             _repository.Add(student);
             await _unitOfWork.CommitAsync();
             return await _repository.FindAllAsync(x => true);

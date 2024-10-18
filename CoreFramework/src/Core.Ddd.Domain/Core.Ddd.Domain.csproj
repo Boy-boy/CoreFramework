@@ -1,21 +1,17 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
-    <LangVersion>latest</LangVersion>
-    <Authors>gaobo</Authors>
-    <Company>gaobo</Company>
-    <Product />
-    <Description>asp net core basic framework</Description>
-    <PackageProjectUrl>https://github.com/Boy-boy/CoreFramework</PackageProjectUrl>
-    <AssemblyVersion>3.1.9.16</AssemblyVersion>
-    <FileVersion>3.1.9.16</FileVersion>
-    <Version>3.1.9.16</Version>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net6.0</TargetFramework>
+		<LangVersion>latest</LangVersion>
+		<Version>6.0.0</Version>
+		<Authors>gaobo</Authors>
+		<Description>asp net core basic framework</Description>
+		<PackageProjectUrl>https://github.com/Boy-boy/CoreFramework</PackageProjectUrl>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Core.EventBus\Core.EventBus.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\Core.EventBus\Core.EventBus.csproj" />
+	</ItemGroup>
 
 </Project>

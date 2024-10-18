@@ -1,13 +1,11 @@
-﻿using System.Net.Http;
-using Core.EntityFrameworkCore;
+﻿using Core.EntityFrameworkCore;
 using Core.EventBus;
 using Core.EventBus.Local;
-using Core.EventBus.PostgreSql;
+using Core.EventBus.RabbitMQ;
 using Core.Modularity;
 using Core.Modularity.Attribute;
 using Core.Uow;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,7 +15,7 @@ namespace EntityFrameworkCore.Api
 {
     [DependsOn(typeof(CoreEfCoreModule)
        , typeof(CoreEventBusLocalModule)
-       /* ,typeof(CoreEventBusPostgreSqlModule)*/)]
+       , typeof(CoreEventBusRabbitMqModule))]
     public class StartupModule : CoreModuleBase
     {
         public StartupModule(IConfiguration configuration)

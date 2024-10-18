@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Core.Uow
 {
@@ -6,8 +7,9 @@ namespace Core.Uow
     {
         public static IServiceCollection AddUnitOfWork(this IServiceCollection services)
         {
-            services.AddSingleton<IUnitOfWorkAccessor, DefaultUnitOfWorkAccessor>();
-            services.AddTransient(provider => provider.GetRequiredService<IUnitOfWorkAccessor>().UnitOfWork);
+            services.TryAddSingleton<IUnitOfWorkAccessor, DefaultUnitOfWorkAccessor>();
+            services.TryAddSingleton<IUnitOfWorkManager, DefaultUnitOfWorkManager>();
+            services.TryAddTransient(provider => provider.GetRequiredService<IUnitOfWorkAccessor>().UnitOfWork);
             return services;
         }
     }

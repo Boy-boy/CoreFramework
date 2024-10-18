@@ -6,6 +6,9 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Core.EventBus.Local;
+using Core.EventBus.Integration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Core.Uow
 {
@@ -19,6 +22,11 @@ namespace Core.Uow
 
         private readonly List<IMessage> _distributedEvents;
 
+        private readonly ILocalMessagePublisher _localMessagePublisher;
+
+        private readonly IIntegrationMessagePublisher _integrationMessagePublisher;
+
+
         public UnitOfWorkOptions Options { get; private set; }
 
         public DefaultUnitOfWork(IServiceProvider serviceProvider)
@@ -27,6 +35,8 @@ namespace Core.Uow
             _transactionApis = new Dictionary<string, ITransactionApi>();
             _localEvents = new List<IMessage>();
             _distributedEvents = new List<IMessage>();
+            _localMessagePublisher = serviceProvider.GetService<ILocalMessagePublisher>();
+            _integrationMessagePublisher = serviceProvider.GetService<IIntegrationMessagePublisher>();
         }
 
         public void Initialize(UnitOfWorkOptions options)
@@ -42,20 +52,24 @@ namespace Core.Uow
             {
                 if (_localEvents.Any())
                 {
-                    var localEventsToBePublished = _localEvents.ToArray();
+                    var localEvents = _localEvents.ToArray();
                     _localEvents.Clear();
-                    //await UnitOfWorkEventPublisher.PublishLocalEventsAsync(
-                    //    localEventsToBePublished
-                    //);
+
+                    foreach (var localEvent in localEvents)
+                    {
+                        await _localMessagePublisher.PublishAsync(localEvent);
+                    }
                 }
 
                 if (_distributedEvents.Any())
                 {
-                    var distributedEventsToBePublished = _distributedEvents.ToArray();
+                    var distributedEvents = _distributedEvents.ToArray();
                     _distributedEvents.Clear();
-                    //await UnitOfWorkEventPublisher.PublishDistributedEventsAsync(
-                    //    distributedEventsToBePublished
-                    //);
+
+                    foreach (var distributedEvent in distributedEvents)
+                    {
+                        await _integrationMessagePublisher.PublishAsync(distributedEvent);
+                    }
                 }
 
                 await SaveChangesAsync(cancellationToken);

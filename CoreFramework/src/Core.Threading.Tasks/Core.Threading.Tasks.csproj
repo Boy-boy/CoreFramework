@@ -1,15 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-	  <TargetFramework>net6.0</TargetFramework>
-	  <ImplicitUsings>enable</ImplicitUsings>
-	  <Nullable>disable</Nullable>
-	  <LangVersion>latest</LangVersion>
-	  <Version>6.0.1</Version>
-	  <Authors>gaobo</Authors>
-	  <Description>asp net core basic framework</Description>
-	  <PackageProjectUrl>https://github.com/Boy-boy/CoreFramework</PackageProjectUrl>
-	  <PackageLicenseExpression>MIT</PackageLicenseExpression>
+	  <TargetFramework>$(TargetFramework)</TargetFramework>
+	  <ImplicitUsings>$(ImplicitUsings)</ImplicitUsings>
+	  <Nullable>$(Nullable)</Nullable>
+	  <LangVersion>$(LangVersion)</LangVersion>
+	  <Version>$(Version)</Version>
+	  <Authors>$(Authors)</Authors>
+	  <Description>$(Description)</Description>
+	  <PackageProjectUrl>$(PackageProjectUrl)</PackageProjectUrl>
+	  <PackageLicenseExpression>$(PackageLicenseExpression)</PackageLicenseExpression>
   </PropertyGroup>
 
 </Project>

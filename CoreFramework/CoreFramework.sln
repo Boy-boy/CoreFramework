@@ -95,6 +95,12 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ThirdPartySso.WebApi", "tes
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.PersistentLogging", "src\Core.PersistentLogging\Core.PersistentLogging.csproj", "{867AD6F2-0599-455A-971B-848BDAF58C45}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Sulotion Items", "Sulotion Items", "{0823C729-A722-47D2-9F83-071926782153}"
+	ProjectSection(SolutionItems) = preProject
+		Directory.Build.props = Directory.Build.props
+		Directory.Packages.props = Directory.Packages.props
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -314,6 +320,7 @@ Global
 		{F1779F3D-80A8-4065-900D-70D4470A5AD5} = {ADB0B39E-2BFA-4241-956A-47AD65CEB2FA}
 		{F8D5326C-0772-4C6F-9B81-9EFCCC6D63C8} = {F1779F3D-80A8-4065-900D-70D4470A5AD5}
 		{867AD6F2-0599-455A-971B-848BDAF58C45} = {03EFE65F-3027-40EA-A790-7C8D31C11E18}
+		{0823C729-A722-47D2-9F83-071926782153} = {03EFE65F-3027-40EA-A790-7C8D31C11E18}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {67653D37-9D27-4AD4-9F01-DB21CA3B5835}

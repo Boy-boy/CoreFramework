@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization.Formatters.Binary;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -131,21 +132,18 @@ namespace Core.Redis
         {
             if (value == null)
                 return null;
-            var binaryFormatter = new BinaryFormatter();
-            using var memoryStream = new MemoryStream();
-            binaryFormatter.Serialize(memoryStream, value);
-            var objectDataAsStream = memoryStream.ToArray();
-            return objectDataAsStream;
+
+            var jsonString = JsonSerializer.Serialize(value);
+            return System.Text.Encoding.UTF8.GetBytes(jsonString);
         }
 
         private T Deserialize<T>(byte[] stream)
         {
             if (stream == null)
                 return default;
-            var binaryFormatter = new BinaryFormatter();
-            using var memoryStream = new MemoryStream(stream);
-            var result = (T)binaryFormatter.Deserialize(memoryStream);
-            return result;
+
+            var jsonString = System.Text.Encoding.UTF8.GetString(stream);
+            return JsonSerializer.Deserialize<T>(jsonString);
         }
 
         #endregion

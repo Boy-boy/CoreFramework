@@ -1,9 +1,15 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
-    <Nullable>disable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
+	  <TargetFramework>$(TargetFramework)</TargetFramework>
+	  <ImplicitUsings>$(ImplicitUsings)</ImplicitUsings>
+	  <Nullable>$(Nullable)</Nullable>
+	  <LangVersion>$(LangVersion)</LangVersion>
+	  <Version>$(Version)</Version>
+	  <Authors>$(Authors)</Authors>
+	  <Description>$(Description)</Description>
+	  <PackageProjectUrl>$(PackageProjectUrl)</PackageProjectUrl>
+	  <PackageLicenseExpression>$(PackageLicenseExpression)</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>

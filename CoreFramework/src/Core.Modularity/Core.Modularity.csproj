@@ -1,21 +1,21 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-	  <TargetFramework>$(TargetFramework)</TargetFramework>
-	  <ImplicitUsings>$(ImplicitUsings)</ImplicitUsings>
-	  <Nullable>$(Nullable)</Nullable>
-	  <LangVersion>$(LangVersion)</LangVersion>
-	  <Version>$(Version)</Version>
-	  <Authors>$(Authors)</Authors>
-	  <Description>$(Description)</Description>
-	  <PackageProjectUrl>$(PackageProjectUrl)</PackageProjectUrl>
-	  <PackageLicenseExpression>$(PackageLicenseExpression)</PackageLicenseExpression>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>$(TargetFramework)</TargetFramework>
+		<ImplicitUsings>$(ImplicitUsings)</ImplicitUsings>
+		<Nullable>$(Nullable)</Nullable>
+		<LangVersion>$(LangVersion)</LangVersion>
+		<Version>$(Version)</Version>
+		<Authors>$(Authors)</Authors>
+		<Description>$(Description)</Description>
+		<PackageProjectUrl>$(PackageProjectUrl)</PackageProjectUrl>
+		<PackageLicenseExpression>$(PackageLicenseExpression)</PackageLicenseExpression>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
-  </ItemGroup>
+	<ItemGroup>
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+		<PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+	</ItemGroup>
 
 </Project>

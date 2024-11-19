@@ -1,24 +1,23 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-	  <TargetFramework>$(TargetFramework)</TargetFramework>
-	  <ImplicitUsings>$(ImplicitUsings)</ImplicitUsings>
-	  <Nullable>$(Nullable)</Nullable>
-	  <LangVersion>$(LangVersion)</LangVersion>
-	  <Version>$(Version)</Version>
-	  <Authors>$(Authors)</Authors>
-	  <Description>$(Description)</Description>
-	  <PackageProjectUrl>$(PackageProjectUrl)</PackageProjectUrl>
-	  <PackageLicenseExpression>$(PackageLicenseExpression)</PackageLicenseExpression>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>$(TargetFramework)</TargetFramework>
+		<ImplicitUsings>$(ImplicitUsings)</ImplicitUsings>
+		<Nullable>$(Nullable)</Nullable>
+		<LangVersion>$(LangVersion)</LangVersion>
+		<Version>$(Version)</Version>
+		<Authors>$(Authors)</Authors>
+		<Description>$(Description)</Description>
+		<PackageProjectUrl>$(PackageProjectUrl)</PackageProjectUrl>
+		<PackageLicenseExpression>$(PackageLicenseExpression)</PackageLicenseExpression>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" />
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.Formatters.Json" />
-  </ItemGroup>
+	<ItemGroup>
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Core.Infrastructure\Core.Infrastructure.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\Core.Infrastructure\Core.Infrastructure.csproj" />
+	</ItemGroup>
 
 </Project>

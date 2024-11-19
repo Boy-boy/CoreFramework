@@ -16,10 +16,6 @@
 		<PackageVersion Include="Microsoft.Extensions.Configuration" Version="6.0.0" />
 		<PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="6.0.0" />
 		<PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="6.0.0" />
-		<PackageVersion Include="Microsoft.AspNetCore.Hosting" Version="2.2.7" />
-		<PackageVersion Include="Microsoft.AspNetCore.Mvc.Core" Version="2.2.5" />
-		<PackageVersion Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.2.0" />
-		<PackageVersion Include="Microsoft.AspNetCore.Mvc.Formatters.Json" Version="2.2.0" />
 		<PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="6.0.0" />
 		<PackageVersion Include="Microsoft.EntityFrameworkCore" Version="6.0.0" />
 		<PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="6.0.0" />
@@ -38,12 +34,12 @@
 		<PackageVersion Include="NEST" Version="7.15.2" />
 		<PackageVersion Include="AWSSDK.S3" Version="3.7.8.14" />
 		<PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="11.0.1" />
-		<PackageVersion Include="MailKit" Version="3.2.0" />
+		<PackageVersion Include="MailKit" Version="4.8.0" />
 		<PackageVersion Include="Polly" Version="7.2.2" />
 		<PackageVersion Include="Newtonsoft.Json" Version="13.0.1" />
-		<PackageVersion Include="EPPlus" Version="5.8.7" />
+		<PackageVersion Include="EPPlus" Version="7.5.0" />
 		<PackageVersion Include="RabbitMQ.Client" Version="6.2.2" />
-		<PackageVersion Include="StackExchange.Redis" Version="2.2.79" />
+		<PackageVersion Include="StackExchange.Redis" Version="2.8.16" />
 		<PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="6.0.0" />
 
 	</ItemGroup>

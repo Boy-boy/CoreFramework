@@ -1,6 +1,4 @@
 ﻿using Core.EventBus;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Core.Uow
 {
@@ -9,6 +7,8 @@ namespace Core.Uow
         UnitOfWorkOptions Options { get; }
 
         Task CommitAsync(CancellationToken cancellationToken = default);
+
+        Task RollbackAsync(CancellationToken cancellationToken = default);
 
         void AddLocalEvent(IMessage @event);
 

@@ -1,9 +1,5 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.Linq;
-using System.Net.Http;
-using System.Threading.Tasks;
 
 namespace Core.Uow
 {
@@ -11,15 +7,15 @@ namespace Core.Uow
     {
         private readonly RequestDelegate _next;
         private readonly IUnitOfWorkAccessor _unitOfWorkAccessor;
-        private readonly IServiceScopeFactory _serviceScopeFactory;
+        private readonly IServiceProvider _serviceProvider;
 
         public UnitOfWorkMiddleware(RequestDelegate next,
             IUnitOfWorkAccessor unitOfWorkAccessor,
-            IServiceScopeFactory serviceScopeFactory)
+            IServiceProvider serviceProvider)
         {
             _next = next;
             _unitOfWorkAccessor = unitOfWorkAccessor;
-            _serviceScopeFactory = serviceScopeFactory;
+            _serviceProvider = serviceProvider;
         }
 
         public async Task InvokeAsync(HttpContext context)
@@ -55,8 +51,7 @@ namespace Core.Uow
 
         private IUnitOfWork CreateUnitOfWork(UnitOfWorkOptions options)
         {
-            var scope = _serviceScopeFactory.CreateScope();
-            var uow = ActivatorUtilities.CreateInstance<DefaultUnitOfWork>(scope.ServiceProvider);
+            var uow = ActivatorUtilities.CreateInstance<DefaultUnitOfWork>(_serviceProvider);
             uow.Initialize(options);
             return uow;
         }

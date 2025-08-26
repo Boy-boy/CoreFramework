@@ -1,5 +1,4 @@
-﻿using System;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 
 namespace Core.Uow
 {
@@ -18,6 +17,12 @@ namespace Core.Uow
         {
             var uow = _unitOfWorkAccessor.UnitOfWork ?? (_unitOfWorkAccessor.UnitOfWork = CreateUnitOfWork());
             return uow;
+        }
+
+        public async Task<IUnitOfWork> BeginAsync()
+        {
+            var uow = Begin();
+            return await Task.FromResult(uow);
         }
 
         private IUnitOfWork CreateUnitOfWork()

@@ -1,5 +1,4 @@
 ﻿using Core.Uow;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Core.EntityFrameworkCore.EntityFrameworkCore
@@ -16,6 +15,11 @@ namespace Core.EntityFrameworkCore.EntityFrameworkCore
         public async Task CommitAsync()
         {
             await _dbContextTransaction.CommitAsync();
+        }
+
+        public async Task RollbackAsync()
+        {
+            await _dbContextTransaction.RollbackAsync();
         }
     }
 }

@@ -2,7 +2,6 @@
 using Core.Uow;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using System.Threading.Tasks;
 
 namespace Core.EntityFrameworkCore
 {
@@ -11,20 +10,20 @@ namespace Core.EntityFrameworkCore
     {
         private readonly IUnitOfWorkManager _unitOfWorkManager;
         private readonly IUnitOfWorkAccessor _unitOfWorkAccessor;
-        private readonly IServiceScopeFactory _serviceScopeFactory;
+        private readonly IServiceProvider _serviceProvider;
 
         public DefaultDbContextProvider(IUnitOfWorkManager unitOfWorkManager,
             IUnitOfWorkAccessor unitOfWorkAccessor,
-            IServiceScopeFactory serviceScopeFactory)
+            IServiceProvider serviceProvider)
         {
             _unitOfWorkManager = unitOfWorkManager;
             _unitOfWorkAccessor = unitOfWorkAccessor;
-            _serviceScopeFactory = serviceScopeFactory;
+            _serviceProvider = serviceProvider;
         }
 
         public async Task<TDbContext> GetDbContextAsync()
         {
-            var uow = _unitOfWorkManager.Begin();
+            var uow = await _unitOfWorkManager.BeginAsync();
 
             var dbContextName = DbContextNameAttribute.GetNameOrDefault(typeof(TDbContext));
             var databaseApi = uow.FindDatabaseApi(dbContextName);
@@ -40,9 +39,7 @@ namespace Core.EntityFrameworkCore
 
         private async Task<TDbContext> CreateDbContextAsync()
         {
-            var dbContextName = DbContextNameAttribute.GetNameOrDefault(typeof(TDbContext));
-            var scope = _serviceScopeFactory.CreateScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService<TDbContext>();
+            var dbContext = _serviceProvider.GetRequiredService<TDbContext>();
 
             var uow = _unitOfWorkAccessor.UnitOfWork;
             if (uow.Options.IsTransactional)
@@ -51,6 +48,7 @@ namespace Core.EntityFrameworkCore
                     ? await dbContext.Database.BeginTransactionAsync(uow.Options.IsolationLevel.Value)
                     : await dbContext.Database.BeginTransactionAsync();
 
+                var dbContextName = DbContextNameAttribute.GetNameOrDefault(typeof(TDbContext));
                 uow.AddTransactionApi(
                     dbContextName,
                     new EfCoreTransactionApi(

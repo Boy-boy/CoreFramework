@@ -1,9 +1,9 @@
-﻿using System.Threading.Tasks;
-
-namespace Core.Uow
+﻿namespace Core.Uow
 {
     public interface ITransactionApi
     {
         Task CommitAsync();
+
+        Task RollbackAsync();
     }
 }

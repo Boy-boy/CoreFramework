@@ -1,14 +1,9 @@
 ﻿using Core.EventBus;
-using System;
-using System.Collections.Generic;
+using Core.EventBus.Integration;
+using Core.EventBus.Local;
+using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Core.EventBus.Local;
-using Core.EventBus.Integration;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Core.Uow
 {
@@ -78,6 +73,11 @@ namespace Core.Uow
             await CommitTransactionsAsync();
         }
 
+        public async Task RollbackAsync(CancellationToken cancellationToken = default)
+        {
+            await RollbackTransactionsAsync();
+        }
+
         private async Task SaveChangesAsync(CancellationToken cancellationToken = default)
         {
             foreach (var databaseApi in _databaseApis.Values)
@@ -95,6 +95,15 @@ namespace Core.Uow
             foreach (var transaction in transactions)
             {
                 await transaction.CommitAsync();
+            }
+        }
+
+        private async Task RollbackTransactionsAsync()
+        {
+            var transactions = _transactionApis.Values.ToImmutableList();
+            foreach (var transaction in transactions)
+            {
+                await transaction.RollbackAsync();
             }
         }
 

@@ -1,27 +1,30 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-	  <TargetFramework>$(TargetFramework)</TargetFramework>
-	  <ImplicitUsings>$(ImplicitUsings)</ImplicitUsings>
-	  <Nullable>$(Nullable)</Nullable>
-	  <LangVersion>$(LangVersion)</LangVersion>
-	  <Version>$(Version)</Version>
-	  <Authors>$(Authors)</Authors>
-	  <Description>$(Description)</Description>
-	  <PackageProjectUrl>$(PackageProjectUrl)</PackageProjectUrl>
-	  <PackageLicenseExpression>$(PackageLicenseExpression)</PackageLicenseExpression>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>$(TargetFramework)</TargetFramework>
+		<ImplicitUsings>$(ImplicitUsings)</ImplicitUsings>
+		<Nullable>$(Nullable)</Nullable>
+		<LangVersion>$(LangVersion)</LangVersion>
+		<Version>$(Version)</Version>
+		<Authors>$(Authors)</Authors>
+		<Description>$(Description)</Description>
+		<PackageProjectUrl>$(PackageProjectUrl)</PackageProjectUrl>
+		<PackageLicenseExpression>$(PackageLicenseExpression)</PackageLicenseExpression>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
-    <PackageReference Include="Microsoft.Extensions.Options" />
-    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
-    <PackageReference Include="StackExchange.Redis" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="K4os.Compression.LZ4" />
+		<PackageReference Include="MemoryPack" />
+		<PackageReference Include="MessagePack" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+		<PackageReference Include="Microsoft.Extensions.Options" />
+		<PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
+		<PackageReference Include="StackExchange.Redis" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Core.Json\Core.Json.csproj" />
-    <ProjectReference Include="..\Core.Modularity\Core.Modularity.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\Core.Json\Core.Json.csproj" />
+		<ProjectReference Include="..\Core.Modularity\Core.Modularity.csproj" />
+	</ItemGroup>
 
 </Project>

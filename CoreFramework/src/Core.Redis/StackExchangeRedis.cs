@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
-using System.Collections.Concurrent;
 
 namespace Core.Redis
 {
@@ -11,8 +10,6 @@ namespace Core.Redis
         public readonly ILogger<StackExchangeRedis> Logger;
 
         private IConnectionMultiplexer _connectionMultiplexer;
-        private IConnectionMultiplexer _sentinelMultiplexer;
-        private ConcurrentDictionary<int, IDatabase> _databases = new();
 
         private readonly Lock _lock = new();
         private readonly CancellationTokenSource _cts = new();
@@ -41,7 +38,8 @@ namespace Core.Redis
             {
                 if (_disposed) return;
                 Logger.LogInformation("Redis configuration changes detected, re-creating connection...");
-                CreateConnection();
+                // 配置变更：无条件替换，即便当前连接健康也要换成新配置
+                CreateConnection(replaceHealthy: true);
             });
 
             _healthCheckTask = Task.Run(StartHealthCheckAsync);
@@ -52,7 +50,7 @@ namespace Core.Redis
             get
             {
                 if (_disposed) return false;
-                var muxer = _connectionMultiplexer;
+                var muxer = Volatile.Read(ref _connectionMultiplexer);
                 return muxer != null && muxer.IsConnected;
             }
         }
@@ -93,7 +91,7 @@ namespace Core.Redis
         {
             if (_disposed) return;
 
-            var muxer = _connectionMultiplexer;
+            var muxer = Volatile.Read(ref _connectionMultiplexer);
 
             // 情况 1：从未连上，没有可自愈的对象，定时重试
             if (muxer == null)
@@ -165,6 +163,7 @@ namespace Core.Redis
         /// </summary>
         private void ForceReconnect()
         {
+            // 决策（复检）在锁内完成，但实际重建放到锁外执行，避免 Connect 阻塞期间长时间持锁
             lock (_lock)
             {
                 if (_disposed) return;
@@ -187,83 +186,70 @@ namespace Core.Redis
                         sinceLastReconnectMs / 1000, minIntervalMs / 1000);
                     return;
                 }
-
-                CreateConnection();
             }
+
+            // best-effort 重连：commit 时若已被别的路径修复成健康连接，则丢弃本次冗余连接
+            CreateConnection(replaceHealthy: false);
         }
 
         private void TryConnection()
         {
             if (IsConnected || _disposed)
                 return;
-            lock (_lock)
-            {
-                if (IsConnected || _disposed)
-                    return;
-                CreateConnection();
-            }
+            // CreateConnection 内部建连在锁外、仅交换在锁内，这里无需再包大锁
+            CreateConnection(replaceHealthy: false);
         }
 
-        private void CreateConnection()
+        // 关键：耗时的网络建连在锁外完成，锁内只做指针交换（微秒级），
+        // 避免 Connect 在网络闪断/宕机超时期间长时间持有 _lock，拖垮健康检查与配置热更新。
+        // replaceHealthy=false 时，若 commit 那一刻发现当前连接已健康（重连期间被别的路径修复），
+        // 则丢弃本次冗余连接，避免把更新的连接/配置覆盖回退；配置热更新须传 true 以无条件替换。
+        private void CreateConnection(bool replaceHealthy)
         {
+            if (_disposed) return;
+
+            // 1) 锁外建连接（同步阻塞的网络 IO，绝不占锁）
+            IConnectionMultiplexer newMuxer;
+            try
+            {
+                // serviceName 由连接串/ConfigurationOptions 提供时，驱动自动进入哨兵模式并托管故障转移自更新
+                newMuxer = ConnectionMultiplexer.Connect(Options.GetConfiguredOptions());
+                AttachMuxerEvents(newMuxer);
+            }
+            catch (Exception ex)
+            {
+                // 首次或重连失败不阻断程序启动，因为底层驱动会自动进行后台重连重试
+                Logger.LogCritical(ex,
+                    "Failed to connect to Redis. StackExchange.Redis will retry reconnecting automatically.");
+                return;
+            }
+
+            // 2) 锁内只做指针交换
+            IConnectionMultiplexer oldMuxer = null;
+            var committed = false;
             lock (_lock)
             {
-                if (_disposed) return;
-
-                IConnectionMultiplexer oldMuxer = null;
-                IConnectionMultiplexer oldSentinel = null;
-                try
+                // 仅在未释放、且（允许替换健康连接 或 当前并非健康）时才交换；
+                // 否则说明重连期间别的路径已建立健康连接，本次属于冗余/会导致回退，丢弃即可
+                if (!_disposed && (replaceHealthy || _connectionMultiplexer is not { IsConnected: true }))
                 {
-                    IConnectionMultiplexer newMuxer;
-                    IConnectionMultiplexer newSentinel = null;
-
-                    if (Options.UseSentinel)
-                    {
-                        if (string.IsNullOrEmpty(Options.SentinelServiceName))
-                            throw new InvalidOperationException(
-                                "UseSentinel=true 时必须设置 RedisCacheOptions.SentinelServiceName。");
-
-                        newSentinel = ConnectionMultiplexer.SentinelConnect(Options.GetSentinelOptions());
-                        newMuxer = ((ConnectionMultiplexer)newSentinel).GetSentinelMasterConnection(Options.GetSentinelDataOptions());
-                    }
-                    else
-                    {
-                        newMuxer = ConnectionMultiplexer.Connect(Options.GetConfiguredOptions());
-                    }
-
-                    AttachMuxerEvents(newMuxer);
-                    if (newSentinel != null) AttachMuxerEvents(newSentinel);
-
-                    // 先把新连接和新字典就位，再 swap，最后释放旧连接，避免并发读 NRE
                     oldMuxer = Interlocked.Exchange(ref _connectionMultiplexer, newMuxer);
-                    oldSentinel = Interlocked.Exchange(ref _sentinelMultiplexer, newSentinel);
-                    Interlocked.Exchange(ref _databases, new ConcurrentDictionary<int, IDatabase>());
-
                     // 记录本次 (重)建时刻，供健康检查限流强制重建使用
                     Volatile.Write(ref _lastReconnectTick, Environment.TickCount64);
-
-                    Logger.LogInformation("Redis connection has been successfully established.");
-                }
-                catch (Exception ex)
-                {
-                    // 首次或重连失败不阻断程序启动，因为底层驱动会自动进行后台重连重试
-                    Logger.LogCritical(ex,
-                        "Failed to connect to Redis. StackExchange.Redis will retry reconnecting automatically."
-                    );
-                }
-                finally
-                {
-                    // 如果有旧连接需要释放，挪到锁外面或丢给后台线程池，避免在锁内同步等待关闭导致的性能毛刺
-                    if (oldMuxer != null || oldSentinel != null)
-                    {
-                        Task.Run(() =>
-                        {
-                            DetachAndDispose(oldMuxer);
-                            DetachAndDispose(oldSentinel);
-                        });
-                    }
+                    committed = true;
                 }
             }
+
+            // 3) 锁外收尾：未交换（已 Dispose 或被判为冗余）则丢弃刚建好的连接；否则把旧连接丢给后台线程池释放
+            if (!committed)
+            {
+                Task.Run(() => DetachAndDispose(newMuxer));
+                return;
+            }
+
+            Logger.LogInformation("Redis connection has been successfully established.");
+            if (oldMuxer != null)
+                Task.Run(() => DetachAndDispose(oldMuxer));
         }
 
         private void AttachMuxerEvents(IConnectionMultiplexer muxer)
@@ -293,16 +279,12 @@ namespace Core.Redis
 
         public IDatabase GetDatabase(int db = -1)
         {
-            var muxer = _connectionMultiplexer;
+            var muxer = Volatile.Read(ref _connectionMultiplexer);
             if (muxer == null)
                 throw new InvalidOperationException("Redis 连接尚未就绪，请检查配置或等待健康检查重连。");
 
-            // 防御性边界校验：标准 Redis 的 DB 索引范围是 0-15（默认），这里放宽到 255 防止异常刷内存
-            if (db < -1 || db > 255)
-                throw new ArgumentOutOfRangeException(nameof(db), "不合法的 Redis 数据库索引。");
-
-            var databases = _databases;
-            return databases.GetOrAdd(db, key => muxer.GetDatabase(key));
+            // SE.Redis 的 GetDatabase 返回廉价直通对象，无需自缓存；非法 db 索引由驱动自行校验
+            return muxer.GetDatabase(db);
         }
 
         private RedisKey K(string key) => Options.GetPrefixedKey(key);
@@ -398,7 +380,8 @@ namespace Core.Redis
             if (retryCount <= 0)
                 throw new ArgumentOutOfRangeException(nameof(retryCount), "Retry count must be positive");
 
-            clientId ??= nameof(StackExchangeRedis);
+            // 必须传入调用方唯一的 token：加/解锁须用同一 token，避免不同持有者互相误删锁
+            ArgumentException.ThrowIfNullOrWhiteSpace(clientId);
             var database = GetDatabase(db);
             var prefixedKey = K(lockKey);
 
@@ -424,6 +407,8 @@ namespace Core.Redis
                 {
                     Logger.LogWarning("Redis error during lock acquisition (attempt {Attempt}): {Message}", attempt + 1, ex.Message);
                     if (attempt == retryCount - 1) return false;
+                    // 异常后同样退避再重试，避免 Redis 宕机时无延迟空转
+                    await Task.Delay(NextLockDelayMs(attempt), cancellationToken);
                 }
             }
 
@@ -433,7 +418,7 @@ namespace Core.Redis
 
         public void ReleaseLock(string lockKey, string clientId, int db = -1)
         {
-            clientId ??= nameof(StackExchangeRedis);
+            ArgumentException.ThrowIfNullOrWhiteSpace(clientId);
             var prefixedKey = K(lockKey);
             var result = GetDatabase(db).ScriptEvaluate(
                 ReleaseLockScript,
@@ -444,7 +429,7 @@ namespace Core.Redis
         public async Task ReleaseLockAsync(string lockKey, string clientId, int db = -1, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            clientId ??= nameof(StackExchangeRedis);
+            ArgumentException.ThrowIfNullOrWhiteSpace(clientId);
             var prefixedKey = K(lockKey);
             var result = await GetDatabase(db).ScriptEvaluateAsync(
                 ReleaseLockScript,
@@ -911,9 +896,6 @@ namespace Core.Redis
             }
 
             DetachAndDispose(Interlocked.Exchange(ref _connectionMultiplexer, null));
-            DetachAndDispose(Interlocked.Exchange(ref _sentinelMultiplexer, null));
-
-            _databases?.Clear();
 
             try { _cts.Dispose(); } catch { /* ignore */ }
             GC.SuppressFinalize(this);

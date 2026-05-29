@@ -7,12 +7,14 @@ namespace Core.Redis
         /// <summary>
         /// 连接字符串
         /// 单机/主从/集群：host1:6379,host2:6379,...
-        /// 哨兵：填写哨兵节点列表 host1:26379,host2:26379,host3:26379
+        /// 哨兵模式：填写哨兵节点列表且必须包含 serviceName，驱动会自动连哨兵、发现主、并在故障转移时自更新，例如：
+        /// "host1:26379,host2:26379,password=123,serviceName=mymaster"
         /// </summary>
         public string Configuration { get; set; }
 
         /// <summary>
         /// 直接提供 StackExchange.Redis 的 ConfigurationOptions，若设置则优先生效。
+        /// 设置了 ServiceName 即由驱动自动识别为哨兵模式；内部每次返回前会 Clone，外部修改不会污染缓存连接。
         /// </summary>
         public ConfigurationOptions ConfigurationOptions { get; set; }
 
@@ -42,96 +44,19 @@ namespace Core.Redis
         public int DefaultDatabase { get; set; } = -1;
 
         /// <summary>
-        /// 访问密码（Sentinel 模式下用于数据节点）
+        /// 构造连接配置。
+        /// 单机/主从/集群正常连接；若连接串或 ConfigurationOptions 中带 serviceName，
+        /// 驱动会自动进入哨兵模式（连哨兵、发现主、故障转移自更新），无需手动设置 CommandMap.Sentinel。
         /// </summary>
-        public string Password { get; set; }
-
-        /// <summary>
-        /// 是否启用 Sentinel 哨兵模式
-        /// </summary>
-        public bool UseSentinel { get; set; }
-
-        /// <summary>
-        /// 哨兵监控的主节点名，UseSentinel=true 时必填
-        /// </summary>
-        public string SentinelServiceName { get; set; }
-
-        /// <summary>
-        /// 哨兵自身的访问密码（与数据节点 Password 区分）
-        /// </summary>
-        public string SentinelPassword { get; set; }
-
         internal ConfigurationOptions GetConfiguredOptions()
         {
-            ConfigurationOptions options;
-            if (ConfigurationOptions != null)
-            {
-                options = ConfigurationOptions.Clone();
-            }
-            else
-            {
-                options = ConfigurationOptions.Parse(Configuration ?? string.Empty);
-                ApplySimpleDefaults(options);
-            }
+            var options = ConfigurationOptions != null
+                ? ConfigurationOptions.Clone()
+                : ConfigurationOptions.Parse(Configuration ?? string.Empty);
 
-            options.AbortOnConnectFail = false;
-            return options;
-        }
-
-        private void ApplySimpleDefaults(ConfigurationOptions options)
-        {
             if (DefaultDatabase >= 0)
                 options.DefaultDatabase = DefaultDatabase;
 
-            if (!string.IsNullOrEmpty(Password) && string.IsNullOrEmpty(options.Password))
-                options.Password = Password;
-        }
-
-        internal ConfigurationOptions GetSentinelOptions()
-        {
-            ConfigurationOptions options;
-            if (ConfigurationOptions != null)
-            {
-                options = ConfigurationOptions.Clone();
-                if (!string.IsNullOrEmpty(SentinelPassword))
-                    options.Password = SentinelPassword;
-            }
-            else
-            {
-                options = ConfigurationOptions.Parse(Configuration ?? string.Empty);
-                if (!string.IsNullOrEmpty(SentinelPassword))
-                    options.Password = SentinelPassword;
-            }
-
-            options.AbortOnConnectFail = false;
-            options.TieBreaker = string.Empty;
-            options.CommandMap = CommandMap.Sentinel;
-            options.ServiceName = SentinelServiceName;
-
-            return options;
-        }
-
-        internal ConfigurationOptions GetSentinelDataOptions()
-        {
-            ConfigurationOptions options;
-            if (ConfigurationOptions != null)
-            {
-                options = ConfigurationOptions.Clone();
-                if (!string.IsNullOrEmpty(Password))
-                    options.Password = Password;
-            }
-            else
-            {
-                options = ConfigurationOptions.Parse(Configuration ?? string.Empty);
-
-                if (DefaultDatabase >= 0)
-                    options.DefaultDatabase = DefaultDatabase;
-
-                if (!string.IsNullOrEmpty(Password))
-                    options.Password = Password;
-            }
-
-            options.ServiceName = SentinelServiceName;
             options.AbortOnConnectFail = false;
             return options;
         }

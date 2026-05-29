@@ -45,13 +45,17 @@ namespace Core.Redis
         #endregion
 
         #region Distributed Lock
-        /// <summary>异步尝试获取分布式锁（推荐在 async 调用链中使用，重试间隔基于 Task.Delay，不阻塞 ThreadPool）</summary>
+        /// <summary>
+        /// 异步尝试获取分布式锁（推荐在 async 调用链中使用，重试间隔基于 Task.Delay，不阻塞 ThreadPool）。
+        /// <paramref name="clientId"/> 为持有者唯一标识，必传且不能为空：加锁与释放须使用同一 token，
+        /// 否则无法保证"谁加锁谁释放"，会出现互相误删锁。为空时抛出 ArgumentException。
+        /// </summary>
         Task<bool> TryAcquireLockAsync(string lockKey, string clientId, TimeSpan expiry, int retryCount = 3, int db = -1, CancellationToken cancellationToken = default);
 
-        /// <summary>删除分布式锁</summary>
+        /// <summary>删除分布式锁。<paramref name="clientId"/> 必须与加锁时一致，必传且不能为空（为空时抛 ArgumentException）。</summary>
         void ReleaseLock(string lockKey, string clientId, int db = -1);
 
-        /// <summary>异步删除分布式锁</summary>
+        /// <summary>异步删除分布式锁。<paramref name="clientId"/> 必须与加锁时一致，必传且不能为空（为空时抛 ArgumentException）。</summary>
         Task ReleaseLockAsync(string lockKey, string clientId, int db = -1, CancellationToken cancellationToken = default);
         #endregion
 

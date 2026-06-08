@@ -1,9 +1,12 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.0.31710.8
+# Visual Studio Version 18
+VisualStudioVersion = 18.6.11723.189 insiders
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{03EFE65F-3027-40EA-A790-7C8D31C11E18}"
+	ProjectSection(SolutionItems) = preProject
+		src\Core.Alert\Core.Alert.csproj = src\Core.Alert\Core.Alert.csproj
+	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Core.Modularity", "src\Core.Modularity\Core.Modularity.csproj", "{8DA136E4-FE91-487E-9595-D882FC99117E}"
 EndProject
@@ -100,6 +103,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Sulotion Items", "Sulotion 
 		Directory.Build.props = Directory.Build.props
 		Directory.Packages.props = Directory.Packages.props
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.Alert", "src\Core.Alert\Core.Alert.csproj", "{6DE76B93-5194-2029-302A-528C2820BA4E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.Alert.Redis", "src\Core.Alert.Redis\Core.Alert.Redis.csproj", "{0B76320F-AAE7-2253-3CA3-51CE6F8BCBF0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.Alert.Sqlite", "src\Core.Alert.Sqlite\Core.Alert.Sqlite.csproj", "{74432C3E-650A-B693-5AFC-05D54F41EC31}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -271,6 +280,18 @@ Global
 		{867AD6F2-0599-455A-971B-848BDAF58C45}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{867AD6F2-0599-455A-971B-848BDAF58C45}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{867AD6F2-0599-455A-971B-848BDAF58C45}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6DE76B93-5194-2029-302A-528C2820BA4E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6DE76B93-5194-2029-302A-528C2820BA4E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6DE76B93-5194-2029-302A-528C2820BA4E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6DE76B93-5194-2029-302A-528C2820BA4E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0B76320F-AAE7-2253-3CA3-51CE6F8BCBF0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0B76320F-AAE7-2253-3CA3-51CE6F8BCBF0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0B76320F-AAE7-2253-3CA3-51CE6F8BCBF0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0B76320F-AAE7-2253-3CA3-51CE6F8BCBF0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{74432C3E-650A-B693-5AFC-05D54F41EC31}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{74432C3E-650A-B693-5AFC-05D54F41EC31}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{74432C3E-650A-B693-5AFC-05D54F41EC31}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{74432C3E-650A-B693-5AFC-05D54F41EC31}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -321,6 +342,9 @@ Global
 		{F8D5326C-0772-4C6F-9B81-9EFCCC6D63C8} = {F1779F3D-80A8-4065-900D-70D4470A5AD5}
 		{867AD6F2-0599-455A-971B-848BDAF58C45} = {03EFE65F-3027-40EA-A790-7C8D31C11E18}
 		{0823C729-A722-47D2-9F83-071926782153} = {03EFE65F-3027-40EA-A790-7C8D31C11E18}
+		{6DE76B93-5194-2029-302A-528C2820BA4E} = {03EFE65F-3027-40EA-A790-7C8D31C11E18}
+		{0B76320F-AAE7-2253-3CA3-51CE6F8BCBF0} = {03EFE65F-3027-40EA-A790-7C8D31C11E18}
+		{74432C3E-650A-B693-5AFC-05D54F41EC31} = {03EFE65F-3027-40EA-A790-7C8D31C11E18}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {67653D37-9D27-4AD4-9F01-DB21CA3B5835}

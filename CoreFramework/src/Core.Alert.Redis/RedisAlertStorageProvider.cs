@@ -24,13 +24,13 @@ namespace Core.Alert.Redis
         public Task<AlertSessionState> GetAsync(string sessionKey)
         {
             var options = _options.CurrentValue;
-            return _redisCache.GetAsync<AlertSessionState>(BuildKey(sessionKey, options), options.Database);
+            return _redisCache.GetJsonAsync<AlertSessionState>(BuildKey(sessionKey, options), options.Database);
         }
 
         public async Task SetAsync(string sessionKey, AlertSessionState state)
         {
             var options = _options.CurrentValue;
-            await _redisCache.SetAsync(BuildKey(sessionKey, options), state, options.StateTtl, db: options.Database);
+            await _redisCache.SetJsonAsync(BuildKey(sessionKey, options), state, options.StateTtl, db: options.Database);
         }
 
         public async Task RemoveAsync(string sessionKey)

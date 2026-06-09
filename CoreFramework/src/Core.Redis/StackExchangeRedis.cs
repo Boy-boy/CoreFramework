@@ -299,6 +299,27 @@ namespace Core.Redis
             return RedisValueConverter.FromRedisValue<T>(await GetDatabase(db).StringGetAsync(K(key), flags));
         }
 
+        public bool TryGet<T>(string key, out T value, int db = -1, CommandFlags flags = CommandFlags.None)
+        {
+            var raw = GetDatabase(db).StringGet(K(key), flags);
+            if (raw.IsNull)
+            {
+                value = default;
+                return false;
+            }
+            value = RedisValueConverter.FromRedisValue<T>(raw);
+            return true;
+        }
+
+        public async Task<(bool Found, T Value)> TryGetAsync<T>(string key, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var raw = await GetDatabase(db).StringGetAsync(K(key), flags);
+            return raw.IsNull
+                ? (false, default)
+                : (true, RedisValueConverter.FromRedisValue<T>(raw));
+        }
+
         public bool Set<T>(string key, T value, TimeSpan? expiry = null, When when = When.Always, int db = -1, CommandFlags flags = CommandFlags.None)
             => GetDatabase(db).StringSet(K(key), RedisValueConverter.ToRedisValue(value), expiry, when, flags);
 
@@ -457,62 +478,59 @@ namespace Core.Redis
         }
         #endregion
 
-        #region List
-        private static RedisValue[] ToRedisValues<T>(IEnumerable<T> values)
-            => values.Select(static v => RedisValueConverter.ToRedisValue(v)).ToArray();
+        #region List (透传 RedisValue)
+        public long ListLeftPush(string key, RedisValue value, int db = -1)
+            => GetDatabase(db).ListLeftPush(K(key), value);
 
-        public long ListLeftPush<T>(string key, T value, int db = -1)
-            => GetDatabase(db).ListLeftPush(K(key), RedisValueConverter.ToRedisValue(value));
+        public long ListLeftPushRange(string key, RedisValue[] values, int db = -1)
+            => GetDatabase(db).ListLeftPush(K(key), values);
 
-        public long ListLeftPushRange<T>(string key, IEnumerable<T> values, int db = -1)
-            => GetDatabase(db).ListLeftPush(K(key), ToRedisValues(values));
-
-        public async Task<long> ListLeftPushAsync<T>(string key, T value, int db = -1, CancellationToken cancellationToken = default)
+        public async Task<long> ListLeftPushAsync(string key, RedisValue value, int db = -1, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return await GetDatabase(db).ListLeftPushAsync(K(key), RedisValueConverter.ToRedisValue(value));
+            return await GetDatabase(db).ListLeftPushAsync(K(key), value);
         }
 
-        public async Task<long> ListLeftPushRangeAsync<T>(string key, IEnumerable<T> values, int db = -1, CancellationToken cancellationToken = default)
+        public async Task<long> ListLeftPushRangeAsync(string key, RedisValue[] values, int db = -1, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return await GetDatabase(db).ListLeftPushAsync(K(key), ToRedisValues(values));
+            return await GetDatabase(db).ListLeftPushAsync(K(key), values);
         }
 
-        public long ListRightPush<T>(string key, T value, int db = -1)
-            => GetDatabase(db).ListRightPush(K(key), RedisValueConverter.ToRedisValue(value));
+        public long ListRightPush(string key, RedisValue value, int db = -1)
+            => GetDatabase(db).ListRightPush(K(key), value);
 
-        public long ListRightPushRange<T>(string key, IEnumerable<T> values, int db = -1)
-            => GetDatabase(db).ListRightPush(K(key), ToRedisValues(values));
+        public long ListRightPushRange(string key, RedisValue[] values, int db = -1)
+            => GetDatabase(db).ListRightPush(K(key), values);
 
-        public async Task<long> ListRightPushAsync<T>(string key, T value, int db = -1, CancellationToken cancellationToken = default)
+        public async Task<long> ListRightPushAsync(string key, RedisValue value, int db = -1, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return await GetDatabase(db).ListRightPushAsync(K(key), RedisValueConverter.ToRedisValue(value));
+            return await GetDatabase(db).ListRightPushAsync(K(key), value);
         }
 
-        public async Task<long> ListRightPushRangeAsync<T>(string key, IEnumerable<T> values, int db = -1, CancellationToken cancellationToken = default)
+        public async Task<long> ListRightPushRangeAsync(string key, RedisValue[] values, int db = -1, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return await GetDatabase(db).ListRightPushAsync(K(key), ToRedisValues(values));
+            return await GetDatabase(db).ListRightPushAsync(K(key), values);
         }
 
-        public T ListLeftPop<T>(string key, int db = -1)
-            => RedisValueConverter.FromRedisValue<T>(GetDatabase(db).ListLeftPop(K(key)));
+        public RedisValue ListLeftPop(string key, int db = -1)
+            => GetDatabase(db).ListLeftPop(K(key));
 
-        public async Task<T> ListLeftPopAsync<T>(string key, int db = -1, CancellationToken cancellationToken = default)
+        public async Task<RedisValue> ListLeftPopAsync(string key, int db = -1, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return RedisValueConverter.FromRedisValue<T>(await GetDatabase(db).ListLeftPopAsync(K(key)));
+            return await GetDatabase(db).ListLeftPopAsync(K(key));
         }
 
-        public T ListRightPop<T>(string key, int db = -1)
-            => RedisValueConverter.FromRedisValue<T>(GetDatabase(db).ListRightPop(K(key)));
+        public RedisValue ListRightPop(string key, int db = -1)
+            => GetDatabase(db).ListRightPop(K(key));
 
-        public async Task<T> ListRightPopAsync<T>(string key, int db = -1, CancellationToken cancellationToken = default)
+        public async Task<RedisValue> ListRightPopAsync(string key, int db = -1, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return RedisValueConverter.FromRedisValue<T>(await GetDatabase(db).ListRightPopAsync(K(key)));
+            return await GetDatabase(db).ListRightPopAsync(K(key));
         }
 
         public long ListLength(string key, int db = -1, CommandFlags flags = CommandFlags.None)
@@ -524,33 +542,31 @@ namespace Core.Redis
             return await GetDatabase(db).ListLengthAsync(K(key), flags);
         }
 
-        public IEnumerable<T> ListRange<T>(string key, int db = -1, CommandFlags flags = CommandFlags.None)
-            => GetDatabase(db).ListRange(K(key), 0, -1, flags).Select(RedisValueConverter.FromRedisValue<T>);
+        public RedisValue[] ListRange(string key, int db = -1, CommandFlags flags = CommandFlags.None)
+            => GetDatabase(db).ListRange(K(key), 0, -1, flags);
 
-        public IEnumerable<T> ListRange<T>(string key, int start, int stop, int db = -1, CommandFlags flags = CommandFlags.None)
-            => GetDatabase(db).ListRange(K(key), start, stop, flags).Select(RedisValueConverter.FromRedisValue<T>);
+        public RedisValue[] ListRange(string key, int start, int stop, int db = -1, CommandFlags flags = CommandFlags.None)
+            => GetDatabase(db).ListRange(K(key), start, stop, flags);
 
-        public async Task<IEnumerable<T>> ListRangeAsync<T>(string key, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
+        public async Task<RedisValue[]> ListRangeAsync(string key, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var values = await GetDatabase(db).ListRangeAsync(K(key), 0, -1, flags);
-            return values.Select(RedisValueConverter.FromRedisValue<T>);
+            return await GetDatabase(db).ListRangeAsync(K(key), 0, -1, flags);
         }
 
-        public async Task<IEnumerable<T>> ListRangeAsync<T>(string key, int start, int stop, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
+        public async Task<RedisValue[]> ListRangeAsync(string key, int start, int stop, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var values = await GetDatabase(db).ListRangeAsync(K(key), start, stop, flags);
-            return values.Select(RedisValueConverter.FromRedisValue<T>);
+            return await GetDatabase(db).ListRangeAsync(K(key), start, stop, flags);
         }
 
-        public long ListRemove<T>(string key, T value, long count = 0, int db = -1)
-            => GetDatabase(db).ListRemove(K(key), RedisValueConverter.ToRedisValue(value), count);
+        public long ListRemove(string key, RedisValue value, long count = 0, int db = -1)
+            => GetDatabase(db).ListRemove(K(key), value, count);
 
-        public async Task<long> ListRemoveAsync<T>(string key, T value, long count = 0, int db = -1, CancellationToken cancellationToken = default)
+        public async Task<long> ListRemoveAsync(string key, RedisValue value, long count = 0, int db = -1, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return await GetDatabase(db).ListRemoveAsync(K(key), RedisValueConverter.ToRedisValue(value), count);
+            return await GetDatabase(db).ListRemoveAsync(K(key), value, count);
         }
 
         public void ListClear(string key, int db = -1)
@@ -563,48 +579,41 @@ namespace Core.Redis
         }
         #endregion
 
-        #region Hash
-        public bool HashSet<T>(string key, string field, T value, int db = -1)
-            => GetDatabase(db).HashSet(K(key), field, RedisValueConverter.ToRedisValue(value));
+        #region Hash (透传 RedisValue / HashEntry)
+        public bool HashSet(string key, string field, RedisValue value, int db = -1)
+            => GetDatabase(db).HashSet(K(key), field, value);
 
-        public async Task<bool> HashSetAsync<T>(string key, string field, T value, int db = -1, CancellationToken cancellationToken = default)
+        public async Task<bool> HashSetAsync(string key, string field, RedisValue value, int db = -1, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return await GetDatabase(db).HashSetAsync(K(key), field, RedisValueConverter.ToRedisValue(value));
+            return await GetDatabase(db).HashSetAsync(K(key), field, value);
         }
 
-        public T HashGet<T>(string key, string field, int db = -1, CommandFlags flags = CommandFlags.None)
-            => RedisValueConverter.FromRedisValue<T>(GetDatabase(db).HashGet(K(key), field, flags));
+        public RedisValue HashGet(string key, string field, int db = -1, CommandFlags flags = CommandFlags.None)
+            => GetDatabase(db).HashGet(K(key), field, flags);
 
-        public async Task<T> HashGetAsync<T>(string key, string field, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
+        public async Task<RedisValue> HashGetAsync(string key, string field, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return RedisValueConverter.FromRedisValue<T>(await GetDatabase(db).HashGetAsync(K(key), field, flags));
+            return await GetDatabase(db).HashGetAsync(K(key), field, flags);
         }
 
-        public Dictionary<string, T> HashGetAll<T>(string key, int db = -1, CommandFlags flags = CommandFlags.None)
-        {
-            var entries = GetDatabase(db).HashGetAll(K(key), flags);
-            return entries.ToDictionary(e => e.Name.ToString(), e => RedisValueConverter.FromRedisValue<T>(e.Value));
-        }
+        public HashEntry[] HashGetAll(string key, int db = -1, CommandFlags flags = CommandFlags.None)
+            => GetDatabase(db).HashGetAll(K(key), flags);
 
-        public async Task<Dictionary<string, T>> HashGetAllAsync<T>(string key, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
+        public async Task<HashEntry[]> HashGetAllAsync(string key, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var entries = await GetDatabase(db).HashGetAllAsync(K(key), flags);
-            return entries.ToDictionary(e => e.Name.ToString(), e => RedisValueConverter.FromRedisValue<T>(e.Value));
+            return await GetDatabase(db).HashGetAllAsync(K(key), flags);
         }
 
-        private static RedisValue[] ToRedisFields(IEnumerable<string> fields)
-            => fields.Select(f => (RedisValue)f).ToArray();
+        public long HashDelete(string key, RedisValue[] fields, int db = -1)
+            => GetDatabase(db).HashDelete(K(key), fields);
 
-        public long HashDelete(string key, IEnumerable<string> fields, int db = -1)
-            => GetDatabase(db).HashDelete(K(key), ToRedisFields(fields));
-
-        public async Task<long> HashDeleteAsync(string key, IEnumerable<string> fields, int db = -1, CancellationToken cancellationToken = default)
+        public async Task<long> HashDeleteAsync(string key, RedisValue[] fields, int db = -1, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return await GetDatabase(db).HashDeleteAsync(K(key), ToRedisFields(fields));
+            return await GetDatabase(db).HashDeleteAsync(K(key), fields);
         }
 
         public bool HashExists(string key, string field, int db = -1, CommandFlags flags = CommandFlags.None)
@@ -616,24 +625,22 @@ namespace Core.Redis
             return await GetDatabase(db).HashExistsAsync(K(key), field, flags);
         }
 
-        public IEnumerable<string> HashKeys(string key, int db = -1, CommandFlags flags = CommandFlags.None)
-            => GetDatabase(db).HashKeys(K(key), flags).Select(k => k.ToString());
+        public RedisValue[] HashKeys(string key, int db = -1, CommandFlags flags = CommandFlags.None)
+            => GetDatabase(db).HashKeys(K(key), flags);
 
-        public async Task<IEnumerable<string>> HashKeysAsync(string key, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
+        public async Task<RedisValue[]> HashKeysAsync(string key, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var keys = await GetDatabase(db).HashKeysAsync(K(key), flags);
-            return keys.Select(k => k.ToString());
+            return await GetDatabase(db).HashKeysAsync(K(key), flags);
         }
 
-        public IEnumerable<T> HashValues<T>(string key, int db = -1, CommandFlags flags = CommandFlags.None)
-            => GetDatabase(db).HashValues(K(key), flags).Select(RedisValueConverter.FromRedisValue<T>);
+        public RedisValue[] HashValues(string key, int db = -1, CommandFlags flags = CommandFlags.None)
+            => GetDatabase(db).HashValues(K(key), flags);
 
-        public async Task<IEnumerable<T>> HashValuesAsync<T>(string key, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
+        public async Task<RedisValue[]> HashValuesAsync(string key, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var values = await GetDatabase(db).HashValuesAsync(K(key), flags);
-            return values.Select(RedisValueConverter.FromRedisValue<T>);
+            return await GetDatabase(db).HashValuesAsync(K(key), flags);
         }
 
         public long HashLength(string key, int db = -1, CommandFlags flags = CommandFlags.None)
@@ -646,42 +653,41 @@ namespace Core.Redis
         }
         #endregion
 
-        #region Set
-        public long SetAdd<T>(string key, IEnumerable<T> values, int db = -1)
-            => GetDatabase(db).SetAdd(K(key), ToRedisValues(values));
+        #region Set (透传 RedisValue)
+        public long SetAdd(string key, RedisValue[] values, int db = -1)
+            => GetDatabase(db).SetAdd(K(key), values);
 
-        public async Task<long> SetAddAsync<T>(string key, IEnumerable<T> values, int db = -1, CancellationToken cancellationToken = default)
+        public async Task<long> SetAddAsync(string key, RedisValue[] values, int db = -1, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return await GetDatabase(db).SetAddAsync(K(key), ToRedisValues(values));
+            return await GetDatabase(db).SetAddAsync(K(key), values);
         }
 
-        public IEnumerable<T> SetMembers<T>(string key, int db = -1, CommandFlags flags = CommandFlags.None)
-            => GetDatabase(db).SetMembers(K(key), flags).Select(RedisValueConverter.FromRedisValue<T>);
+        public RedisValue[] SetMembers(string key, int db = -1, CommandFlags flags = CommandFlags.None)
+            => GetDatabase(db).SetMembers(K(key), flags);
 
-        public async Task<IEnumerable<T>> SetMembersAsync<T>(string key, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
+        public async Task<RedisValue[]> SetMembersAsync(string key, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var values = await GetDatabase(db).SetMembersAsync(K(key), flags);
-            return values.Select(RedisValueConverter.FromRedisValue<T>);
+            return await GetDatabase(db).SetMembersAsync(K(key), flags);
         }
 
-        public bool SetContains<T>(string key, T value, int db = -1, CommandFlags flags = CommandFlags.None)
-            => GetDatabase(db).SetContains(K(key), RedisValueConverter.ToRedisValue(value), flags);
+        public bool SetContains(string key, RedisValue value, int db = -1, CommandFlags flags = CommandFlags.None)
+            => GetDatabase(db).SetContains(K(key), value, flags);
 
-        public async Task<bool> SetContainsAsync<T>(string key, T value, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
+        public async Task<bool> SetContainsAsync(string key, RedisValue value, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return await GetDatabase(db).SetContainsAsync(K(key), RedisValueConverter.ToRedisValue(value), flags);
+            return await GetDatabase(db).SetContainsAsync(K(key), value, flags);
         }
 
-        public long SetRemove<T>(string key, IEnumerable<T> values, int db = -1)
-            => GetDatabase(db).SetRemove(K(key), ToRedisValues(values));
+        public long SetRemove(string key, RedisValue[] values, int db = -1)
+            => GetDatabase(db).SetRemove(K(key), values);
 
-        public async Task<long> SetRemoveAsync<T>(string key, IEnumerable<T> values, int db = -1, CancellationToken cancellationToken = default)
+        public async Task<long> SetRemoveAsync(string key, RedisValue[] values, int db = -1, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return await GetDatabase(db).SetRemoveAsync(K(key), ToRedisValues(values));
+            return await GetDatabase(db).SetRemoveAsync(K(key), values);
         }
 
         public long SetLength(string key, int db = -1, CommandFlags flags = CommandFlags.None)
@@ -694,55 +700,50 @@ namespace Core.Redis
         }
         #endregion
 
-        #region Sorted Set
-        private static SortedSetEntry[] ToSortedSetEntries<T>(IEnumerable<KeyValuePair<T, double>> values)
-            => values.Select(v => new SortedSetEntry(RedisValueConverter.ToRedisValue(v.Key), v.Value)).ToArray();
+        #region Sorted Set (透传 SortedSetEntry / RedisValue)
+        public long SortedSetAdd(string key, SortedSetEntry[] entries, int db = -1)
+            => GetDatabase(db).SortedSetAdd(K(key), entries);
 
-        public long SortedSetAdd<T>(string key, IEnumerable<KeyValuePair<T, double>> values, int db = -1)
-            => GetDatabase(db).SortedSetAdd(K(key), ToSortedSetEntries(values));
-
-        public async Task<long> SortedSetAddAsync<T>(string key, IEnumerable<KeyValuePair<T, double>> values, int db = -1, CancellationToken cancellationToken = default)
+        public async Task<long> SortedSetAddAsync(string key, SortedSetEntry[] entries, int db = -1, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return await GetDatabase(db).SortedSetAddAsync(K(key), ToSortedSetEntries(values));
+            return await GetDatabase(db).SortedSetAddAsync(K(key), entries);
         }
 
-        public IEnumerable<T> SortedSetRangeByRank<T>(string key, long start, long stop, int db = -1, CommandFlags flags = CommandFlags.None)
-            => GetDatabase(db).SortedSetRangeByRank(K(key), start, stop, Order.Ascending, flags).Select(RedisValueConverter.FromRedisValue<T>);
+        public RedisValue[] SortedSetRangeByRank(string key, long start, long stop, int db = -1, CommandFlags flags = CommandFlags.None)
+            => GetDatabase(db).SortedSetRangeByRank(K(key), start, stop, Order.Ascending, flags);
 
-        public async Task<IEnumerable<T>> SortedSetRangeByRankAsync<T>(string key, long start, long stop, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
+        public async Task<RedisValue[]> SortedSetRangeByRankAsync(string key, long start, long stop, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var values = await GetDatabase(db).SortedSetRangeByRankAsync(K(key), start, stop, Order.Ascending, flags);
-            return values.Select(RedisValueConverter.FromRedisValue<T>);
+            return await GetDatabase(db).SortedSetRangeByRankAsync(K(key), start, stop, Order.Ascending, flags);
         }
 
-        public IEnumerable<T> SortedSetRangeByScore<T>(string key, double min, double max, int db = -1, CommandFlags flags = CommandFlags.None)
-            => GetDatabase(db).SortedSetRangeByScore(K(key), min, max, Exclude.None, Order.Ascending, 0, -1, flags).Select(RedisValueConverter.FromRedisValue<T>);
+        public RedisValue[] SortedSetRangeByScore(string key, double min, double max, int db = -1, CommandFlags flags = CommandFlags.None)
+            => GetDatabase(db).SortedSetRangeByScore(K(key), min, max, Exclude.None, Order.Ascending, 0, -1, flags);
 
-        public async Task<IEnumerable<T>> SortedSetRangeByScoreAsync<T>(string key, double min, double max, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
+        public async Task<RedisValue[]> SortedSetRangeByScoreAsync(string key, double min, double max, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var values = await GetDatabase(db).SortedSetRangeByScoreAsync(K(key), min, max, Exclude.None, Order.Ascending, 0, -1, flags);
-            return values.Select(RedisValueConverter.FromRedisValue<T>);
+            return await GetDatabase(db).SortedSetRangeByScoreAsync(K(key), min, max, Exclude.None, Order.Ascending, 0, -1, flags);
         }
 
-        public double? SortedSetScore<T>(string key, T member, int db = -1, CommandFlags flags = CommandFlags.None)
-            => GetDatabase(db).SortedSetScore(K(key), RedisValueConverter.ToRedisValue(member), flags);
+        public double? SortedSetScore(string key, RedisValue member, int db = -1, CommandFlags flags = CommandFlags.None)
+            => GetDatabase(db).SortedSetScore(K(key), member, flags);
 
-        public async Task<double?> SortedSetScoreAsync<T>(string key, T member, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
+        public async Task<double?> SortedSetScoreAsync(string key, RedisValue member, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return await GetDatabase(db).SortedSetScoreAsync(K(key), RedisValueConverter.ToRedisValue(member), flags);
+            return await GetDatabase(db).SortedSetScoreAsync(K(key), member, flags);
         }
 
-        public long SortedSetRemove<T>(string key, IEnumerable<T> members, int db = -1)
-            => GetDatabase(db).SortedSetRemove(K(key), ToRedisValues(members));
+        public long SortedSetRemove(string key, RedisValue[] members, int db = -1)
+            => GetDatabase(db).SortedSetRemove(K(key), members);
 
-        public async Task<long> SortedSetRemoveAsync<T>(string key, IEnumerable<T> members, int db = -1, CancellationToken cancellationToken = default)
+        public async Task<long> SortedSetRemoveAsync(string key, RedisValue[] members, int db = -1, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return await GetDatabase(db).SortedSetRemoveAsync(K(key), ToRedisValues(members));
+            return await GetDatabase(db).SortedSetRemoveAsync(K(key), members);
         }
 
         public long SortedSetLength(string key, int db = -1, CommandFlags flags = CommandFlags.None)
@@ -755,42 +756,32 @@ namespace Core.Redis
         }
         #endregion
 
-        #region Stream
-        private static NameValueEntry[] ToNameValueEntries(IDictionary<string, string> fields)
-            => fields.Select(f => new NameValueEntry(f.Key, f.Value)).ToArray();
+        #region Stream (透传 NameValueEntry / StreamEntry)
+        public string StreamAdd(string streamKey, NameValueEntry[] fields, string messageId = null, int db = -1)
+            => GetDatabase(db).StreamAdd(K(streamKey), fields, messageId);
 
-        private static RedisValue[] ToRedisMessageIds(IEnumerable<string> ids)
-            => ids.Select(id => (RedisValue)id).ToArray();
-
-        private static (string MessageId, IDictionary<string, string> Fields) ToStreamTuple(StreamEntry m)
-            => (m.Id.ToString(), m.Values.ToDictionary(v => v.Name.ToString(), v => v.Value.ToString()));
-
-        public string StreamAdd(string streamKey, IDictionary<string, string> fields, string messageId = null, int db = -1)
-            => GetDatabase(db).StreamAdd(K(streamKey), ToNameValueEntries(fields), messageId);
-
-        public async Task<string> StreamAddAsync(string streamKey, IDictionary<string, string> fields, string messageId = null, int db = -1, CancellationToken cancellationToken = default)
+        public async Task<string> StreamAddAsync(string streamKey, NameValueEntry[] fields, string messageId = null, int db = -1, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return await GetDatabase(db).StreamAddAsync(K(streamKey), ToNameValueEntries(fields), messageId);
+            return await GetDatabase(db).StreamAddAsync(K(streamKey), fields, messageId);
         }
 
-        public IEnumerable<(string MessageId, IDictionary<string, string> Fields)> StreamRead(string streamKey, string messageId = "0-0", int count = 10, int db = -1, CommandFlags flags = CommandFlags.None)
-            => GetDatabase(db).StreamRead(K(streamKey), messageId, count, flags).Select(ToStreamTuple);
+        public StreamEntry[] StreamRead(string streamKey, RedisValue messageId, int count = 10, int db = -1, CommandFlags flags = CommandFlags.None)
+            => GetDatabase(db).StreamRead(K(streamKey), messageId, count, flags);
 
-        public async Task<IEnumerable<(string MessageId, IDictionary<string, string> Fields)>> StreamReadAsync(string streamKey, string messageId = "0-0", int count = 10, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
+        public async Task<StreamEntry[]> StreamReadAsync(string streamKey, RedisValue messageId, int count = 10, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var messages = await GetDatabase(db).StreamReadAsync(K(streamKey), messageId, count, flags);
-            return messages.Select(ToStreamTuple);
+            return await GetDatabase(db).StreamReadAsync(K(streamKey), messageId, count, flags);
         }
 
-        public long StreamDelete(string streamKey, IEnumerable<string> messageIds, int db = -1)
-            => GetDatabase(db).StreamDelete(K(streamKey), ToRedisMessageIds(messageIds));
+        public long StreamDelete(string streamKey, RedisValue[] messageIds, int db = -1)
+            => GetDatabase(db).StreamDelete(K(streamKey), messageIds);
 
-        public async Task<long> StreamDeleteAsync(string streamKey, IEnumerable<string> messageIds, int db = -1, CancellationToken cancellationToken = default)
+        public async Task<long> StreamDeleteAsync(string streamKey, RedisValue[] messageIds, int db = -1, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return await GetDatabase(db).StreamDeleteAsync(K(streamKey), ToRedisMessageIds(messageIds));
+            return await GetDatabase(db).StreamDeleteAsync(K(streamKey), messageIds);
         }
 
         public long StreamLength(string streamKey, int db = -1, CommandFlags flags = CommandFlags.None)
@@ -802,32 +793,31 @@ namespace Core.Redis
             return await GetDatabase(db).StreamLengthAsync(K(streamKey), flags);
         }
 
-        public bool StreamCreateConsumerGroup(string streamKey, string groupName, string startMessageId = "0-0", int db = -1)
+        public bool StreamCreateConsumerGroup(string streamKey, string groupName, RedisValue startMessageId, int db = -1)
             => GetDatabase(db).StreamCreateConsumerGroup(K(streamKey), groupName, startMessageId);
 
-        public async Task<bool> StreamCreateConsumerGroupAsync(string streamKey, string groupName, string startMessageId = "0-0", int db = -1, CancellationToken cancellationToken = default)
+        public async Task<bool> StreamCreateConsumerGroupAsync(string streamKey, string groupName, RedisValue startMessageId, int db = -1, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             return await GetDatabase(db).StreamCreateConsumerGroupAsync(K(streamKey), groupName, startMessageId);
         }
 
-        public IEnumerable<(string MessageId, IDictionary<string, string> Fields)> StreamReadGroup(string streamKey, string groupName, string consumerName, int count = 10, int db = -1)
-            => GetDatabase(db).StreamReadGroup(K(streamKey), groupName, consumerName, ">", count).Select(ToStreamTuple);
+        public StreamEntry[] StreamReadGroup(string streamKey, string groupName, string consumerName, int count = 10, int db = -1)
+            => GetDatabase(db).StreamReadGroup(K(streamKey), groupName, consumerName, ">", count);
 
-        public async Task<IEnumerable<(string MessageId, IDictionary<string, string> Fields)>> StreamReadGroupAsync(string streamKey, string groupName, string consumerName, int count = 10, int db = -1, CancellationToken cancellationToken = default)
+        public async Task<StreamEntry[]> StreamReadGroupAsync(string streamKey, string groupName, string consumerName, int count = 10, int db = -1, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var messages = await GetDatabase(db).StreamReadGroupAsync(K(streamKey), groupName, consumerName, ">", count);
-            return messages.Select(ToStreamTuple);
+            return await GetDatabase(db).StreamReadGroupAsync(K(streamKey), groupName, consumerName, ">", count);
         }
 
-        public long StreamAcknowledge(string streamKey, string groupName, IEnumerable<string> messageIds, int db = -1)
-            => GetDatabase(db).StreamAcknowledge(K(streamKey), groupName, ToRedisMessageIds(messageIds));
+        public long StreamAcknowledge(string streamKey, string groupName, RedisValue[] messageIds, int db = -1)
+            => GetDatabase(db).StreamAcknowledge(K(streamKey), groupName, messageIds);
 
-        public async Task<long> StreamAcknowledgeAsync(string streamKey, string groupName, IEnumerable<string> messageIds, int db = -1, CancellationToken cancellationToken = default)
+        public async Task<long> StreamAcknowledgeAsync(string streamKey, string groupName, RedisValue[] messageIds, int db = -1, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return await GetDatabase(db).StreamAcknowledgeAsync(K(streamKey), groupName, ToRedisMessageIds(messageIds));
+            return await GetDatabase(db).StreamAcknowledgeAsync(K(streamKey), groupName, messageIds);
         }
         #endregion
 

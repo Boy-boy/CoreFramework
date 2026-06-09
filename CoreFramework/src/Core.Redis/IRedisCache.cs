@@ -15,9 +15,9 @@ namespace Core.Redis
 
         Task<T> GetAsync<T>(string key, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default);
 
-        bool Set(string key, object value, TimeSpan? expiry = null, When when = When.Always, int db = -1, CommandFlags flags = CommandFlags.None);
+        bool Set<T>(string key, T value, TimeSpan? expiry = null, When when = When.Always, int db = -1, CommandFlags flags = CommandFlags.None);
 
-        Task<bool> SetAsync(string key, object value, TimeSpan? expiry = null, When when = When.Always, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default);
+        Task<bool> SetAsync<T>(string key, T value, TimeSpan? expiry = null, When when = When.Always, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default);
 
         bool SetExpireTime(string key, DateTime datetime, int db = -1);
 
@@ -60,15 +60,16 @@ namespace Core.Redis
         #endregion
 
         #region List
-        long ListLeftPush(string key, object value, int db = -1);
-        long ListLeftPush(string key, IEnumerable<object> value, int db = -1);
-        Task<long> ListLeftPushAsync(string key, object value, int db = -1, CancellationToken cancellationToken = default);
-        Task<long> ListLeftPushAsync(string key, IEnumerable<object> value, int db = -1, CancellationToken cancellationToken = default);
+        long ListLeftPush<T>(string key, T value, int db = -1);
+        /// <summary>批量左推。改名 *Range 以避免与单元素泛型重载的重载解析歧义。</summary>
+        long ListLeftPushRange<T>(string key, IEnumerable<T> values, int db = -1);
+        Task<long> ListLeftPushAsync<T>(string key, T value, int db = -1, CancellationToken cancellationToken = default);
+        Task<long> ListLeftPushRangeAsync<T>(string key, IEnumerable<T> values, int db = -1, CancellationToken cancellationToken = default);
 
-        long ListRightPush(string key, object value, int db = -1);
-        long ListRightPush(string key, IEnumerable<object> value, int db = -1);
-        Task<long> ListRightPushAsync(string key, object value, int db = -1, CancellationToken cancellationToken = default);
-        Task<long> ListRightPushAsync(string key, IEnumerable<object> value, int db = -1, CancellationToken cancellationToken = default);
+        long ListRightPush<T>(string key, T value, int db = -1);
+        long ListRightPushRange<T>(string key, IEnumerable<T> values, int db = -1);
+        Task<long> ListRightPushAsync<T>(string key, T value, int db = -1, CancellationToken cancellationToken = default);
+        Task<long> ListRightPushRangeAsync<T>(string key, IEnumerable<T> values, int db = -1, CancellationToken cancellationToken = default);
 
         T ListLeftPop<T>(string key, int db = -1);
         Task<T> ListLeftPopAsync<T>(string key, int db = -1, CancellationToken cancellationToken = default);
@@ -88,16 +89,16 @@ namespace Core.Redis
         /// 删除 List 中的元素 并返回删除的个数
         /// </summary>
         /// <param name="count">&gt;0 从表头向表尾搜索；&lt;0 从表尾向表头；=0 移除所有匹配</param>
-        long ListRemove(string key, object value, long count = 0, int db = -1);
-        Task<long> ListRemoveAsync(string key, object value, long count = 0, int db = -1, CancellationToken cancellationToken = default);
+        long ListRemove<T>(string key, T value, long count = 0, int db = -1);
+        Task<long> ListRemoveAsync<T>(string key, T value, long count = 0, int db = -1, CancellationToken cancellationToken = default);
 
         void ListClear(string key, int db = -1);
         Task ListClearAsync(string key, int db = -1, CancellationToken cancellationToken = default);
         #endregion
 
         #region Hash
-        bool HashSet(string key, string field, object value, int db = -1);
-        Task<bool> HashSetAsync(string key, string field, object value, int db = -1, CancellationToken cancellationToken = default);
+        bool HashSet<T>(string key, string field, T value, int db = -1);
+        Task<bool> HashSetAsync<T>(string key, string field, T value, int db = -1, CancellationToken cancellationToken = default);
 
         T HashGet<T>(string key, string field, int db = -1, CommandFlags flags = CommandFlags.None);
         Task<T> HashGetAsync<T>(string key, string field, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default);
@@ -122,25 +123,25 @@ namespace Core.Redis
         #endregion
 
         #region Set
-        long SetAdd(string key, IEnumerable<object> values, int db = -1);
-        Task<long> SetAddAsync(string key, IEnumerable<object> values, int db = -1, CancellationToken cancellationToken = default);
+        long SetAdd<T>(string key, IEnumerable<T> values, int db = -1);
+        Task<long> SetAddAsync<T>(string key, IEnumerable<T> values, int db = -1, CancellationToken cancellationToken = default);
 
         IEnumerable<T> SetMembers<T>(string key, int db = -1, CommandFlags flags = CommandFlags.None);
         Task<IEnumerable<T>> SetMembersAsync<T>(string key, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default);
 
-        bool SetContains(string key, object value, int db = -1, CommandFlags flags = CommandFlags.None);
-        Task<bool> SetContainsAsync(string key, object value, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default);
+        bool SetContains<T>(string key, T value, int db = -1, CommandFlags flags = CommandFlags.None);
+        Task<bool> SetContainsAsync<T>(string key, T value, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default);
 
-        long SetRemove(string key, IEnumerable<object> values, int db = -1);
-        Task<long> SetRemoveAsync(string key, IEnumerable<object> values, int db = -1, CancellationToken cancellationToken = default);
+        long SetRemove<T>(string key, IEnumerable<T> values, int db = -1);
+        Task<long> SetRemoveAsync<T>(string key, IEnumerable<T> values, int db = -1, CancellationToken cancellationToken = default);
 
         long SetLength(string key, int db = -1, CommandFlags flags = CommandFlags.None);
         Task<long> SetLengthAsync(string key, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default);
         #endregion
 
         #region Sorted Set
-        long SortedSetAdd(string key, IEnumerable<KeyValuePair<object, double>> values, int db = -1);
-        Task<long> SortedSetAddAsync(string key, IEnumerable<KeyValuePair<object, double>> values, int db = -1, CancellationToken cancellationToken = default);
+        long SortedSetAdd<T>(string key, IEnumerable<KeyValuePair<T, double>> values, int db = -1);
+        Task<long> SortedSetAddAsync<T>(string key, IEnumerable<KeyValuePair<T, double>> values, int db = -1, CancellationToken cancellationToken = default);
 
         IEnumerable<T> SortedSetRangeByRank<T>(string key, long start, long stop, int db = -1, CommandFlags flags = CommandFlags.None);
         Task<IEnumerable<T>> SortedSetRangeByRankAsync<T>(string key, long start, long stop, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default);
@@ -148,11 +149,11 @@ namespace Core.Redis
         IEnumerable<T> SortedSetRangeByScore<T>(string key, double min, double max, int db = -1, CommandFlags flags = CommandFlags.None);
         Task<IEnumerable<T>> SortedSetRangeByScoreAsync<T>(string key, double min, double max, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default);
 
-        double? SortedSetScore(string key, object member, int db = -1, CommandFlags flags = CommandFlags.None);
-        Task<double?> SortedSetScoreAsync(string key, object member, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default);
+        double? SortedSetScore<T>(string key, T member, int db = -1, CommandFlags flags = CommandFlags.None);
+        Task<double?> SortedSetScoreAsync<T>(string key, T member, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default);
 
-        long SortedSetRemove(string key, IEnumerable<object> members, int db = -1);
-        Task<long> SortedSetRemoveAsync(string key, IEnumerable<object> members, int db = -1, CancellationToken cancellationToken = default);
+        long SortedSetRemove<T>(string key, IEnumerable<T> members, int db = -1);
+        Task<long> SortedSetRemoveAsync<T>(string key, IEnumerable<T> members, int db = -1, CancellationToken cancellationToken = default);
 
         long SortedSetLength(string key, int db = -1, CommandFlags flags = CommandFlags.None);
         Task<long> SortedSetLengthAsync(string key, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default);

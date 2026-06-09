@@ -289,44 +289,23 @@ namespace Core.Redis
 
         private RedisKey K(string key) => Options.GetPrefixedKey(key);
 
-        #region String
-        public T Get<T>(string key, int db = -1, CommandFlags flags = CommandFlags.None)
-            => RedisValueConverter.FromRedisValue<T>(GetDatabase(db).StringGet(K(key), flags));
+        #region String (KV 透传 RedisValue)
+        public RedisValue Get(string key, int db = -1, CommandFlags flags = CommandFlags.None)
+            => GetDatabase(db).StringGet(K(key), flags);
 
-        public async Task<T> GetAsync<T>(string key, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
+        public async Task<RedisValue> GetAsync(string key, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return RedisValueConverter.FromRedisValue<T>(await GetDatabase(db).StringGetAsync(K(key), flags));
+            return await GetDatabase(db).StringGetAsync(K(key), flags);
         }
 
-        public bool TryGet<T>(string key, out T value, int db = -1, CommandFlags flags = CommandFlags.None)
-        {
-            var raw = GetDatabase(db).StringGet(K(key), flags);
-            if (raw.IsNull)
-            {
-                value = default;
-                return false;
-            }
-            value = RedisValueConverter.FromRedisValue<T>(raw);
-            return true;
-        }
+        public bool Set(string key, RedisValue value, TimeSpan? expiry = null, When when = When.Always, int db = -1, CommandFlags flags = CommandFlags.None)
+            => GetDatabase(db).StringSet(K(key), value, expiry, when, flags);
 
-        public async Task<(bool Found, T Value)> TryGetAsync<T>(string key, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
+        public async Task<bool> SetAsync(string key, RedisValue value, TimeSpan? expiry = null, When when = When.Always, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var raw = await GetDatabase(db).StringGetAsync(K(key), flags);
-            return raw.IsNull
-                ? (false, default)
-                : (true, RedisValueConverter.FromRedisValue<T>(raw));
-        }
-
-        public bool Set<T>(string key, T value, TimeSpan? expiry = null, When when = When.Always, int db = -1, CommandFlags flags = CommandFlags.None)
-            => GetDatabase(db).StringSet(K(key), RedisValueConverter.ToRedisValue(value), expiry, when, flags);
-
-        public async Task<bool> SetAsync<T>(string key, T value, TimeSpan? expiry = null, When when = When.Always, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            return await GetDatabase(db).StringSetAsync(K(key), RedisValueConverter.ToRedisValue(value), expiry, when, flags);
+            return await GetDatabase(db).StringSetAsync(K(key), value, expiry, when, flags);
         }
 
         public bool SetExpireTime(string key, DateTime datetime, int db = -1)

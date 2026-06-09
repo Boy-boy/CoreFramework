@@ -17,59 +17,37 @@ namespace Core.Redis
         /// <exception cref="InvalidOperationException">当底层连接尚未就绪、正在初始化或处于失联断开状态时抛出。</exception>
         IDatabase GetDatabase(int db = -1);
 
-        #region String (KV 对象缓存语义：全包办泛型)
+        #region String (KV 透传 RedisValue)
 
         /// <summary>
-        /// 读取指定的 key 并自动反序列化为目标类型 <typeparamref name="T"/>。
-        /// <para>注意：当键不存在时返回 <c>default(T)</c>。由于 int/bool/struct 等值类型默认值无 null 属性，会与“值本身就是 0/false”产生歧义；若需精确区分键是否存在，请改用 <see cref="TryGet{T}"/>。</para>
+        /// 读取指定 key 的原始 <see cref="RedisValue"/>（GET）。
+        /// <para>键不存在时返回 <see cref="RedisValue.IsNull"/> 为 true，调用方据此判断"键不存在 vs 默认值"。</para>
+        /// <para>基础类型用显式强转：<c>(int)value</c>、<c>(string)value</c> 等；POCO 对象请使用 <c>GetJsonAsync&lt;T&gt;</c> 扩展方法。</para>
         /// </summary>
-        /// <typeparam name="T">目标对象类型。</typeparam>
         /// <param name="key">缓存键，不能为空或纯空格。</param>
         /// <param name="db">数据库索引，-1 表示默认库。</param>
         /// <param name="flags">命令配置标识（如指定 <see cref="CommandFlags.DemandReplica"/> 读取从库）。</param>
-        /// <returns>反序列化后的对象；键不存在时返回 <c>default(T)</c>。</returns>
-        T Get<T>(string key, int db = -1, CommandFlags flags = CommandFlags.None);
+        /// <returns>原始 RedisValue；键不存在时其 <see cref="RedisValue.IsNull"/> 为 true。</returns>
+        RedisValue Get(string key, int db = -1, CommandFlags flags = CommandFlags.None);
 
-        /// <inheritdoc cref="Get{T}"/>
-        /// <param name="cancellationToken">异步取消令牌。</param>
-        /// <param name="key">缓存键，不能为空或纯空格。</param>
-        /// <param name="db">数据库索引，-1 表示默认库。</param>
-        /// <param name="flags">命令配置标识（如指定 <see cref="CommandFlags.DemandReplica"/> 读取从库）。</param>
-        Task<T> GetAsync<T>(string key, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default);
+        /// <inheritdoc cref="Get"/>
+        Task<RedisValue> GetAsync(string key, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// 尝试读取指定的 key，显式区分“键不存在”与“值就是 default(T)”。
-        /// <para>常用于 int/bool/struct 等无 null 状态的值类型判断。</para>
+        /// 写入键值对（SET）。<see cref="RedisValue"/> 对 string / 数字 / bool / byte[] 等基础类型已提供隐式转换，
+        /// 直接调用 <c>SetAsync(key, 123)</c> / <c>SetAsync(key, "hello")</c> 即可；POCO 对象请使用 <c>SetJsonAsync&lt;T&gt;</c> 扩展方法。
         /// </summary>
-        /// <typeparam name="T">目标对象类型。</typeparam>
         /// <param name="key">缓存键。</param>
-        /// <param name="value">输出参数：如果键存在，返回反序列化后的值；否则返回 <c>default(T)</c>。</param>
-        /// <param name="db">数据库索引，-1 表示默认库。</param>
-        /// <param name="flags">命令配置标识。</param>
-        /// <returns>若键存在返回 <c>true</c>；键不存在返回 <c>false</c>。</returns>
-        bool TryGet<T>(string key, out T value, int db = -1, CommandFlags flags = CommandFlags.None);
-
-        /// <summary>
-        /// 异步版本的 <see cref="TryGet{T}"/>。
-        /// </summary>
-        /// <returns>返回一个元组：<c>Found</c> 为 false 表示键不存在，此时 <c>Value</c> 为 <c>default(T)</c>。</returns>
-        Task<(bool Found, T Value)> TryGetAsync<T>(string key, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// 写入键值对。对象将经由底层的序列化器自动处理（如 POCO 对象走 MessagePack+LZ4 压缩）。
-        /// </summary>
-        /// <typeparam name="T">写入的对象类型。</typeparam>
-        /// <param name="key">缓存键。</param>
-        /// <param name="value">要缓存的对象实例。</param>
+        /// <param name="value">待写入的 RedisValue。</param>
         /// <param name="expiry">相对过期时间；传 <c>null</c> 表示永不过期（注意：这会主动清除该 Key 现有的 TTL 剩余时间）。</param>
         /// <param name="when">条件写入策略：<see cref="When.Always"/> 总是覆盖写、<see cref="When.NotExists"/> 仅当不存在时写（SETNX 语义）、<see cref="When.Exists"/> 仅当已存在时写。</param>
         /// <param name="db">数据库索引，-1 表示默认库。</param>
         /// <param name="flags">命令配置标识。</param>
         /// <returns>操作成功返回 <c>true</c>；因条件不满足（如 NotExists 限制且键已存在）导致写入失败则返回 <c>false</c>。</returns>
-        bool Set<T>(string key, T value, TimeSpan? expiry = null, When when = When.Always, int db = -1, CommandFlags flags = CommandFlags.None);
+        bool Set(string key, RedisValue value, TimeSpan? expiry = null, When when = When.Always, int db = -1, CommandFlags flags = CommandFlags.None);
 
-        /// <inheritdoc cref="Set{T}"/>
-        Task<bool> SetAsync<T>(string key, T value, TimeSpan? expiry = null, When when = When.Always, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default);
+        /// <inheritdoc cref="Set"/>
+        Task<bool> SetAsync(string key, RedisValue value, TimeSpan? expiry = null, When when = When.Always, int db = -1, CommandFlags flags = CommandFlags.None, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// 将指定 key 的过期时刻重设为一个绝对的时间点（EXPIREAT 语义）。

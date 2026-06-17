@@ -67,12 +67,12 @@ namespace Core.Uow
 
                 foreach (var localEvent in localBatch)
                 {
-                    await _localMessagePublisher.PublishAsync(localEvent);
+                    await _localMessagePublisher.PublishAsync(localEvent, cancellationToken);
                 }
 
                 foreach (var distributedEvent in distributedBatch)
                 {
-                    await _integrationMessagePublisher.PublishAsync(distributedEvent);
+                    await _integrationMessagePublisher.PublishAsync(distributedEvent, cancellationToken);
                 }
 
                 await SaveChangesAsync(cancellationToken);

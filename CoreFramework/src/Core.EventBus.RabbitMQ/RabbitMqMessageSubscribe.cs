@@ -1,4 +1,4 @@
-﻿using Core.EventBus.Messaging;
+using Core.EventBus.Messaging;
 using Core.EventBus.Diagnostics;
 using Core.RabbitMQ;
 using Microsoft.Extensions.Logging;
@@ -14,30 +14,60 @@ using Core.EventBus.Integration;
 
 namespace Core.EventBus.RabbitMQ
 {
+    /// <summary>
+    /// RabbitMQ 集成事件订阅器：负责声明 exchange / queue / binding，并把 broker 推来的
+    /// 消息转交给 <see cref="IMessageHandlerInvoker"/> 调用 handler。
+    /// </summary>
+    /// <remarks>
+    /// <para><b>订阅流程</b></para>
+    /// <list type="number">
+    ///   <item><description><see cref="Subscribe(Type, Type)"/>：注册 handler 到 manager 并声明 RabbitMQ 消费者</description></item>
+    ///   <item><description>broker 推消息 → <see cref="Consumer_Received"/> → <see cref="ProcessEvent"/></description></item>
+    ///   <item><description>按 routingKey 查 wrapper → 反序列化 payload → 逐个 handler 调 <see cref="IMessageHandlerInvoker.InvokeAsync"/></description></item>
+    /// </list>
+    ///
+    /// <para><b>幂等与事务一致性</b></para>
+    /// <para>
+    /// 这两点由注入的 <see cref="IMessageHandlerInvoker"/> 决定，订阅器本身不感知。
+    /// 启用 <c>AddEfCoreEventBusStorage</c> 后 invoker 自动具备 UoW + inbox 包装。
+    /// </para>
+    ///
+    /// <para><b>异常处理（当前实现）</b></para>
+    /// <para>
+    /// <see cref="Consumer_Received"/> 的最外层 catch 仍然<b>静默吞掉异常并记 LogWarning</b>，
+    /// 这是为了保持兼容旧版行为。<b>语义警告</b>：当前未做 broker ack 控制，意味着
+    /// 异常时消息可能被自动 ack 而丢失。生产环境建议结合 RabbitMQ 的 manual ack 配置
+    /// （未在本类范围内）使语义更严格。
+    /// </para>
+    /// </remarks>
     public class RabbitMqMessageSubscribe : MessageSubscribeBase, IIntegrationMessageSubscribe
     {
         private readonly IIntegrationMessageHandlerManager _messageHandlerManager;
-        private readonly IIntegrationMessageHandlerProvider _messageHandlerProvider;
         private readonly IRabbitMqMessageConsumerManager _rabbitMqMessageConsumerManager;
+        private readonly IMessageHandlerInvoker _invoker;
         private readonly IOptions<EventBusRabbitMqOptions> _options;
         private readonly ILogger<RabbitMqMessageSubscribe> _logger;
         private readonly object _lock = new();
 
         public RabbitMqMessageSubscribe(
             IIntegrationMessageHandlerManager messageHandlerManager,
-            IIntegrationMessageHandlerProvider messageHandlerProvider,
             IRabbitMqMessageConsumerManager rabbitMqMessageConsumerManager,
+            IMessageHandlerInvoker invoker,
             IOptions<EventBusRabbitMqOptions> options,
             ILogger<RabbitMqMessageSubscribe> logger)
         {
             _messageHandlerManager = messageHandlerManager;
-            _messageHandlerProvider = messageHandlerProvider;
             _rabbitMqMessageConsumerManager = rabbitMqMessageConsumerManager;
+            _invoker = invoker;
             _options = options;
             _logger = logger;
             messageHandlerManager.OnEventRemoved += SubsManager_OnEventRemoved;
         }
 
+        /// <summary>
+        /// 当 manager 通知某个 message type 已没有任何 handler 订阅时，
+        /// 解绑对应的 RabbitMQ routing key；若 queue 已无任何 binding，连 consumer 一并释放。
+        /// </summary>
         private void SubsManager_OnEventRemoved(object sender, Type messageType)
         {
             lock (_lock)
@@ -55,6 +85,7 @@ namespace Core.EventBus.RabbitMQ
             }
         }
 
+        /// <summary>启动时按 (messageType, handlerType) 注册订阅；幂等。</summary>
         protected override void Subscribe(Type messageType, Type handlerType)
         {
             _messageHandlerManager.AddHandler(messageType, handlerType);
@@ -71,6 +102,14 @@ namespace Core.EventBus.RabbitMQ
             _messageHandlerManager.RemoveHandler(typeof(T), typeof(TH));
         }
 
+        /// <summary>
+        /// 为一个 message type 准备好 RabbitMQ 消费基础设施：
+        /// <list type="bullet">
+        ///   <item><description>声明 exchange / queue（如不存在）</description></item>
+        ///   <item><description>把 routing key bind 到 queue</description></item>
+        ///   <item><description>挂上 <see cref="Consumer_Received"/> 作为消息回调</description></item>
+        /// </list>
+        /// </summary>
         private void TryCreateMessageConsumer(Type messageType)
         {
             var exchangeName = _options.Value.ExchangeName;
@@ -84,6 +123,13 @@ namespace Core.EventBus.RabbitMQ
             rabbitMqMessageConsumer.OnMessageReceived(Consumer_Received);
         }
 
+        /// <summary>
+        /// RabbitMQ 消息抵达入口。
+        /// </summary>
+        /// <remarks>
+        /// "throw-fake-exception" 的特判用于测试：在 payload 里包含该字符串可强制抛异常，
+        /// 用来演示异常路径（broker 重投、inbox 去重等）。
+        /// </remarks>
         private async Task Consumer_Received(IModel model, BasicDeliverEventArgs eventArgs)
         {
             var eventName = eventArgs.RoutingKey;
@@ -102,13 +148,24 @@ namespace Core.EventBus.RabbitMQ
             }
         }
 
+        /// <summary>
+        /// 反序列化 payload，查找所有订阅了该 routing key 的 handler，依次调用 invoker。
+        /// </summary>
+        /// <remarks>
+        /// 这里<b>直接遍历 wrapper 而不是用 <c>IMessageHandlerProvider.GetHandlers</c></b>，
+        /// 原因是 provider 会预先 resolve handler 实例（在 wrapper 的 leak 的 scope 里），
+        /// 而 invoker 需要在自己的新 scope 里 resolve，以保证 DbContext / UoW 生命周期正确。
+        /// </remarks>
         private async Task ProcessEvent(string eventName, string message)
         {
             _logger.LogTrace("Processing RabbitMQ event: {eventName}", eventName);
 
-            var messageType = _messageHandlerManager.MessageHandlerWrappers
-                .FirstOrDefault(p => p.MessageName == eventName)
-                ?.MessageType;
+            var wrappers = _messageHandlerManager.MessageHandlerWrappers
+                .Where(p => p.MessageName == eventName)
+                .OrderByDescending(p => p.HandlerPriority)
+                .ToList();
+
+            var messageType = wrappers.FirstOrDefault()?.MessageType;
 
             if (messageType != null)
             {
@@ -117,24 +174,25 @@ namespace Core.EventBus.RabbitMQ
                 _logger.LogTrace("Enable diagnostic listeners before consume,name is {name}", DiagnosticListenerConstants.BeforeConsume);
                 EventBusDiagnosticListener.TracingConsumeBefore(integrationEvent);
 
-                var messageHandlers = _messageHandlerProvider.GetHandlers(messageType);
-                foreach (var messageHandler in messageHandlers)
+                foreach (var wrapper in wrappers)
                 {
-                    var concreteType = typeof(IMessageHandler<>).MakeGenericType(messageType);
-                    var method = concreteType.GetMethod("HandAsync");
-                    if (method == null) continue;
                     try
                     {
-                        await (Task)method.Invoke(messageHandler, new object[] { integrationEvent });
+                        // 注意：传 HandlerType 而非已 resolve 的 handler 实例。
+                        // invoker 会在自己的 DI scope 内 resolve，保证生命周期一致
+                        await _invoker.InvokeAsync(messageType, wrapper.HandlerType, integrationEvent);
                     }
                     catch (Exception e)
                     {
-                        var handlerType = messageHandler.GetType();
-                        _logger.LogError("Message processing failure,message type is {messageType},handler type is {handlerType},error message is {errorMessage}",
-                            messageType, handlerType, e.Message);
+                        // 单个 handler 失败不阻断其他 handler。
+                        // 注意：当前 catch 后未"不 ack" → 异常仍会被吞掉 → 这条消息会被 ack
+                        // 如需"失败重投"，必须改 RabbitMQ consumer 走 manual ack 模式
+                        _logger.LogError(e,
+                            "Message processing failure: messageType={MessageType} handlerType={HandlerType}",
+                            messageType, wrapper.HandlerType);
 
                         _logger.LogTrace("Enable diagnostic listeners incorrect consume,name is {name}", DiagnosticListenerConstants.ErrorConsume);
-                        EventBusDiagnosticListener.TracingConsumeError(integrationEvent, handlerType, e.Message);
+                        EventBusDiagnosticListener.TracingConsumeError(integrationEvent, wrapper.HandlerType, e.Message);
                     }
                 }
 
@@ -143,6 +201,7 @@ namespace Core.EventBus.RabbitMQ
             }
             else
             {
+                // 没有订阅 = 配置遗漏或部署版本错位。typically 应该告警而不只是 log warning
                 _logger.LogWarning("No subscription for RabbitMQ event: {eventName}", eventName);
 
                 _logger.LogTrace("Not subscribed to enable diagnostic listener,name is {name}", DiagnosticListenerConstants.NotSubscribed);

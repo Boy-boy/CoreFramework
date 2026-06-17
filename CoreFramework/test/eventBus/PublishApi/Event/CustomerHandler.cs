@@ -1,12 +1,13 @@
 ﻿using Core.EventBus;
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace PublishApi.Event
 {
     public class CustomerHandler : IMessageHandler<CustomerEvent>
     {
-        public Task HandAsync(CustomerEvent message)
+        public Task HandAsync(CustomerEvent message, CancellationToken cancellationToken = default)
         {
           Console.WriteLine(message.Id);
           return Task.CompletedTask;

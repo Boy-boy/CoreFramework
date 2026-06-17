@@ -1,13 +1,9 @@
 ﻿using System.Diagnostics;
 using System.Threading.Tasks;
-using Core.EventBus;
 using Core.EventBus.Integration;
 using Core.EventBus.Local;
-using Core.EventBus.Transaction;
+using Core.Uow;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
-using Npgsql;
 using PublishApi.Event;
 
 namespace PublishApi.Controllers
@@ -18,31 +14,33 @@ namespace PublishApi.Controllers
     {
         private readonly IIntegrationMessagePublisher _publisher;
         private readonly ILocalMessagePublisher _localPublisher;
-        private readonly IConfiguration _configuration;
+        private readonly IUnitOfWorkManager _unitOfWorkManager;
 
         public WeatherForecastController(
             IIntegrationMessagePublisher publisher,
             ILocalMessagePublisher localPublisher,
-            IConfiguration configuration)
+            IUnitOfWorkManager unitOfWorkManager)
         {
             _publisher = publisher;
             _localPublisher = localPublisher;
-            _configuration = configuration;
+            _unitOfWorkManager = unitOfWorkManager;
         }
 
-        [HttpGet]
-        public async Task<string> Get()
+        [HttpPost]
+        public async Task<string> Post()
         {
             var sw = new Stopwatch();
             sw.Start();
-            var connection = new SqlConnection(_configuration.GetConnectionString("customer"));
-            using var transaction = connection.BeginTransaction(_publisher);
+
+            // 用 UoW 开启业务事务；publisher 检测到 outbox 上下文自动走 outbox 路径
+            await using var uow = _unitOfWorkManager.Begin(new UnitOfWorkOptions(isTransactional: true));
             for (var i = 0; i < 500; i++)
             {
                 await _publisher.PublishAsync(new CustomerEvent());
                 await _localPublisher.PublishAsync(new CustomerEvent());
             }
-            await transaction.CommitAsync();
+            await uow.CommitAsync();
+
             sw.Stop();
             return $"500个事件，耗时：{sw.ElapsedMilliseconds}";
         }

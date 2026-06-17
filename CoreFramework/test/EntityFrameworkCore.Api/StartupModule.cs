@@ -2,6 +2,7 @@
 using Core.EventBus;
 using Core.EventBus.Local;
 using Core.EventBus.RabbitMQ;
+using Core.EventBus.Storage.EfCore;
 using Core.Modularity;
 using Core.Modularity.Attribute;
 using Core.Uow;
@@ -51,6 +52,8 @@ namespace EntityFrameworkCore.Api
             context.Services.Configure<EventBusOptions>(options =>
             {
                 options.AddConsumers(typeof(Startup).Assembly);
+                // 注册 EF Core outbox / inbox 存储 + Outbox Dispatcher + Inbox 清理
+                options.AddEfCoreEventBusStorage<CustomerDbContext>();
             });
 
             //方式三

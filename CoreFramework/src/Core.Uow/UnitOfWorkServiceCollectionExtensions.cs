@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Core.EventBus.Outbox;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Core.Uow
@@ -9,6 +10,7 @@ namespace Core.Uow
         {
             services.TryAddSingleton<IUnitOfWorkAccessor, DefaultUnitOfWorkAccessor>();
             services.TryAddTransient<IUnitOfWorkManager, DefaultUnitOfWorkManager>();
+            services.TryAddTransient<IOutboxAmbientContext, UnitOfWorkOutboxAmbientContext>();
             return services;
         }
     }

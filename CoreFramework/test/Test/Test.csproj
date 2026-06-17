@@ -25,6 +25,7 @@
     <ProjectReference Include="..\..\src\Core.Alert\Core.Alert.csproj" />
     <ProjectReference Include="..\..\src\Core.Alert.Sqlite\Core.Alert.Sqlite.csproj" />
     <ProjectReference Include="..\..\src\Core.EmailClient.PostgreSql\Core.EmailClient.PostgreSql.csproj" />
+    <ProjectReference Include="..\..\src\Core.EventBus\Core.EventBus.csproj" />
     <ProjectReference Include="..\..\src\Core.Pipeline\Core.Pipeline.csproj" />
   </ItemGroup>
 

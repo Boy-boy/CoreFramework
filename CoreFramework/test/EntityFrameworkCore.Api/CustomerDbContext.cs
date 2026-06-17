@@ -1,4 +1,5 @@
 ﻿using Core.EntityFrameworkCore;
+using Core.EventBus.Storage.EfCore;
 using EntityFrameworkCore.Api.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,5 +13,11 @@ namespace EntityFrameworkCore.Api
         }
 
         public DbSet<Student> Students { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+            modelBuilder.AddEventBusStorage();
+        }
     }
 }

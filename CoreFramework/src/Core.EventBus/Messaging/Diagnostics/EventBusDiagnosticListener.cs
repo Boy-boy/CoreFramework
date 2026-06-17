@@ -3,6 +3,19 @@ using System.Diagnostics;
 
 namespace Core.EventBus.Diagnostics
 {
+    /// <summary>
+    /// EventBus 的 <see cref="DiagnosticListener"/> 静态适配器。
+    /// publisher / subscriber 在关键时刻调用本类方法把状态写入 listener，由 APM / 链路追踪组件消费。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 每个方法都先用 <c>IsEnabled</c> 双层短路检测，确保未启用监听时几乎零开销：
+    /// 既不分配匿名对象，也不调 Write。
+    /// </para>
+    /// <para>
+    /// 写入的负载是 <c>{ MessageType, MessageData, ExecutionTime, ... }</c> 匿名对象 —— APM 端按反射读取所需字段。
+    /// </para>
+    /// </remarks>
     public class EventBusDiagnosticListener
     {
         private static readonly DiagnosticListener EventBusDiagnostics = new DiagnosticListener(DiagnosticListenerConstants.DiagnosticListenerName);

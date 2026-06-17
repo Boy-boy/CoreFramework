@@ -1,55 +1,90 @@
-﻿using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace Core.EventBus
 {
+    /// <summary>
+    /// 线程安全的订阅项注册表。读取走"不可变快照"，写入走 copy-on-write，
+    /// 保证 publisher 在遍历 wrapper 时不会被并发 Subscribe/UnSubscribe 打断。
+    /// </summary>
     public class MessageHandlerManager : IMessageHandlerManager
     {
-        private readonly IServiceScopeFactory _serviceScopeFactory;
-        private readonly IList<IMessageHandlerWrapper> _messageHandlerWrappers;
+        private readonly Lock _writeLock = new();
 
+        // 写入路径在 lock 内做 copy-on-write，读路径直接取这个引用 —— 无锁、零拷贝枚举
+        private volatile IReadOnlyList<IMessageHandlerWrapper> _wrappers = Array.Empty<IMessageHandlerWrapper>();
+
+        /// <inheritdoc />
         public event EventHandler<Type> OnEventRemoved;
-        public IList<IMessageHandlerWrapper> MessageHandlerWrappers => _messageHandlerWrappers;
 
-        public MessageHandlerManager(IServiceScopeFactory serviceScopeFactory)
-        {
-            _serviceScopeFactory = serviceScopeFactory;
-            _messageHandlerWrappers = new List<IMessageHandlerWrapper>();
-        }
+        /// <inheritdoc />
+        public IReadOnlyList<IMessageHandlerWrapper> MessageHandlerWrappers => _wrappers;
 
+        /// <inheritdoc />
         public void AddHandler(Type messageType, Type handlerType)
         {
-            if (_messageHandlerWrappers.Any(handlerWrapper => handlerWrapper.MessageType == messageType && handlerWrapper.HandlerType == handlerType))
+            lock (_writeLock)
             {
-                throw new ArgumentException(
-                    $"Handler Type {handlerType.Name} already registered for '{messageType.Name}'");
-            }
+                var current = _wrappers;
+                if (current.Any(w => w.MessageType == messageType && w.HandlerType == handlerType))
+                {
+                    throw new ArgumentException(
+                        $"Handler Type {handlerType.Name} already registered for '{messageType.Name}'");
+                }
 
-            var messageName = MessageNameAttribute.GetNameOrDefault(messageType);
-            if (_messageHandlerWrappers.Any(handlerWrapper => handlerWrapper.MessageName == messageName && handlerWrapper.MessageType != messageType))
-            {
-                throw new ArgumentException(
-                    $"The message name '{messageName}' corresponding to the message type '{messageType}' already exists");
-            }
+                var messageName = MessageNameAttribute.GetNameOrDefault(messageType);
+                if (current.Any(w => w.MessageName == messageName && w.MessageType != messageType))
+                {
+                    throw new ArgumentException(
+                        $"The message name '{messageName}' corresponding to the message type '{messageType}' already exists");
+                }
 
-            var handlerWrapperType = typeof(MessageHandlerWrapper<>).MakeGenericType(messageType);
-            _messageHandlerWrappers.Add(Activator.CreateInstance(handlerWrapperType, _serviceScopeFactory, handlerType) as IMessageHandlerWrapper);
+                var wrapperType = typeof(MessageHandlerWrapper<>).MakeGenericType(messageType);
+                var wrapper = (IMessageHandlerWrapper)Activator.CreateInstance(wrapperType, handlerType)!;
+
+                var next = new List<IMessageHandlerWrapper>(current.Count + 1);
+                next.AddRange(current);
+                next.Add(wrapper);
+                _wrappers = next;
+            }
         }
 
+        /// <inheritdoc />
         public void RemoveHandler(Type messageType, Type handlerType)
         {
-            var handler = _messageHandlerWrappers
-                .FirstOrDefault(p => p.MessageType == messageType && p.HandlerType == handlerType);
+            bool messageTypeFullyRemoved;
+            lock (_writeLock)
+            {
+                var current = _wrappers;
+                var idx = -1;
+                for (var i = 0; i < current.Count; i++)
+                {
+                    if (current[i].MessageType != messageType || current[i].HandlerType != handlerType) continue;
+                    idx = i;
+                    break;
+                }
 
-            if (handler != null)
-                _messageHandlerWrappers.Remove(handler);
+                if (idx < 0)
+                {
+                    return;
+                }
 
-            if (_messageHandlerWrappers.Any(p => p.MessageType == messageType))
-                return;
+                var next = new List<IMessageHandlerWrapper>(current.Count - 1);
+                for (var i = 0; i < current.Count; i++)
+                {
+                    if (i != idx) next.Add(current[i]);
+                }
+                _wrappers = next;
 
-            OnEventRemoved?.Invoke(this, messageType);
+                messageTypeFullyRemoved = next.All(w => w.MessageType != messageType);
+            }
+
+            // 事件回调放在 lock 外，避免订阅者重入到 manager 引发死锁
+            if (messageTypeFullyRemoved)
+            {
+                OnEventRemoved?.Invoke(this, messageType);
+            }
         }
     }
 }

@@ -13,22 +13,39 @@ namespace Core.Uow
             _serviceProvider = serviceProvider;
             _unitOfWorkAccessor = unitOfWorkAccessor;
         }
-        public IUnitOfWork Begin()
+
+        public IUnitOfWork Begin() => Begin(new UnitOfWorkOptions());
+
+        public IUnitOfWork Begin(UnitOfWorkOptions options)
         {
-            var uow = _unitOfWorkAccessor.UnitOfWork ?? (_unitOfWorkAccessor.UnitOfWork = CreateUnitOfWork());
+            options ??= new UnitOfWorkOptions();
+
+            var existing = _unitOfWorkAccessor.UnitOfWork;
+            if (existing != null)
+            {
+                if (options.IsTransactional && !existing.Options.IsTransactional)
+                {
+                    throw new InvalidOperationException(
+                        "嵌套 UnitOfWork 需要事务，但外层 UnitOfWork 不是事务性的。请在外层调用方显式开启事务。");
+                }
+                return new ChildUnitOfWork(existing);
+            }
+
+            var uow = CreateUnitOfWork(options);
+            _unitOfWorkAccessor.UnitOfWork = uow;
             return uow;
         }
 
-        public async Task<IUnitOfWork> BeginAsync()
-        {
-            var uow = Begin();
-            return await Task.FromResult(uow);
-        }
+        public Task<IUnitOfWork> BeginAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(Begin());
 
-        private IUnitOfWork CreateUnitOfWork()
+        public Task<IUnitOfWork> BeginAsync(UnitOfWorkOptions options, CancellationToken cancellationToken = default)
+            => Task.FromResult(Begin(options));
+
+        private IUnitOfWork CreateUnitOfWork(UnitOfWorkOptions options)
         {
             var uow = ActivatorUtilities.CreateInstance<DefaultUnitOfWork>(_serviceProvider);
-            uow.Initialize(new UnitOfWorkOptions());
+            uow.Initialize(options);
             return uow;
         }
     }

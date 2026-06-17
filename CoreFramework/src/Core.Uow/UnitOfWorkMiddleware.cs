@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Core.Uow
 {
@@ -7,18 +6,15 @@ namespace Core.Uow
     {
         private readonly RequestDelegate _next;
         private readonly IUnitOfWorkAccessor _unitOfWorkAccessor;
-        private readonly IServiceProvider _serviceProvider;
 
         public UnitOfWorkMiddleware(RequestDelegate next,
-            IUnitOfWorkAccessor unitOfWorkAccessor,
-            IServiceProvider serviceProvider)
+            IUnitOfWorkAccessor unitOfWorkAccessor)
         {
             _next = next;
             _unitOfWorkAccessor = unitOfWorkAccessor;
-            _serviceProvider = serviceProvider;
         }
 
-        public async Task InvokeAsync(HttpContext context)
+        public async Task InvokeAsync(HttpContext context, IUnitOfWorkManager unitOfWorkManager)
         {
             var endpoint = context != null ? context.GetEndpoint() : throw new ArgumentNullException(nameof(context));
             if (endpoint == null)
@@ -28,10 +24,24 @@ namespace Core.Uow
             }
 
             var unitOfWorkAttribute = endpoint.Metadata.GetOrderedMetadata<UnitOfWorkAttribute>().FirstOrDefault();
-
             var options = CreateOptions(context, unitOfWorkAttribute);
-            _unitOfWorkAccessor.UnitOfWork = CreateUnitOfWork(options);
-            await _next(context);
+            var uow = unitOfWorkManager.Begin(options);
+
+            try
+            {
+                await _next(context);
+                await uow.CommitAsync(context.RequestAborted);
+            }
+            catch
+            {
+                await uow.RollbackAsync();
+                throw;
+            }
+            finally
+            {
+                await uow.DisposeAsync();
+                _unitOfWorkAccessor.UnitOfWork = null;
+            }
         }
 
         private UnitOfWorkOptions CreateOptions(HttpContext context, UnitOfWorkAttribute unitOfWorkAttribute)
@@ -47,13 +57,6 @@ namespace Core.Uow
             }
 
             return options;
-        }
-
-        private IUnitOfWork CreateUnitOfWork(UnitOfWorkOptions options)
-        {
-            var uow = ActivatorUtilities.CreateInstance<DefaultUnitOfWork>(_serviceProvider);
-            uow.Initialize(options);
-            return uow;
         }
     }
 }

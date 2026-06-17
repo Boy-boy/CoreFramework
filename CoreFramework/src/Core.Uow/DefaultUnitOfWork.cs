@@ -1,7 +1,8 @@
-﻿using Core.EventBus;
+using Core.EventBus;
 using Core.EventBus.Integration;
 using Core.EventBus.Local;
 using Microsoft.Extensions.DependencyInjection;
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 
@@ -9,25 +10,33 @@ namespace Core.Uow
 {
     public class DefaultUnitOfWork : IUnitOfWork
     {
-        private readonly Dictionary<string, IDatabaseApi> _databaseApis;
+        private const int MaxEventDispatchIterations = 16;
 
-        private readonly Dictionary<string, ITransactionApi> _transactionApis;
+        private readonly ConcurrentDictionary<string, IDatabaseApi> _databaseApis;
+
+        private readonly ConcurrentDictionary<string, ITransactionApi> _transactionApis;
 
         private readonly List<IMessage> _localEvents;
 
         private readonly List<IMessage> _distributedEvents;
 
+        private readonly Lock _eventLock = new();
+
         private readonly ILocalMessagePublisher _localMessagePublisher;
 
         private readonly IIntegrationMessagePublisher _integrationMessagePublisher;
 
+        private bool _disposed;
+
 
         public UnitOfWorkOptions Options { get; private set; }
 
+        public bool IsCompleted { get; private set; }
+
         public DefaultUnitOfWork(IServiceProvider serviceProvider)
         {
-            _databaseApis = new Dictionary<string, IDatabaseApi>();
-            _transactionApis = new Dictionary<string, ITransactionApi>();
+            _databaseApis = new ConcurrentDictionary<string, IDatabaseApi>();
+            _transactionApis = new ConcurrentDictionary<string, ITransactionApi>();
             _localEvents = new List<IMessage>();
             _distributedEvents = new List<IMessage>();
             _localMessagePublisher = serviceProvider.GetService<ILocalMessagePublisher>();
@@ -36,49 +45,87 @@ namespace Core.Uow
 
         public void Initialize(UnitOfWorkOptions options)
         {
-            Options = options;
+            Options = options ?? new UnitOfWorkOptions();
         }
 
         public async Task CommitAsync(CancellationToken cancellationToken = default)
         {
+            if (IsCompleted) return;
+
             await SaveChangesAsync(cancellationToken);
 
-            while (_localEvents.Any() || _distributedEvents.Any())
+            var iterations = 0;
+            while (HasPendingEvents())
             {
-                if (_localEvents.Any())
+                if (++iterations > MaxEventDispatchIterations)
                 {
-                    var localEvents = _localEvents.ToArray();
-                    _localEvents.Clear();
-
-                    foreach (var localEvent in localEvents)
-                    {
-                        await _localMessagePublisher.PublishAsync(localEvent);
-                    }
+                    throw new InvalidOperationException(
+                        $"UnitOfWork 事件分发超过最大迭代次数 ({MaxEventDispatchIterations})，疑似事件循环依赖。");
                 }
 
-                if (_distributedEvents.Any())
-                {
-                    var distributedEvents = _distributedEvents.ToArray();
-                    _distributedEvents.Clear();
+                var (localBatch, distributedBatch) = DrainEvents();
 
-                    foreach (var distributedEvent in distributedEvents)
-                    {
-                        await _integrationMessagePublisher.PublishAsync(distributedEvent);
-                    }
+                foreach (var localEvent in localBatch)
+                {
+                    await _localMessagePublisher.PublishAsync(localEvent);
+                }
+
+                foreach (var distributedEvent in distributedBatch)
+                {
+                    await _integrationMessagePublisher.PublishAsync(distributedEvent);
                 }
 
                 await SaveChangesAsync(cancellationToken);
             }
 
-            await CommitTransactionsAsync();
+            await CommitTransactionsAsync(cancellationToken);
+            IsCompleted = true;
         }
 
         public async Task RollbackAsync(CancellationToken cancellationToken = default)
         {
-            await RollbackTransactionsAsync();
+            if (IsCompleted) return;
+
+            ClearPendingEvents();
+            await RollbackTransactionsAsync(cancellationToken);
+            IsCompleted = true;
         }
 
-        private async Task SaveChangesAsync(CancellationToken cancellationToken = default)
+        public async ValueTask DisposeAsync()
+        {
+            if (_disposed) return;
+            _disposed = true;
+
+            foreach (var transaction in _transactionApis.Values)
+            {
+                try
+                {
+                    await transaction.DisposeAsync();
+                }
+                catch
+                {
+                    // 释放阶段吞掉异常，确保所有资源都尝试释放
+                }
+            }
+
+            foreach (var databaseApi in _databaseApis.Values)
+            {
+                try
+                {
+                    await databaseApi.DisposeAsync();
+                }
+                catch
+                {
+                    // ignore
+                }
+            }
+
+            _transactionApis.Clear();
+            _databaseApis.Clear();
+            ClearPendingEvents();
+        }
+
+        private async Task SaveChangesAsync(CancellationToken cancellationToken)
         {
             foreach (var databaseApi in _databaseApis.Values)
             {
@@ -89,87 +136,107 @@ namespace Core.Uow
             }
         }
 
-        private async Task CommitTransactionsAsync()
+        private async Task CommitTransactionsAsync(CancellationToken cancellationToken)
         {
             var transactions = _transactionApis.Values.ToImmutableList();
             foreach (var transaction in transactions)
             {
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(cancellationToken);
             }
         }
 
-        private async Task RollbackTransactionsAsync()
+        private async Task RollbackTransactionsAsync(CancellationToken cancellationToken)
         {
             var transactions = _transactionApis.Values.ToImmutableList();
             foreach (var transaction in transactions)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
+            }
+        }
+
+        private bool HasPendingEvents()
+        {
+            lock (_eventLock)
+            {
+                return _localEvents.Count > 0 || _distributedEvents.Count > 0;
+            }
+        }
+
+        private (IReadOnlyList<IMessage> Local, IReadOnlyList<IMessage> Distributed) DrainEvents()
+        {
+            lock (_eventLock)
+            {
+                var local = _localEvents.ToArray();
+                var distributed = _distributedEvents.ToArray();
+                _localEvents.Clear();
+                _distributedEvents.Clear();
+                return (local, distributed);
+            }
+        }
+
+        private void ClearPendingEvents()
+        {
+            lock (_eventLock)
+            {
+                _localEvents.Clear();
+                _distributedEvents.Clear();
             }
         }
 
         #region DatabaseApiContainer
         public IDatabaseApi FindDatabaseApi([NotNull] string key)
         {
-            return _databaseApis.TryGetValue(key, out var obj)
-                ? obj
-                : default;
+            return _databaseApis.GetValueOrDefault(key);
         }
 
         public void AddDatabaseApi([NotNull] string key, [NotNull] IDatabaseApi api)
         {
-            if (_databaseApis.ContainsKey(key))
+            if (!_databaseApis.TryAdd(key, api))
             {
-                throw new Exception("There is already a database API in this unit of work with given key: " + key);
+                throw new InvalidOperationException("当前 UnitOfWork 中已存在相同 key 的 database API: " + key);
             }
-            _databaseApis.Add(key, api);
         }
 
         public IDatabaseApi GetOrAddDatabaseApi([NotNull] string key, [NotNull] Func<IDatabaseApi> factory)
         {
-            if (_databaseApis.TryGetValue(key, out var obj))
-            {
-                return obj;
-            }
-            return _databaseApis[key] = factory();
+            return _databaseApis.GetOrAdd(key, _ => factory());
         }
         #endregion
 
         #region TransactionApiContainer
         public virtual ITransactionApi FindTransactionApi([NotNull] string key)
         {
-            return _transactionApis.TryGetValue(key, out var obj)
-                ? obj
-                : default;
+            return _transactionApis.GetValueOrDefault(key);
         }
 
         public virtual void AddTransactionApi([NotNull] string key, [NotNull] ITransactionApi api)
         {
-            if (_transactionApis.ContainsKey(key))
+            if (!_transactionApis.TryAdd(key, api))
             {
-                throw new Exception("There is already a transaction API in this unit of work with given key: " + key);
+                throw new InvalidOperationException("当前 UnitOfWork 中已存在相同 key 的 transaction API: " + key);
             }
-
-            _transactionApis.Add(key, api);
         }
 
         public virtual ITransactionApi GetOrAddTransactionApi([NotNull] string key, [NotNull] Func<ITransactionApi> factory)
         {
-            if (_transactionApis.TryGetValue(key, out var obj))
-            {
-                return obj;
-            }
-            return _transactionApis[key] = factory();
+            return _transactionApis.GetOrAdd(key, _ => factory());
         }
         #endregion
 
         public void AddLocalEvent(IMessage @event)
         {
-            _localEvents.Add(@event);
+            lock (_eventLock)
+            {
+                _localEvents.Add(@event);
+            }
         }
 
         public void AddDistributedEvent(IMessage @event)
         {
-            _distributedEvents.Add(@event);
+            lock (_eventLock)
+            {
+                _distributedEvents.Add(@event);
+            }
         }
     }
 }

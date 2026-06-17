@@ -8,8 +8,7 @@ namespace Core.Uow
         public static IServiceCollection AddUnitOfWork(this IServiceCollection services)
         {
             services.TryAddSingleton<IUnitOfWorkAccessor, DefaultUnitOfWorkAccessor>();
-            services.TryAddSingleton<IUnitOfWorkManager, DefaultUnitOfWorkManager>();
-            services.TryAddTransient(provider => provider.GetRequiredService<IUnitOfWorkAccessor>().UnitOfWork);
+            services.TryAddTransient<IUnitOfWorkManager, DefaultUnitOfWorkManager>();
             return services;
         }
     }

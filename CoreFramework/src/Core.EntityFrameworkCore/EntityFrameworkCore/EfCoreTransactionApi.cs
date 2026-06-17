@@ -6,20 +6,28 @@ namespace Core.EntityFrameworkCore.EntityFrameworkCore
     public class EfCoreTransactionApi : ITransactionApi
     {
         private readonly IDbContextTransaction _dbContextTransaction;
+        private bool _disposed;
 
         public EfCoreTransactionApi(IDbContextTransaction dbContextTransaction)
         {
             _dbContextTransaction = dbContextTransaction;
         }
 
-        public async Task CommitAsync()
+        public Task CommitAsync(CancellationToken cancellationToken = default)
         {
-            await _dbContextTransaction.CommitAsync();
+            return _dbContextTransaction.CommitAsync(cancellationToken);
         }
 
-        public async Task RollbackAsync()
+        public Task RollbackAsync(CancellationToken cancellationToken = default)
         {
-            await _dbContextTransaction.RollbackAsync();
+            return _dbContextTransaction.RollbackAsync(cancellationToken);
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if (_disposed) return;
+            _disposed = true;
+            await _dbContextTransaction.DisposeAsync();
         }
     }
 }

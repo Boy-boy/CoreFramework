@@ -43,7 +43,20 @@ namespace Core.EntityFrameworkCore
 
         private void PublishEntityEvents(EntityEventReport changeReport)
         {
-            var unitOfWork = UnitOfWorkAccessor.UnitOfWork;
+            // 没有领域事件就直接返回，避免无谓的 UoW 取值
+            if (changeReport.DomainEvents.Count == 0 && changeReport.DistributedEvents.Count == 0)
+            {
+                return;
+            }
+
+            var unitOfWork = UnitOfWorkAccessor?.UnitOfWork;
+            if (unitOfWork == null)
+            {
+                // 没有 UoW 上下文（启动种子数据、健康检查、测试等场景）：
+                // 静默丢弃事件，避免 NPE；如需保证事件投递请显式 IUnitOfWorkManager.Begin
+                return;
+            }
+
             foreach (var localEvent in changeReport.DomainEvents)
             {
                 unitOfWork.AddLocalEvent(localEvent);

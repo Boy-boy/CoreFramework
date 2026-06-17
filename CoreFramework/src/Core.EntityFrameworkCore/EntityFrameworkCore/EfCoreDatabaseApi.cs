@@ -18,5 +18,8 @@ namespace Core.EntityFrameworkCore.EntityFrameworkCore
         {
             return DbContext.SaveChangesAsync(cancellationToken);
         }
+
+        // DbContext 的生命周期由 DI scope 负责，这里不主动释放
+        public ValueTask DisposeAsync() => default;
     }
 }

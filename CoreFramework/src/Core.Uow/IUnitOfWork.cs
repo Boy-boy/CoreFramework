@@ -2,9 +2,11 @@
 
 namespace Core.Uow
 {
-    public interface IUnitOfWork : IDatabaseApiContainer, ITransactionApiContainer
+    public interface IUnitOfWork : IDatabaseApiContainer, ITransactionApiContainer, IAsyncDisposable
     {
         UnitOfWorkOptions Options { get; }
+
+        bool IsCompleted { get; }
 
         Task CommitAsync(CancellationToken cancellationToken = default);
 

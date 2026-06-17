@@ -1,9 +1,9 @@
 ﻿namespace Core.Uow
 {
-    public interface ITransactionApi
+    public interface ITransactionApi : IAsyncDisposable
     {
-        Task CommitAsync();
+        Task CommitAsync(CancellationToken cancellationToken = default);
 
-        Task RollbackAsync();
+        Task RollbackAsync(CancellationToken cancellationToken = default);
     }
 }

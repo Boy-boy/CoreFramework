@@ -1,6 +1,6 @@
 ﻿namespace Core.Uow
 {
-    public interface IDatabaseApi
+    public interface IDatabaseApi : IAsyncDisposable
     {
     }
 }

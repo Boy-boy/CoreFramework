@@ -1,15 +1,13 @@
-﻿using System.Threading;
-
-namespace Core.Uow
+﻿namespace Core.Uow
 {
     public class DefaultUnitOfWorkAccessor : IUnitOfWorkAccessor
     {
-        private static readonly AsyncLocal<IUnitOfWork> UnitOfWorkAsyncLocal = new();
+        private readonly AsyncLocal<IUnitOfWork> _unitOfWorkAsyncLocal = new();
 
         public IUnitOfWork UnitOfWork
         {
-            get => UnitOfWorkAsyncLocal.Value;
-            set => UnitOfWorkAsyncLocal.Value = value;
+            get => _unitOfWorkAsyncLocal.Value;
+            set => _unitOfWorkAsyncLocal.Value = value;
         }
     }
 }

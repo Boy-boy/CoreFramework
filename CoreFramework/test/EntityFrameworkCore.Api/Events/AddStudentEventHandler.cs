@@ -18,7 +18,7 @@ namespace EntityFrameworkCore.Api.Events
         public async Task HandAsync(AddLocalStudentEvent message)
         {
             var student = new Student("李四", 24);
-            _repository.Add(student);
+            await _repository.AddAsync(student);
         }
     }
 
@@ -36,9 +36,9 @@ namespace EntityFrameworkCore.Api.Events
 
         public async Task HandAsync(AddStudentEvent message)
         {
-            var uow = _unitOfWorkManager.Begin();
+            await using var uow = _unitOfWorkManager.Begin(new UnitOfWorkOptions(isTransactional: true));
             var student = new Student("李四", 24);
-            _repository.Add(student);
+            await _repository.AddAsync(student);
             await uow.CommitAsync();
         }
     }

@@ -74,6 +74,9 @@ namespace Microsoft.Extensions.DependencyInjection
             var repositoryType1 = typeof(IRepository<>).MakeGenericType(entityType);
             var efCoreRepositoryType1 = typeof(EfCoreRepository<,>).MakeGenericType(dbContextType, entityType);
             services.TryAddTransient(repositoryType1, efCoreRepositoryType1);
+
+            var bulkRepositoryType = typeof(IBulkRepository<>).MakeGenericType(entityType);
+            services.TryAddTransient(bulkRepositoryType, efCoreRepositoryType1);
             return services;
 
         }

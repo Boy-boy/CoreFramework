@@ -4,6 +4,10 @@
     {
         IUnitOfWork Begin();
 
-        Task<IUnitOfWork> BeginAsync();
+        IUnitOfWork Begin(UnitOfWorkOptions options);
+
+        Task<IUnitOfWork> BeginAsync(CancellationToken cancellationToken = default);
+
+        Task<IUnitOfWork> BeginAsync(UnitOfWorkOptions options, CancellationToken cancellationToken = default);
     }
 }

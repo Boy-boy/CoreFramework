@@ -8,11 +8,6 @@ namespace Core.Uow
 
         public IsolationLevel? IsolationLevel { get; set; }
 
-
-        public UnitOfWorkOptions()
-        {
-        }
-
         public UnitOfWorkOptions(bool isTransactional = false, IsolationLevel? isolationLevel = null)
         {
             IsTransactional = isTransactional;

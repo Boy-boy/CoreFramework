@@ -7,20 +7,20 @@ namespace Core.Scheduling.Redis
 {
     /// <summary>
     /// Core.Scheduling 的 Redis 分布式锁模块。
-    /// 必须与 <see cref="CoreSchedulingModule"/>(BG 宿主)叠加使用:
+    /// 必须与 <see cref="SchedulingBackgroundModule"/>(BG 宿主)叠加使用:
     /// BG 提供主循环 + filter 管线;本模块替换 noop 锁为 Redis 锁,让多节点 BG 自动形成集群仲裁。
     /// <para>
-    /// 与 <c>CoreSchedulingQuartzModule</c> / <c>CoreSchedulingHangfireModule</c> 是平行的"集群方案",三选一。
+    /// 与 <c>SchedulingQuartzModule</c> / <c>SchedulingHangfireModule</c> 是平行的"集群方案",三选一。
     /// </para>
     /// 配置节:<c>Scheduling:Redis</c>。
     /// </summary>
     /// <remarks>
     /// 适用场景:已经在用 Redis 做缓存/会话,不想再引入 Quartz 表或 Hangfire,只要"多节点同一时刻只一个跑"。
     /// </remarks>
-    [DependsOn(typeof(CoreSchedulingModule))]
-    public class CoreSchedulingRedisModule : CoreModuleBase
+    [DependsOn(typeof(SchedulingBackgroundModule))]
+    public class SchedulingRedisModule : CoreModuleBase
     {
-        public CoreSchedulingRedisModule(IConfiguration configuration)
+        public SchedulingRedisModule(IConfiguration configuration)
         {
             Configuration = configuration;
         }
@@ -34,7 +34,7 @@ namespace Core.Scheduling.Redis
             var redisOptions = new RedisSchedulingOptions();
             Configuration.GetSection("Scheduling:Redis").Bind(redisOptions);
 
-            context.Services.AddCoreSchedulingRedisLock(opts => Copy(redisOptions, opts));
+            context.Services.AddSchedulingRedisLock(opts => Copy(redisOptions, opts));
         }
 
         private static void Copy(RedisSchedulingOptions from, RedisSchedulingOptions to)

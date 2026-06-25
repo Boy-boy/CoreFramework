@@ -7,14 +7,14 @@ namespace Core.Scheduling.HealthChecks
 {
     /// <summary>
     /// Core.Scheduling 健康检查模块。
-    /// 通过 <c>[DependsOn(typeof(CoreSchedulingCoreModule))]</c> 拉入抽象 + 状态检视;
-    /// 与 BG / Quartz 宿主模块均可共存,业务侧再叠加任一种触发宿主即可。
+    /// 通过 <c>[DependsOn(typeof(SchedulingCoreModule))]</c> 拉入抽象 + 状态检视;
+    /// 与 BG / Quartz / Hangfire 宿主模块均可共存,业务侧再叠加任一种触发宿主即可。
     /// 配置节:<c>Scheduling:HealthChecks</c>。
     /// </summary>
-    [DependsOn(typeof(CoreSchedulingCoreModule))]
-    public class CoreSchedulingHealthChecksModule : CoreModuleBase
+    [DependsOn(typeof(SchedulingCoreModule))]
+    public class SchedulingHealthChecksModule : CoreModuleBase
     {
-        public CoreSchedulingHealthChecksModule(IConfiguration configuration)
+        public SchedulingHealthChecksModule(IConfiguration configuration)
         {
             Configuration = configuration;
         }
@@ -26,7 +26,7 @@ namespace Core.Scheduling.HealthChecks
             context.Services.Configure<SchedulingHealthCheckOptions>(
                 Configuration.GetSection("Scheduling:HealthChecks"));
 
-            context.Services.AddCoreSchedulingHealthCheck();
+            context.Services.AddSchedulingHealthCheck();
         }
     }
 }

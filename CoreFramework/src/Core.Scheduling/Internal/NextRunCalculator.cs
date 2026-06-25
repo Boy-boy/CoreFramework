@@ -9,7 +9,8 @@ namespace Core.Scheduling.Internal
     /// </summary>
     /// <remarks>
     /// 故意不依赖 <see cref="Hosting.SchedulingOptions"/>:把 <c>maxBackoff</c> 作为参数显式传入,
-    /// 让 BG / Hangfire / Quartz 各自的 <see cref="INextRunStrategy"/> 决定如何取这个值。
+    /// 由 BG 的 <see cref="Hosting.BackgroundNextRunStrategy"/> 决定如何取这个值。
+    /// Hangfire/Quartz 不调用本计算器——它们的下次触发完全交给各自引擎。
     /// </remarks>
     internal static class NextRunCalculator
     {
@@ -32,7 +33,7 @@ namespace Core.Scheduling.Internal
             {
                 throw new NotSupportedException(
                     $"ScheduleKind.Cron is not supported by the default BackgroundService runtime. "
-                    + "Reference Core.Scheduling.Quartz and register it via CoreSchedulingQuartzModule.");
+                    + "Reference Core.Scheduling.Quartz and register it via SchedulingQuartzModule.");
             }
 
             var interval = schedule.Interval;

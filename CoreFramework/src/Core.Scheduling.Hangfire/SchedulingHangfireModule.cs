@@ -4,24 +4,23 @@ using Core.Scheduling;
 using Core.Scheduling.Hangfire.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using SchedulingOptions = Core.Scheduling.Hosting.SchedulingOptions;
-using SharedSchedulingOptions = Core.Scheduling.Hosting.SharedSchedulingOptions;
+using SchedulingFilterOptions = Core.Scheduling.Hosting.SchedulingFilterOptions;
 
 namespace Core.Scheduling.Hangfire
 {
     /// <summary>
     /// 基于 Hangfire 的集群调度模块。
-    /// 与 <see cref="CoreSchedulingModule"/>(BG) 及 Quartz 模块互斥;消费者只选一个。
+    /// 与 <see cref="SchedulingBackgroundModule"/>(BG) 及 Quartz 模块互斥;消费者只选一个。
     /// 配置节:<c>Scheduling</c>(通用) + <c>Scheduling:Hangfire</c>(Hangfire 专属)。
     /// </summary>
     /// <remarks>
     /// 适用场景:分钟级及以上节奏 + 需要 Hangfire Dashboard。
     /// 秒级节奏请改用 BG 或 Quartz —— Hangfire 适配器在秒级 FixedInterval 上会直接抛 <see cref="System.InvalidOperationException"/>。
     /// </remarks>
-    [DependsOn(typeof(CoreSchedulingCoreModule))]
-    public class CoreSchedulingHangfireModule : CoreModuleBase
+    [DependsOn(typeof(SchedulingCoreModule))]
+    public class SchedulingHangfireModule : CoreModuleBase
     {
-        public CoreSchedulingHangfireModule(IConfiguration configuration)
+        public SchedulingHangfireModule(IConfiguration configuration)
         {
             Configuration = configuration;
         }
@@ -30,22 +29,22 @@ namespace Core.Scheduling.Hangfire
 
         public override void ConfigureServices(ServiceCollectionContext context)
         {
-            context.Services.Configure<SchedulingOptions>(Configuration.GetSection("Scheduling"));
+            // SchedulingFilterOptions 绑定由 SchedulingCoreModule(DependsOn) 完成;这里只管 Hangfire 专属节
             context.Services.Configure<HangfireSchedulingOptions>(Configuration.GetSection("Scheduling:Hangfire"));
 
-            var schedulingOptions = new SchedulingOptions();
-            Configuration.GetSection("Scheduling").Bind(schedulingOptions);
+            var filterOptions = new SchedulingFilterOptions();
+            Configuration.GetSection("Scheduling").Bind(filterOptions);
             var hangfireOptions = new HangfireSchedulingOptions();
             Configuration.GetSection("Scheduling:Hangfire").Bind(hangfireOptions);
 
-            context.Services.AddCoreSchedulingHangfire(
+            context.Services.AddSchedulingHangfire(
                 hangfire => Copy(hangfireOptions, hangfire),
-                scheduling => CopyShared(schedulingOptions, scheduling));
+                filters => CopyFilters(filterOptions, filters));
         }
 
-        // Hangfire 模式只关心 Shared 字段(三个 filter 开关);
-        // IdleDelay/ShutdownGraceTimeout/分布式锁/DefaultMaxBackoff 等 BG 专属字段在这里没意义
-        private static void CopyShared(SchedulingOptions from, SharedSchedulingOptions to)
+        // Hangfire 模式只关心 filter 开关三个字段;
+        // BG 专属字段(IdleDelay/ShutdownGraceTimeout/分布式锁/DefaultMaxBackoff)在这里没意义,在类型层就拿不到
+        private static void CopyFilters(SchedulingFilterOptions from, SchedulingFilterOptions to)
         {
             to.EnableTracing = from.EnableTracing;
             to.EnableMetrics = from.EnableMetrics;

@@ -8,7 +8,7 @@ namespace Core.Scheduling.Redis
     /// <summary>
     /// Redis 分布式锁实现。SET NX PX 抢锁 + Lua 校验脚本释放/续租,
     /// 用 16 字节随机 token 防止误删别人的锁。
-    /// 集群部署时通过 <c>AddCoreSchedulingRedisLock</c> 替换默认 noop 实现。
+    /// 集群部署时通过 <c>AddSchedulingRedisLock</c> 替换默认 noop 实现。
     /// </summary>
     internal sealed class RedisDistributedHandlerLock : IDistributedHandlerLock
     {

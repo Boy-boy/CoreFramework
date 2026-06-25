@@ -9,30 +9,25 @@ namespace Core.Scheduling.Filters
 {
     /// <summary>
     /// 状态跟踪过滤器：最贴近 handler 的内层 filter。
-    /// 等 handler/内层 filter 返回后,把结果写回 <see cref="HandlerStateStore"/>,
-    /// NextRunTime 由 <see cref="INextRunStrategy"/> 决定:
-    /// BG 模式算出退避后的具体时间;Hangfire/Quartz 模式返回 null,不汇报。
+    /// 等 handler/内层 filter 返回后,把"最后一次执行"的结果(LastFinishTime / LastStatus /
+    /// ConsecutiveFailureCount 等)写回 <see cref="HandlerStateStore"/>。
     /// </summary>
+    /// <remarks>
+    /// 三宿主共用。本 filter <b>不</b>算 NextRunTime——那是 BG 专属职责,
+    /// 由 BG-only 的 <see cref="BackgroundNextRunFilter"/> 在本 filter 之后写入。
+    /// Hangfire/Quartz 模式不注册 BackgroundNextRunFilter,NextRunTime 保留 MarkStarted 写入的
+    /// tentative 值;那两种宿主下"下次触发"应以引擎自身的计算为准,本框架的快照仅供 inspector 参考。
+    /// </remarks>
     internal sealed class StateTrackingFilter : IHandlerExecutionFilter
     {
-        // handler 被并发移除(孤儿场景)时的兜底间隔。仅用于 BG 模式 cosmetic next-run 计算,
-        // 因为 NextRunCalculator 不能接受 0 interval;Hangfire/Quartz strategy 返回 null,本值不会被读。
-        private static readonly TimeSpan OrphanFallbackInterval = TimeSpan.FromMinutes(1);
-
         private readonly HandlerStateStore _store;
-        private readonly IScheduledHandlerRegistry _registry;
-        private readonly INextRunStrategy _nextRunStrategy;
         private readonly TimeProvider _timeProvider;
 
         public StateTrackingFilter(
             HandlerStateStore store,
-            IScheduledHandlerRegistry registry,
-            INextRunStrategy nextRunStrategy,
             TimeProvider timeProvider)
         {
             _store = store;
-            _registry = registry;
-            _nextRunStrategy = nextRunStrategy;
             _timeProvider = timeProvider;
         }
 
@@ -61,10 +56,7 @@ namespace Core.Scheduling.Filters
 
             var finishTime = _timeProvider.GetUtcNow();
             var record = _store.Get(context.HandlerCode);
-            var handler = _registry.Find(context.HandlerCode);
-            var schedule = handler?.Schedule ?? Core.Scheduling.ScheduleDescriptor.FixedInterval(OrphanFallbackInterval);
-
-            record.MarkFinished(finishTime, result, schedule, _nextRunStrategy);
+            record.MarkFinished(finishTime, result);
             return result;
         }
     }

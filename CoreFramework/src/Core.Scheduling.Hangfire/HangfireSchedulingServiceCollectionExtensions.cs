@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using global::Hangfire;
 using global::Hangfire.InMemory;
 using global::Hangfire.SqlServer;
-using SharedSchedulingOptions = Core.Scheduling.Hosting.SharedSchedulingOptions;
+using SchedulingFilterOptions = Core.Scheduling.Hosting.SchedulingFilterOptions;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -16,16 +16,16 @@ namespace Microsoft.Extensions.DependencyInjection
     {
         /// <summary>
         /// 注册基于 Hangfire 的集群调度宿主。
-        /// 自动调用 <c>AddCoreSchedulingCore</c> 引入共享抽象与内置 filter,
-        /// 与 <c>AddCoreScheduling</c>(BG)/<c>AddCoreSchedulingQuartz</c> 互斥。
+        /// 自动调用 <c>AddSchedulingCore</c> 引入共享抽象与内置 filter,
+        /// 与 <c>AddSchedulingBackground</c>(BG)/<c>AddSchedulingQuartz</c> 互斥。
         /// <para>
         /// <paramref name="configureHangfire"/> 必填(存储模式 / 连接串等没有合理默认);
-        /// <paramref name="configureScheduling"/> 可省 —— <see cref="SharedSchedulingOptions"/>
+        /// <paramref name="configureFilters"/> 可省 —— <see cref="SchedulingFilterOptions"/>
         /// 的 3 个 filter 开关默认全开,Hangfire 场景下多数情况无需调整。
         /// 想关掉某个 filter 再传入。
         /// </para>
         /// <para>
-        /// <paramref name="configureScheduling"/> 只接 <see cref="SharedSchedulingOptions"/>:
+        /// <paramref name="configureFilters"/> 只接 <see cref="SchedulingFilterOptions"/>:
         /// BG 专属的 IdleDelay / 分布式锁等字段在 Hangfire 模式下无意义,故编译期就拦住。
         /// </para>
         /// <para>
@@ -34,17 +34,17 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="services">服务集合。</param>
         /// <param name="configureHangfire">Hangfire 专属配置(必填)。</param>
-        /// <param name="configureScheduling">跨适配器共享的调度配置(filter 开关);省略走默认值。</param>
-        public static IServiceCollection AddCoreSchedulingHangfire(
+        /// <param name="configureFilters">跨适配器共享的调度配置(filter 开关);省略走默认值。</param>
+        public static IServiceCollection AddSchedulingHangfire(
             this IServiceCollection services,
             Action<HangfireSchedulingOptions> configureHangfire,
-            Action<SharedSchedulingOptions> configureScheduling = null)
+            Action<SchedulingFilterOptions> configureFilters = null)
         {
             if (services == null) throw new ArgumentNullException(nameof(services));
             if (configureHangfire == null) throw new ArgumentNullException(nameof(configureHangfire));
 
-            // SchedulingOptions 继承 SharedSchedulingOptions,把 Shared 回调(可能为 null)透传给 Core 注册即可
-            services.AddCoreSchedulingCore(configureScheduling);
+            // filter 回调透传给共享层即可,落到独立的 SchedulingFilterOptions 实例(与 BG 的 SchedulingOptions 解耦)
+            services.AddSchedulingCore(configureFilters);
 
             // 回调只跑一次,先解出 options 给 AddHangfire/AddHangfireServer(同步),再复制到 IOptions
             var hangfireOptions = new HangfireSchedulingOptions();

@@ -3,9 +3,9 @@ using System;
 namespace Core.Scheduling.Quartz.Hosting
 {
     /// <summary>
-    /// Quartz 适配器配置。
-    /// 通用调度参数（默认间隔、最大退避等）继续读 <see cref="Core.Scheduling.Hosting.SchedulingOptions"/>，
-    /// 本对象只承载 Quartz/AdoJobStore/集群相关参数。
+    /// Quartz 适配器配置:只承载 Quartz/AdoJobStore/集群相关参数。
+    /// 跨适配器共享的 filter 开关在 <see cref="Core.Scheduling.Hosting.SchedulingFilterOptions"/>;
+    /// BG 专属字段(退避兜底、分布式锁等)在 Quartz 模式下不读取也不绑定。
     /// </summary>
     public sealed class QuartzSchedulingOptions
     {

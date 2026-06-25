@@ -23,7 +23,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="name">健康检查名,默认 <c>scheduling</c>。</param>
         /// <param name="failureStatus">阈值未满足时的兜底状态,默认 <see langword="null"/>(让健康检查自己定夺)。</param>
         /// <param name="tags">健康检查 tag,便于 <c>/health/ready</c> 之类的分组路由。</param>
-        public static IHealthChecksBuilder AddCoreSchedulingHealthCheck(
+        public static IHealthChecksBuilder AddSchedulingHealthCheck(
             this IServiceCollection services,
             Action<SchedulingHealthCheckOptions>? configureOptions = null,
             string name = DefaultName,
@@ -44,7 +44,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// 同上,但走 <see cref="IHealthChecksBuilder"/> 链式 API,适合已有 <c>AddHealthChecks()</c> 链的工程。
         /// </summary>
-        public static IHealthChecksBuilder AddCoreSchedulingHealthCheck(
+        public static IHealthChecksBuilder AddSchedulingHealthCheck(
             this IHealthChecksBuilder builder,
             Action<SchedulingHealthCheckOptions>? configureOptions = null,
             string name = DefaultName,

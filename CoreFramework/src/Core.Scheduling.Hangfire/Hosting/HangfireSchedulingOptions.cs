@@ -3,9 +3,9 @@ using System;
 namespace Core.Scheduling.Hangfire.Hosting
 {
     /// <summary>
-    /// Hangfire 适配器配置。
-    /// 通用调度参数（默认间隔、退避等）继续读 <see cref="Core.Scheduling.Hosting.SchedulingOptions"/>;
-    /// 本对象只承载 Hangfire / 存储 / 服务器相关参数。
+    /// Hangfire 适配器配置:只承载 Hangfire / 存储 / 服务器相关参数。
+    /// 跨适配器共享的 filter 开关在 <see cref="Core.Scheduling.Hosting.SchedulingFilterOptions"/>;
+    /// BG 专属字段(IdleDelay、退避等)在 Hangfire 模式下不读取也不绑定。
     /// </summary>
     public sealed class HangfireSchedulingOptions
     {

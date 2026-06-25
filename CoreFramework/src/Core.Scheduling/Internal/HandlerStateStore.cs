@@ -111,16 +111,18 @@ namespace Core.Scheduling.Internal
         }
 
         /// <summary>
-        /// 标记执行完成。同一把锁里推进失败计数,然后通过 <paramref name="strategy"/> 算下次时间,
-        /// 避免"读 ConsecutiveFailureCount → 算 next → 写回"分离时的竞争。
-        /// strategy 返回 <see langword="null"/>(Hangfire/Quartz 模式)时,NextRunTime 不动,
-        /// 由外部引擎决定下次,本框架不汇报。
+        /// 标记执行完成。共享逻辑:同一把锁里更新最后执行状态 + 推进失败计数。
+        /// <para>
+        /// 不再算下次触发时间——那是宿主层(BG)的职责。BG 模式由 <c>BackgroundNextRunFilter</c>
+        /// 在本方法之后调 <see cref="TryUpdateNextRunTime"/> 写入;
+        /// Hangfire/Quartz 模式下不调用 <see cref="TryUpdateNextRunTime"/>,
+        /// <see cref="NextRunTime"/> 保留 <see cref="MarkStarted"/> 写入的 tentative 值,
+        /// 外部引擎以自家计算为准,本框架的快照仅供 inspector 参考。
+        /// </para>
         /// </summary>
         public void MarkFinished(
             DateTimeOffset finishTime,
-            HandlerExecutionResult result,
-            ScheduleDescriptor schedule,
-            INextRunStrategy strategy)
+            HandlerExecutionResult result)
         {
             lock (_gate)
             {
@@ -144,8 +146,29 @@ namespace Core.Scheduling.Internal
                         _consecutiveFailureCount = unchecked(_consecutiveFailureCount + 1);
                         break;
                 }
+            }
+        }
 
-                var next = strategy.ComputeNextRun(schedule, result.Status, _consecutiveFailureCount, finishTime);
+        /// <summary>
+        /// 基于已落定的最后执行状态 + 失败计数,通过 <paramref name="strategy"/> 算下次时间并写回。
+        /// 仅 BG 宿主调用(<c>BackgroundNextRunFilter</c>)。
+        /// <para>
+        /// 全程在同一把锁里:即使新一轮 <see cref="MarkStarted"/> 已落,本方法见到 <c>_isRunning=true</c>
+        /// 会直接放弃 —— 不覆盖新执行的 tentativeNext,避免用过期的失败计数写脏数据。
+        /// </para>
+        /// </summary>
+        public void TryUpdateNextRunTime(ScheduleDescriptor schedule, INextRunStrategy strategy)
+        {
+            lock (_gate)
+            {
+                if (_isRunning) return;                 // 新一轮已开始,放弃本次计算结果
+                if (_lastStatus is null) return;        // 还没有任何执行完成过
+
+                var next = strategy.ComputeNextRun(
+                    schedule,
+                    _lastStatus.Value,
+                    _consecutiveFailureCount,
+                    _lastFinishTime ?? DateTimeOffset.UtcNow);
                 if (next is not null) _nextRunTime = next;
             }
         }

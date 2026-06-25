@@ -11,17 +11,17 @@ namespace Core.Scheduling.Filters
 {
     /// <summary>
     /// 日志过滤器：在 handler 执行前后写结构化日志。
-    /// 受 <see cref="SchedulingOptions.EnableLogging"/> 控制,关时直接透传 <c>next</c>,不写任何调度日志
+    /// 受 <see cref="SchedulingFilterOptions.EnableLogging"/> 控制,关时直接透传 <c>next</c>,不写任何调度日志
     /// (业务自己写的日志不受影响)。
     /// </summary>
     internal sealed class LoggingExecutionFilter : IHandlerExecutionFilter
     {
         private readonly ILogger<LoggingExecutionFilter> _logger;
-        private readonly IOptionsMonitor<SchedulingOptions> _options;
+        private readonly IOptionsMonitor<SchedulingFilterOptions> _options;
 
         public LoggingExecutionFilter(
             ILogger<LoggingExecutionFilter> logger,
-            IOptionsMonitor<SchedulingOptions> options)
+            IOptionsMonitor<SchedulingFilterOptions> options)
         {
             _logger = logger;
             _options = options;

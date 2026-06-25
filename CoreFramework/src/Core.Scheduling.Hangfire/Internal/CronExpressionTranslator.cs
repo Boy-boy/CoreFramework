@@ -25,7 +25,7 @@ namespace Core.Scheduling.Hangfire.Internal
                 throw new InvalidOperationException(
                     $"Handler '{handlerCode}' has sub-minute interval ({interval}). "
                     + "Hangfire RecurringJob granularity is minute-level. "
-                    + "Use BG (CoreSchedulingModule) or Quartz (CoreSchedulingQuartzModule) for sub-minute schedules.");
+                    + "Use BG (SchedulingBackgroundModule) or Quartz (SchedulingQuartzModule) for sub-minute schedules.");
 
             // 整分钟
             var totalMinutes = (long)interval.TotalMinutes;

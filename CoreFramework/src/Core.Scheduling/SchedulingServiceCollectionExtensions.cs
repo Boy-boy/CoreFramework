@@ -2,7 +2,6 @@ using Core.Scheduling.Abstractions;
 using Core.Scheduling.Filters;
 using Core.Scheduling.Hosting;
 using Core.Scheduling.Internal;
-using Core.Scheduling.Models;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Microsoft.Extensions.DependencyInjection
@@ -14,16 +13,20 @@ namespace Microsoft.Extensions.DependencyInjection
     {
         /// <summary>
         /// 注册 Core.Scheduling 的抽象与共享基础设施（不含调度宿主本身）。
-        /// Quartz 适配器与 BG 适配器都会在自己的 Add 扩展里调用本方法。
+        /// BG / Hangfire / Quartz 三个适配器都会在自己的 Add 扩展里调用本方法。
         /// </summary>
-        public static IServiceCollection AddCoreSchedulingCore(
+        /// <param name="services">服务集合。</param>
+        /// <param name="configureFilters">
+        /// 跨适配器共享的 filter 开关配置(可省)。落到独立的 <see cref="SchedulingFilterOptions"/> 实例,
+        /// 与 BG 专属的 <see cref="SchedulingOptions"/> 解耦——后者只在 <c>AddSchedulingBackground</c>(BG) 路径下注册。
+        /// </param>
+        public static IServiceCollection AddSchedulingCore(
             this IServiceCollection services,
-            Action<SchedulingOptions> configureOptions = null)
+            Action<SchedulingFilterOptions> configureFilters = null)
         {
-            if (configureOptions != null)
-                services.Configure(configureOptions);
-            else
-                services.AddOptions<SchedulingOptions>();
+            services.AddOptions<SchedulingFilterOptions>();
+            if (configureFilters != null)
+                services.Configure(configureFilters);
 
             services.TryAddSingleton(TimeProvider.System);
 
@@ -32,34 +35,50 @@ namespace Microsoft.Extensions.DependencyInjection
                 sp.GetRequiredService<HandlerStateStore>());
 
             services.TryAddSingleton<IScheduledHandlerRegistry, ScheduledHandlerRegistry>();
+
             services.TryAddSingleton<HandlerExecutionPipeline>();
             services.TryAddSingleton<IHandlerExecutionPipeline>(sp =>
                 sp.GetRequiredService<HandlerExecutionPipeline>());
 
-            // 默认 noop 锁;集群部署时由 Core.Scheduling.Redis 等包通过 Replace 替换
-            services.TryAddSingleton<IDistributedHandlerLock, NoopDistributedHandlerLock>();
-
-            // 默认 next-run 策略:不算下次时间。BG 模式由 AddCoreScheduling 替换成 Background 实现。
-            // Hangfire/Quartz 模式保持 noop —— 下次触发由它们自己的引擎决定,框架不汇报以免误导。
-            services.TryAddSingleton<INextRunStrategy, NoopNextRunStrategy>();
-
-            // 内置过滤器按需启用，可通过 SchedulingOptions.Enable* 关闭
+            // 内置过滤器按需启用，可通过 SchedulingFilterOptions.Enable* 关闭。
+            // INextRunStrategy 不在共享层注册——只有 BG 才算下次时间,
+            // Hangfire/Quartz 由自家引擎决定下次,DI 容器里不出现这个接口。
             services.AddInternalFilters();
 
             return services;
         }
 
         /// <summary>
-        /// 注册基于 BackgroundService 的默认调度宿主。
-        /// 与 <c>AddCoreSchedulingQuartz</c> 互斥，二选一。
+        /// 注册基于 <see cref="Microsoft.Extensions.Hosting.BackgroundService"/> 的调度宿主。
+        /// 与 <c>AddSchedulingHangfire</c> / <c>AddSchedulingQuartz</c> 互斥,三选一。
         /// </summary>
-        public static IServiceCollection AddCoreScheduling(
+        /// <param name="services">服务集合。</param>
+        /// <param name="configureOptions">BG 专属字段(IdleDelay、停机等待、退避兜底、分布式锁)。可省。</param>
+        /// <param name="configureFilters">
+        /// 跨适配器共享的 filter 开关(Tracing/Metrics/Logging)。可省。
+        /// 与 BG 字段分两个 Options 类型,各自独立绑定 / 热更新。
+        /// </param>
+        public static IServiceCollection AddSchedulingBackground(
             this IServiceCollection services,
-            Action<SchedulingOptions> configureOptions = null)
+            Action<SchedulingOptions> configureOptions = null,
+            Action<SchedulingFilterOptions> configureFilters = null)
         {
-            services.AddCoreSchedulingCore(configureOptions);
+            services.AddOptions<SchedulingOptions>();
+            if (configureOptions != null)
+                services.Configure(configureOptions);
+
+            services.AddSchedulingCore(configureFilters);
+
+            // 默认 noop 锁;集群部署时由 Core.Scheduling.Redis 等包通过 Replace 替换。
+            // 只有 BG 宿主消费本接口,Hangfire/Quartz 路径不注册以免误以为它在生效。
+            services.TryAddSingleton<IDistributedHandlerLock, NoopDistributedHandlerLock>();
+
             // BG 模式负责自己派发,需要算真实的下次时间(含退避)
-            services.Replace(ServiceDescriptor.Singleton<INextRunStrategy, BackgroundNextRunStrategy>());
+            services.TryAddSingleton<INextRunStrategy, BackgroundNextRunStrategy>();
+            // BG 专属 filter:在 StateTrackingFilter 之后读状态、算 next-run 并写回 HandlerStateStore
+            services.TryAddEnumerable(
+                ServiceDescriptor.Singleton<IHandlerExecutionFilter, BackgroundNextRunFilter>());
+
             services.AddHostedService<SchedulerHostedService>();
             return services;
         }

@@ -3,7 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Core.Scheduling.Abstractions;
 
-namespace Core.Scheduling.Internal
+namespace Core.Scheduling.Hosting
 {
     /// <summary>
     /// 单节点默认实现:永远抢到锁,Dispose / Renew 均是空操作。

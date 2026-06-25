@@ -3,20 +3,19 @@ using System;
 namespace Core.Scheduling.Hosting
 {
     /// <summary>
-    /// 默认 BG 调度宿主使用的完整配置。
-    /// 继承 <see cref="SharedSchedulingOptions"/>(跨适配器共享字段) 并补充 BG 模式专属字段:
-    /// 主循环轮询间隔、停机等待时长、分布式锁租约/续租参数。
+    /// 默认 BG 调度宿主专属配置:主循环轮询间隔、停机等待时长、退避兜底、分布式锁租约/续租参数。
+    /// 跨适配器共享的 filter 开关(Tracing/Metrics/Logging)请见 <see cref="SchedulingFilterOptions"/>,
+    /// 那是独立的另一个 Options 类型,本类不再继承它。
     /// </summary>
     /// <remarks>
-    /// 仅 <c>AddCoreScheduling</c>(BG) 的注册回调接受本类型。
-    /// Hangfire / Quartz 适配器的回调只接 <see cref="SharedSchedulingOptions"/>,
-    /// 因为本类下面这些字段在那两种宿主下没有意义:
+    /// 仅 <c>AddSchedulingBackground</c>(BG) 的注册回调接受本类型。
+    /// 下列字段在 Hangfire/Quartz 宿主下没有意义,因此在那两个适配器的 API 里都拿不到:
     /// <list type="bullet">
     /// <item>Hangfire 用自家 <c>SchedulePollingInterval</c> + 存储层分布式锁;</item>
     /// <item>Quartz 用 <c>WaitForJobsToComplete</c> + <c>QRTZ_LOCKS</c>。</item>
     /// </list>
     /// </remarks>
-    public sealed class SchedulingOptions : SharedSchedulingOptions
+    public sealed class SchedulingOptions
     {
         /// <summary>
         /// 全局默认最大退避间隔。handler 自带的

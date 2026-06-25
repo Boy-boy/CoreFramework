@@ -12,7 +12,7 @@ namespace Microsoft.Extensions.DependencyInjection
     public static class RedisSchedulingServiceCollectionExtensions
     {
         /// <summary>
-        /// 用 Redis 分布式锁替换默认 noop 实现,与 <c>AddCoreScheduling</c>(BG)叠加构成轻量集群方案。
+        /// 用 Redis 分布式锁替换默认 noop 实现,与 <c>AddSchedulingBackground</c>(BG)叠加构成轻量集群方案。
         /// <para>
         /// <see cref="IConnectionMultiplexer"/> 由调用方提供:
         /// </para>
@@ -24,7 +24,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <paramref name="configureOptions"/> 在注册期仅同步调用一次,回调中如有 I/O 或日志不会被双触发。
         /// </para>
         /// </summary>
-        public static IServiceCollection AddCoreSchedulingRedisLock(
+        public static IServiceCollection AddSchedulingRedisLock(
             this IServiceCollection services,
             Action<RedisSchedulingOptions> configureOptions)
         {

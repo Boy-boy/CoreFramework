@@ -14,16 +14,16 @@ namespace Core.Scheduling.Filters
     /// <summary>
     /// Metrics 过滤器：把每次执行的次数、耗时、状态发到 <see cref="SchedulingDiagnostics.MeterName"/> Meter。
     /// 消费者订阅同名 Meter 即可对接 OpenTelemetry/Prometheus。
-    /// 受 <see cref="SchedulingOptions.EnableMetrics"/> 控制,关时直接透传 <c>next</c>,不发任何指标。
+    /// 受 <see cref="SchedulingFilterOptions.EnableMetrics"/> 控制,关时直接透传 <c>next</c>,不发任何指标。
     /// </summary>
     internal sealed class MetricsExecutionFilter : IHandlerExecutionFilter, IDisposable
     {
         private readonly Meter _meter;
         private readonly Counter<long> _executionCounter;
         private readonly Histogram<double> _executionDuration;
-        private readonly IOptionsMonitor<SchedulingOptions> _options;
+        private readonly IOptionsMonitor<SchedulingFilterOptions> _options;
 
-        public MetricsExecutionFilter(IOptionsMonitor<SchedulingOptions> options)
+        public MetricsExecutionFilter(IOptionsMonitor<SchedulingFilterOptions> options)
         {
             _options = options;
             _meter = new Meter(SchedulingDiagnostics.MeterName);

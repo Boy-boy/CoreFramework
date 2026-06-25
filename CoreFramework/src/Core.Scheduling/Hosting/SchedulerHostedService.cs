@@ -257,16 +257,16 @@ namespace Core.Scheduling.Hosting
             }
         }
 
-        /// <summary>抢锁失败/异常时,手动收尾状态:Skipped + 下一周期。</summary>
+        /// <summary>抢锁失败/异常时,手动收尾状态:Skipped + 下一周期。
+        /// 不走 pipeline,所以这里手动同时调用 MarkFinished(写共享状态) + TryUpdateNextRunTime(BG 算下次)。</summary>
         private void MarkSkipped(string handlerCode, DateTimeOffset fireTime, string reason, ScheduleDescriptor schedule)
         {
             var finish = _timeProvider.GetUtcNow();
             var record = _stateStore.Get(handlerCode);
             record.MarkFinished(
                 finish,
-                HandlerExecutionResult.Skipped(handlerCode, fireTime, finish, reason),
-                schedule,
-                _nextRunStrategy);
+                HandlerExecutionResult.Skipped(handlerCode, fireTime, finish, reason));
+            record.TryUpdateNextRunTime(schedule, _nextRunStrategy);
         }
 
         private void TrackTask(Task task)

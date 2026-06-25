@@ -10,6 +10,11 @@ namespace Core.Scheduling.Abstractions
     /// 默认实现是 no-op(单节点直接放行);要做集群把 <c>Core.Scheduling.Redis</c> 或自家实现
     /// 通过 DI 替换即可。
     /// </summary>
+    /// <remarks>
+    /// 仅 BG 宿主(<c>SchedulerHostedService</c>)消费本接口。Hangfire 用自家
+    /// <c>DisableConcurrentExecutionAttribute</c> + 存储层锁、Quartz 用 <c>QRTZ_LOCKS</c>,
+    /// 两者都不接触本接口,因此本契约从 Abstractions 下沉到 Core.Scheduling 跟 BG 宿主同包。
+    /// </remarks>
     public interface IDistributedHandlerLock
     {
         /// <summary>

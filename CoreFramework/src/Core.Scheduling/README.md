@@ -56,7 +56,7 @@ public sealed class MyJob : IScheduledHandler
 }
 
 // 2. 注册
-services.AddCoreScheduling();          // 默认 BG 宿主
+services.AddSchedulingBackground();          // 默认 BG 宿主
 services.AddScheduledHandler<MyJob>(); // 把 handler 加入注册表
 ```
 
@@ -156,8 +156,8 @@ public class MyJobsModule : CoreModuleBase
 }
 
 // CoreApplication 启动时挂模块即可:
-//   modules.Add<CoreSchedulingModule>();              // 单机 BG
-//   modules.Add<CoreSchedulingHealthChecksModule>();  // 可选
+//   modules.Add<SchedulingBackgroundModule>();              // 单机 BG
+//   modules.Add<SchedulingHealthChecksModule>();  // 可选
 //   modules.Add<MyJobsModule>();
 ```
 
@@ -165,34 +165,38 @@ public class MyJobsModule : CoreModuleBase
 
 | 模块 | 等价 | 何时挂 |
 |---|---|---|
-| `CoreSchedulingModule` | `AddCoreScheduling()` | 单机 BG |
-| `CoreSchedulingQuartzModule` | `AddCoreSchedulingQuartz(...)` | Quartz 集群 |
-| `CoreSchedulingHangfireModule` | `AddCoreSchedulingHangfire(...)` | Hangfire 集群 |
-| `CoreSchedulingRedisModule` | `AddCoreSchedulingRedisLock(...)` | 叠在 BG 上做 Redis 锁仲裁 |
-| `CoreSchedulingHealthChecksModule` | `AddCoreSchedulingHealthCheck(...)` | 加聚合健康检查 |
+| `SchedulingBackgroundModule` | `AddSchedulingBackground()` | 单机 BG |
+| `SchedulingQuartzModule` | `AddSchedulingQuartz(...)` | Quartz 集群 |
+| `SchedulingHangfireModule` | `AddSchedulingHangfire(...)` | Hangfire 集群 |
+| `SchedulingRedisModule` | `AddSchedulingRedisLock(...)` | 叠在 BG 上做 Redis 锁仲裁 |
+| `SchedulingHealthChecksModule` | `AddSchedulingHealthCheck(...)` | 加聚合健康检查 |
 
 模块从 `appsettings.json` 的 `Scheduling`、`Scheduling:Quartz`、`Scheduling:Hangfire`、`Scheduling:Redis`、`Scheduling:HealthChecks` 节读配置。
 
 ### 注册方式 2:直接 `IServiceCollection` 扩展(不依赖 Core.Modularity)
 
 ```csharp
-// 单机
-services.AddCoreScheduling(o =>
+// 单机 —— 只设 BG 字段(filter 开关默认全开)
+services.AddSchedulingBackground(o =>
 {
     o.IdleDelay = TimeSpan.FromMilliseconds(500);
-    o.EnableMetrics = true;
 });
 
+// 想关掉某个 filter 再传第二个回调
+services.AddSchedulingBackground(
+    o => o.IdleDelay = TimeSpan.FromMilliseconds(500),
+    filters => filters.EnableMetrics = false);
+
 // 单机 + Redis 锁
-services.AddCoreScheduling(o => o.DistributedLockLeaseDuration = TimeSpan.FromSeconds(30));
-services.AddCoreSchedulingRedisLock(o =>
+services.AddSchedulingBackground(o => o.DistributedLockLeaseDuration = TimeSpan.FromSeconds(30));
+services.AddSchedulingRedisLock(o =>
 {
     o.ConnectionString = "127.0.0.1:6379";
     o.KeyPrefix        = "core-scheduling:lock:";
 });
 
 // Quartz 集群 —— scheduling 回调可省,3 个 filter 开关默认全开
-services.AddCoreSchedulingQuartz(quartz =>
+services.AddSchedulingQuartz(quartz =>
 {
     quartz.PersistenceMode  = QuartzPersistenceMode.SqlServer;
     quartz.ConnectionString = "Server=...;Database=Scheduler;Trusted_Connection=True;";
@@ -201,7 +205,7 @@ services.AddCoreSchedulingQuartz(quartz =>
 });
 
 // 想关掉某个 filter 再传第二个参数
-services.AddCoreSchedulingQuartz(
+services.AddSchedulingQuartz(
     quartz =>
     {
         quartz.PersistenceMode  = QuartzPersistenceMode.SqlServer;
@@ -210,7 +214,7 @@ services.AddCoreSchedulingQuartz(
     scheduling => scheduling.EnableMetrics = false);
 
 // Hangfire 集群 —— 同样的 pattern,configureHangfire 必填,scheduling 可省
-services.AddCoreSchedulingHangfire(hangfire =>
+services.AddSchedulingHangfire(hangfire =>
 {
     hangfire.PersistenceMode  = HangfirePersistenceMode.SqlServer;
     hangfire.ConnectionString = "Server=...;Database=Scheduler;Trusted_Connection=True;";
@@ -222,10 +226,11 @@ services.AddScheduledHandler<CacheWarmupJob>();
 services.AddScheduledHandler<ReconciliationJob>();
 ```
 
-> Hangfire / Quartz 扩展把**必填**参数(`configureHangfire` / `configureQuartz`)放第一位,
-> **可省**参数(`configureScheduling`)放第二位且默认 `null`。
-> `scheduling` 回调只接 **`SharedSchedulingOptions`**(3 个 filter 开关),
-> `IdleDelay` / 分布式锁 / `DefaultMaxBackoff` 等 BG 专属字段在那里**编译期就拿不到** —— 强制把"在那个宿主下没意义的配置项"拦在外面。
+> **三个适配器 API 对称**:每个 Add 扩展第一个回调配宿主专属字段(BG / Hangfire / Quartz),
+> 第二个回调配 **`SchedulingFilterOptions`**(共享的 3 个 filter 开关),都可省。
+> Hangfire / Quartz 模式下,`IdleDelay` / 分布式锁 / `DefaultMaxBackoff` 等 BG 专属字段
+> 在类型层就拿不到 —— 强制把"在那个宿主下没意义的配置项"拦在外面。
+> 这两类配置分两个独立 Options 实例,在 DI 里各自注入 / 热更新。
 
 ---
 
@@ -233,9 +238,9 @@ services.AddScheduledHandler<ReconciliationJob>();
 
 | 方案 | 加什么 | 触发粒度 | 外部依赖 | 选它的理由 |
 |---|---|---|---|---|
-| **BG + Redis 锁** | `CoreSchedulingModule` + `CoreSchedulingRedisModule` | 任意 `TimeSpan` | 一个 Redis | 已有 Redis,要轻量 / 秒级 |
-| **Quartz** | `CoreSchedulingQuartzModule` | 任意 `TimeSpan` + Cron | SqlServer / Postgres + 11 张 QRTZ_ 表 | 要 Cron 又要任意间隔,不想引 Redis |
-| **Hangfire** | `CoreSchedulingHangfireModule` | 分钟级 + Cron(5 字段) | SqlServer + Hangfire 表 | 要 Dashboard;团队已熟悉 Hangfire |
+| **BG + Redis 锁** | `SchedulingBackgroundModule` + `SchedulingRedisModule` | 任意 `TimeSpan` | 一个 Redis | 已有 Redis,要轻量 / 秒级 |
+| **Quartz** | `SchedulingQuartzModule` | 任意 `TimeSpan` + Cron | SqlServer / Postgres + 11 张 QRTZ_ 表 | 要 Cron 又要任意间隔,不想引 Redis |
+| **Hangfire** | `SchedulingHangfireModule` | 分钟级 + Cron(5 字段) | SqlServer + Hangfire 表 | 要 Dashboard;团队已熟悉 Hangfire |
 
 **Hangfire 不能秒级**:`Schedule.FixedInterval(< 60s)` 在启动期会抛 `InvalidOperationException` 提示切到 BG / Quartz。
 
@@ -243,7 +248,11 @@ services.AddScheduledHandler<ReconciliationJob>();
 
 ## 配置详解
 
-### 基础 `Scheduling` 节(BG 模式完整)
+### 基础 `Scheduling` 节
+
+同一个 JSON 节同时绑两个 Options 类型:
+- **`SchedulingFilterOptions`** —— 3 个共享 filter 开关,三种宿主都生效
+- **`SchedulingOptions`** —— BG 专属字段(`IdleDelay`、停机、退避、分布式锁),仅 BG 模式下读
 
 ```json
 {
@@ -261,17 +270,19 @@ services.AddScheduledHandler<ReconciliationJob>();
 }
 ```
 
-| 字段 | 默认 | 说明 | BG | Hangfire | Quartz |
-|---|---|---|:-:|:-:|:-:|
-| `IdleDelay` | 500 ms | 主循环空闲轮询间隔 | ✅ | ❌ | ❌ |
-| `ShutdownGraceTimeout` | 30 s | 停机等待 in-flight handler 上限 | ✅ | ❌ | ❌ |
-| `DefaultMaxBackoff` | 5 min | 失败退避封顶(`Schedule.MaxBackoff` 优先) | ✅ | ❌ | ❌ |
-| `EnableTracing` | true | OTel/Activity span | ✅ | ✅ | ✅ |
-| `EnableMetrics` | true | Counter + Histogram | ✅ | ✅ | ✅ |
-| `EnableLogging` | true | 结构化日志 | ✅ | ✅ | ✅ |
-| `DistributedLock*` | — | 仅 BG + 真实锁(如 Redis)生效 | ✅ | ❌ | ❌ |
+| 字段 | 默认 | 归属类型 | 说明 | BG | Hangfire | Quartz |
+|---|---|---|---|:-:|:-:|:-:|
+| `EnableTracing` | true | `SchedulingFilterOptions` | OTel/Activity span | ✅ | ✅ | ✅ |
+| `EnableMetrics` | true | `SchedulingFilterOptions` | Counter + Histogram | ✅ | ✅ | ✅ |
+| `EnableLogging` | true | `SchedulingFilterOptions` | 结构化日志 | ✅ | ✅ | ✅ |
+| `IdleDelay` | 500 ms | `SchedulingOptions` | 主循环空闲轮询间隔 | ✅ | ❌ | ❌ |
+| `ShutdownGraceTimeout` | 30 s | `SchedulingOptions` | 停机等待 in-flight handler 上限 | ✅ | ❌ | ❌ |
+| `DefaultMaxBackoff` | 5 min | `SchedulingOptions` | 失败退避封顶(`Schedule.MaxBackoff` 优先) | ✅ | ❌ | ❌ |
+| `DistributedLock*` | — | `SchedulingOptions` | 仅 BG + 真实锁(如 Redis)生效 | ✅ | ❌ | ❌ |
 
-> Hangfire / Quartz 模式下 BG-only 字段写了也无效。框架在那两种宿主下不会读这些值。
+> Hangfire / Quartz 模式下 BG-only 字段(SchedulingOptions)根本不会被绑定,
+> JSON 里写了也无影响。三个 filter 开关由 `SchedulingCoreModule` 统一绑,
+> 各适配器共用。
 
 ### Quartz 专属 `Scheduling:Quartz`
 
@@ -492,7 +503,7 @@ services.AddOpenTelemetry()
 ### 模块化
 
 ```csharp
-modules.Add<CoreSchedulingHealthChecksModule>();   // 默认绑 Scheduling:HealthChecks 配置节
+modules.Add<SchedulingHealthChecksModule>();   // 默认绑 Scheduling:HealthChecks 配置节
 ```
 
 然后在 ASP.NET Core 里照常 `app.MapHealthChecks("/health");` 即可。
@@ -500,7 +511,7 @@ modules.Add<CoreSchedulingHealthChecksModule>();   // 默认绑 Scheduling:Healt
 ### 手工
 
 ```csharp
-services.AddCoreSchedulingHealthCheck(opts =>
+services.AddSchedulingHealthCheck(opts =>
 {
     opts.UnhealthyAfterConsecutiveFailures = 5;
     opts.DegradedAfterConsecutiveFailures  = 2;
@@ -610,7 +621,7 @@ public ScheduleDescriptor Schedule { get; }
     = ScheduleDescriptor.FixedInterval(TimeSpan.FromSeconds(5));   // ⚠️
 ```
 
-挂 `CoreSchedulingHangfireModule` 后这个 handler **启动期就崩**,异常里会提示切到 BG / Quartz。
+挂 `SchedulingHangfireModule` 后这个 handler **启动期就崩**,异常里会提示切到 BG / Quartz。
 
 ### 5. `HandlerState.NextRunTime` 在 Hangfire/Quartz 下是 null
 

@@ -13,14 +13,14 @@ namespace Core.Scheduling.Filters
     /// <summary>
     /// 分布式追踪过滤器：为每次 handler 执行创建一个 <see cref="Activity"/>。
     /// 订阅 <see cref="SchedulingDiagnostics.ActivitySourceName"/> 即可让 OpenTelemetry 拿到 span。
-    /// 受 <see cref="SchedulingOptions.EnableTracing"/> 控制,关时直接透传不创建 Activity。
+    /// 受 <see cref="SchedulingFilterOptions.EnableTracing"/> 控制,关时直接透传不创建 Activity。
     /// </summary>
     internal sealed class TracingExecutionFilter : IHandlerExecutionFilter, IDisposable
     {
         private readonly ActivitySource _activitySource = new(SchedulingDiagnostics.ActivitySourceName);
-        private readonly IOptionsMonitor<SchedulingOptions> _options;
+        private readonly IOptionsMonitor<SchedulingFilterOptions> _options;
 
-        public TracingExecutionFilter(IOptionsMonitor<SchedulingOptions> options)
+        public TracingExecutionFilter(IOptionsMonitor<SchedulingFilterOptions> options)
         {
             _options = options;
         }

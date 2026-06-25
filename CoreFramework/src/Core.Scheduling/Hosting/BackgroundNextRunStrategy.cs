@@ -1,9 +1,10 @@
 using System;
-using Core.Scheduling.Hosting;
+using Core.Scheduling.Abstractions;
+using Core.Scheduling.Internal;
 using Core.Scheduling.Models;
 using Microsoft.Extensions.Options;
 
-namespace Core.Scheduling.Internal
+namespace Core.Scheduling.Hosting
 {
     /// <summary>
     /// BG 调度宿主使用的实现:走 <see cref="NextRunCalculator"/> 算出真正的下次时间,

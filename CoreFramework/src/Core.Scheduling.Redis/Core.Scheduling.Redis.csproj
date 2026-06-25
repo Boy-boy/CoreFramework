@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>$(TargetFramework)</TargetFramework>
+		<ImplicitUsings>$(ImplicitUsings)</ImplicitUsings>
+		<Nullable>$(Nullable)</Nullable>
+		<LangVersion>$(LangVersion)</LangVersion>
+		<Version>$(Version)</Version>
+		<Authors>$(Authors)</Authors>
+		<Description>Core.Scheduling 的 Redis 分布式锁适配器：在默认 BG 宿主上叠一层 Redis SET NX EX 仲裁，做轻量集群——无外部任务存储、无表迁移，只要一个 Redis。</Description>
+		<PackageProjectUrl>$(PackageProjectUrl)</PackageProjectUrl>
+		<PackageLicenseExpression>$(PackageLicenseExpression)</PackageLicenseExpression>
+		<PackageTags>scheduling;redis;distributed-lock;cluster</PackageTags>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="StackExchange.Redis" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+		<PackageReference Include="Microsoft.Extensions.Options" />
+		<PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Core.Scheduling.Abstractions\Core.Scheduling.Abstractions.csproj" />
+		<ProjectReference Include="..\Core.Scheduling\Core.Scheduling.csproj" />
+		<ProjectReference Include="..\Core.Modularity\Core.Modularity.csproj" />
+	</ItemGroup>
+
+</Project>

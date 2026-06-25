@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>$(TargetFramework)</TargetFramework>
+		<ImplicitUsings>$(ImplicitUsings)</ImplicitUsings>
+		<Nullable>$(Nullable)</Nullable>
+		<LangVersion>$(LangVersion)</LangVersion>
+		<Version>$(Version)</Version>
+		<Authors>$(Authors)</Authors>
+		<Description>Core.Scheduling 的 Hangfire 适配器：把同一份 IScheduledHandler 注册成 Hangfire RecurringJob，享受 Hangfire Dashboard 与分布式协调。仅适合分钟级及以上节奏；秒级请用 BG 或 Quartz。</Description>
+		<PackageProjectUrl>$(PackageProjectUrl)</PackageProjectUrl>
+		<PackageLicenseExpression>$(PackageLicenseExpression)</PackageLicenseExpression>
+		<PackageTags>scheduling;hangfire;cluster;recurring-job;cron</PackageTags>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Hangfire.Core" />
+		<PackageReference Include="Hangfire.AspNetCore" />
+		<PackageReference Include="Hangfire.SqlServer" />
+		<PackageReference Include="Hangfire.InMemory" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+		<PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+		<PackageReference Include="Microsoft.Extensions.Options" />
+		<PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Core.Scheduling.Abstractions\Core.Scheduling.Abstractions.csproj" />
+		<ProjectReference Include="..\Core.Scheduling\Core.Scheduling.csproj" />
+		<ProjectReference Include="..\Core.Modularity\Core.Modularity.csproj" />
+	</ItemGroup>
+
+</Project>

@@ -46,5 +46,14 @@
     <PackageVersion Include="RabbitMQ.Client" Version="6.8.1" />
     <PackageVersion Include="StackExchange.Redis" Version="2.9.32" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.2" />
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.Abstractions" Version="10.0.2" />
+    <PackageVersion Include="Hangfire.Core" Version="1.8.23" />
+    <PackageVersion Include="Hangfire.AspNetCore" Version="1.8.23" />
+    <PackageVersion Include="Hangfire.SqlServer" Version="1.8.23" />
+    <PackageVersion Include="Hangfire.InMemory" Version="1.0.0" />
+    <PackageVersion Include="Quartz" Version="3.13.1" />
+    <PackageVersion Include="Quartz.Extensions.Hosting" Version="3.13.1" />
+    <PackageVersion Include="Quartz.Serialization.SystemTextJson" Version="3.13.1" />
   </ItemGroup>
 </Project>

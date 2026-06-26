@@ -7,10 +7,10 @@
 		<LangVersion>$(LangVersion)</LangVersion>
 		<Version>$(Version)</Version>
 		<Authors>$(Authors)</Authors>
-		<Description>Core.Scheduling 共享核:过滤器管线、Registry、StateStore 及内置 Tracing/Metrics/Logging/StateTracking 过滤器,被 BG / Hangfire / Quartz 三种宿主共用。</Description>
+		<Description>Core.Scheduling 默认 BG 调度宿主:BackgroundService 主循环 + 分布式锁仲裁,适配单机 / 开发 / CI;集群叠 Core.Scheduling.Redis 即可。</Description>
 		<PackageProjectUrl>$(PackageProjectUrl)</PackageProjectUrl>
 		<PackageLicenseExpression>$(PackageLicenseExpression)</PackageLicenseExpression>
-		<PackageTags>scheduling;filters;pipeline;state-store</PackageTags>
+		<PackageTags>scheduling;background-service;hosted-service;in-process</PackageTags>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -23,13 +23,8 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\Core.Scheduling.Abstractions\Core.Scheduling.Abstractions.csproj" />
+		<ProjectReference Include="..\Core.Scheduling\Core.Scheduling.csproj" />
 		<ProjectReference Include="..\Core.Modularity\Core.Modularity.csproj" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<!-- BG 宿主需要直接消费 HandlerStateStore(状态写回 / next-run 更新都在它上面),
-		     共享核保持其 internal 边界,只对 Background 包敞开。 -->
-		<InternalsVisibleTo Include="Core.Scheduling.Background" />
 	</ItemGroup>
 
 </Project>

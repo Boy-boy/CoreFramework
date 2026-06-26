@@ -32,11 +32,25 @@
 | 包 | 职责 | 你什么时候用 |
 |---|---|---|
 | `Core.Scheduling.Abstractions` | 公共契约:`IScheduledHandler`、`ScheduleDescriptor`、`HandlerExecution*`、`IHandlerExecutionFilter`、`IHandlerExecutionInspector`、可观测性常量 | 写业务 handler 时,**永远只引用它** |
-| `Core.Scheduling` | 默认 BG 实现:`BackgroundService` 主循环 + 过滤器管线(Logging / Metrics / Tracing / 状态跟踪内置) | 单机、开发、CI、单元测试 |
-| `Core.Scheduling.Redis` | BG 之上叠 Redis 分布式锁的**轻量集群**方案,无任务表、无迁移、无 Dashboard | 已有 Redis,想要"多节点同一时刻只一个跑"但不想引入 Quartz/Hangfire 体量 |
+| `Core.Scheduling` | **共享核**(无宿主):过滤器管线、Registry、StateStore、4 个内置 filter(Logging / Metrics / Tracing / 状态跟踪)。BG / Hangfire / Quartz 三种宿主包都依赖它 | 你不会单独装它 — 跟某个宿主包一起被带入 |
+| `Core.Scheduling.Background` | 默认 BG 宿主:`BackgroundService` 主循环 + 退避 + 分布式锁仲裁。包含 `IDistributedHandlerLock` 契约和 noop 实现 | 单机、开发、CI、单元测试;叠 Redis 即变轻量集群 |
+| `Core.Scheduling.Redis` | BG 之上叠 Redis 分布式锁的**轻量集群**方案,无任务表、无迁移、无 Dashboard。`Replace` 掉 Background 包的 noop 锁 | 已有 Redis,想要"多节点同一时刻只一个跑"但不想引入 Quartz/Hangfire 体量 |
 | `Core.Scheduling.Quartz` | Quartz.NET 适配器:AdoJobStore + `QRTZ_LOCKS` 集群仲裁;差量调度 + 孤儿清理 | 多节点生产 + 任意 `TimeSpan` 间隔 / Quartz Cron |
 | `Core.Scheduling.Hangfire` | Hangfire 适配器:RecurringJob + 存储层分布式锁;Dashboard 直接可见 | 分钟级及以上节奏 + 要 Hangfire Dashboard / 运维已用 Hangfire |
 | `Core.Scheduling.HealthChecks` | 聚合健康检查:把 `IHandlerExecutionInspector` 转成 `IHealthCheck`,按连续失败 / 卡死 / 陈旧三档判健康 | 任何环境,挂到 ASP.NET Core `/health` |
+
+**依赖关系**:
+```
+Abstractions
+    ↑
+    Core.Scheduling (共享核)
+    ↑                  ↑                  ↑
+    Background      Quartz              Hangfire
+    ↑
+    Redis (引 Background 而非 Core.Scheduling,因为它替换的是 Background 包里的 noop 锁)
+
+HealthChecks → Core.Scheduling
+```
 
 ---
 
@@ -134,7 +148,7 @@ public ScheduleDescriptor Schedule { get; } = ScheduleDescriptor.Cron(
     startDelay:     TimeSpan.Zero);
 ```
 
-> BG 宿主对 Cron 描述符**启动期就抛 `NotSupportedException`**,强制切到 Quartz。
+> BG 宿主对 Cron 描述符**启动期就抛 `NotSupportedException`**,提示切到 Quartz 或 Hangfire。
 
 **允许并发执行**
 
@@ -260,7 +274,7 @@ services.AddScheduledHandler<ReconciliationJob>();
 
 **包引用**:
 ```xml
-<PackageReference Include="Core.Scheduling" />
+<PackageReference Include="Core.Scheduling.Background" />  <!-- 自动带入 Core.Scheduling 共享核 -->
 <PackageReference Include="Core.Scheduling.HealthChecks" /> <!-- 可选 -->
 ```
 
@@ -320,8 +334,8 @@ services.AddScheduledHandler<ReconciliationJob>();
 
 **包引用**:
 ```xml
-<PackageReference Include="Core.Scheduling" />
-<PackageReference Include="Core.Scheduling.Redis" />
+<PackageReference Include="Core.Scheduling.Background" />
+<PackageReference Include="Core.Scheduling.Redis" />  <!-- 自动带入 Background -->
 <PackageReference Include="Core.Scheduling.HealthChecks" /> <!-- 可选 -->
 ```
 
@@ -400,10 +414,11 @@ services.AddScheduledHandler<CacheWarmupJob>();
 
 **包引用**:
 ```xml
-<PackageReference Include="Core.Scheduling" />
-<PackageReference Include="Core.Scheduling.Quartz" />
+<PackageReference Include="Core.Scheduling.Quartz" />  <!-- 自动带入 Core.Scheduling 共享核 -->
 <PackageReference Include="Core.Scheduling.HealthChecks" />
 ```
+
+> **不要**再引 `Core.Scheduling.Background` —— BG 宿主和 Quartz 宿主互斥,装了会同时起两个调度循环。
 
 **注册代码(模块化)**:
 ```csharp
@@ -477,10 +492,11 @@ services.AddScheduledHandler<NightlyReconcileJob>();   // 可以用 Cron
 
 **包引用**:
 ```xml
-<PackageReference Include="Core.Scheduling" />
-<PackageReference Include="Core.Scheduling.Hangfire" />
+<PackageReference Include="Core.Scheduling.Hangfire" />  <!-- 自动带入 Core.Scheduling 共享核 -->
 <PackageReference Include="Core.Scheduling.HealthChecks" />
 ```
+
+> **不要**再引 `Core.Scheduling.Background` —— 同上,Hangfire 和 BG 互斥。
 
 **注册代码(模块化)**:
 ```csharp
@@ -765,7 +781,7 @@ public sealed class CacheWarmupJob : IScheduledHandler
 |---|:-:|:-:|:-:|
 | `Kind` | ✅ | `"FixedInterval"` | `"Cron"` |
 | `Interval` | FixedInterval 必填 | TimeSpan(`"00:10:00"`) | — |
-| `CronExpression` | Cron 必填 | — | Quartz 6/7 字段(秒级) |
+| `CronExpression` | Cron 必填 | — | Quartz 6/7 字段(秒级)/ Hangfire 5 字段(分钟级)或 6 字段(秒级) |
 | `TimeZoneId` | 可选 | — | IANA / Windows tz id |
 | `StartDelay` | 可选 | TimeSpan,默认 0 | 同 FixedInterval |
 | `AllowConcurrentExecution` | 可选 | 默认 false | 同 FixedInterval |
@@ -1033,7 +1049,7 @@ handler 是单例,字段在所有触发之间共享。要每次干净状态请�
 | `Duplicate HandlerCode 'X': A vs B. HandlerCode must be globally unique...` | 两个 handler 类用了同一 `HandlerCode`。改其一。 |
 | `Scheduled handler '...' has an empty HandlerCode.` | 你的 handler 实现 `HandlerCode` 返回了空串 / null。 |
 | `Scheduled handler '...' has null Schedule descriptor.` | `Schedule` 属性返回 null,要 `ScheduleDescriptor.FixedInterval(...)` / `.Cron(...)`。 |
-| `ScheduleKind.Cron is not supported by the default BackgroundService runtime. Reference Core.Scheduling.Quartz...` | BG 宿主见到 Cron,挂 `SchedulingQuartzModule` 或把 handler 改 FixedInterval。 |
+| `ScheduleKind.Cron is not supported by the default BackgroundService runtime. Reference Core.Scheduling.Quartz... or Core.Scheduling.Hangfire...` | BG 宿主见到 Cron,挂 `SchedulingQuartzModule` / `SchedulingHangfireModule`,或把 handler 改 FixedInterval。 |
 | `Configuration section 'Scheduling:Descriptors:{code}' is missing.` | 用了 `FromConfiguration(handlerCode)` 但 JSON 没写该节点。 |
 | Hangfire 启动崩,异常提示间隔太小 | Hangfire 不支持秒级 — 改 Cron 或切到 BG/Quartz。 |
 | Quartz 启动崩,`No record found for selection of Trigger.` 或类似 | 没跑建表脚本 / TablePrefix 写错。 |
@@ -1113,7 +1129,7 @@ handler 是单例,字段在所有触发之间共享。要每次干净状态请�
 
 ### 单机 BG → BG + Redis 锁
 
-1. 加包:`Core.Scheduling.Redis`
+1. 加包:`Core.Scheduling.Redis`(它已传递依赖 `Core.Scheduling.Background`,无需再写)
 2. 加模块:`modules.Add<SchedulingRedisModule>();`(或扩展方法 `services.AddSchedulingRedisLock(...)`)
 3. JSON 新增 `Scheduling:Redis` 子节
 4. **调大** `Scheduling:Background:DistributedLockLeaseDuration` 到 >= 单次 handler P99(默认 30s 偏短)
@@ -1121,7 +1137,7 @@ handler 是单例,字段在所有触发之间共享。要每次干净状态请�
 
 ### BG → Quartz
 
-1. 把包 `Core.Scheduling.Redis` 去掉(Quartz 自带 `QRTZ_LOCKS`),把 `Core.Scheduling.Quartz` 加上
+1. 包替换:`Core.Scheduling.Background` + `Core.Scheduling.Redis` 去掉(Quartz 自带 `QRTZ_LOCKS`),`Core.Scheduling.Quartz` 加上
 2. 模块换:`SchedulingBackgroundModule` + `SchedulingRedisModule` → `SchedulingQuartzModule`
 3. JSON 删除 `Scheduling:Background` / `Scheduling:Redis` 子节(留着也不影响,只是失效),新增 `Scheduling:Quartz` 子节
 4. 跑建表脚本
@@ -1130,7 +1146,7 @@ handler 是单例,字段在所有触发之间共享。要每次干净状态请�
 
 ### BG → Hangfire
 
-同 Quartz,但额外注意:
+同 Quartz(包要先去掉 `Core.Scheduling.Background`,再加 `Core.Scheduling.Hangfire`),额外注意:
 - handler 不能用秒级 `FixedInterval`
 - Cron 表达式要换成 5/6 字段
 - 加 Dashboard 鉴权
@@ -1148,7 +1164,7 @@ handler 是单例,字段在所有触发之间共享。要每次干净状态请�
 
 - **跨节点状态可见**:`IHandlerExecutionInspector` 只看本节点。集群整体视图查 `QRTZ_FIRED_TRIGGERS` / Hangfire Dashboard。
 - **handler 动态新增/卸载**:bootstrap 期一次性扫描;新增 handler 重启或重载模块。
-- **BG 模式下的 Cron**:启动期抛 `NotSupportedException`,强制切到 Quartz。
+- **BG 模式下的 Cron**:启动期抛 `NotSupportedException`,提示切到 Quartz 或 Hangfire。
 - **Dashboard / 管理 UI**:暂不内置。Quartz 查表,Hangfire 用官方 Dashboard。
 - **Hangfire / Quartz 模式下框架算 NextRunTime**:刻意不算,以免与引擎实际触发时间脱节;`HandlerState.NextRunTime` 在这两种模式下保持 `null`。
 - **handler 内直接拿分布式锁续租**:`IDistributedHandlerLockHandle` 暂未对 handler 暴露,框架自己续。需要应用层细粒度续租自行扩展 filter。

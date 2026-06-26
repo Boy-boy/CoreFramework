@@ -3,10 +3,7 @@ using System.Collections.Generic;
 
 namespace Core.Scheduling.Models
 {
-    /// <summary>
-    /// 一次触发的执行结果。
-    /// 由 handler 返回或由运行时统一兜底（异常 / 取消时）。
-    /// </summary>
+    /// <summary>一次触发的执行结果(由 handler 返回,或异常/取消时由运行时兜底)。</summary>
     public sealed class HandlerExecutionResult
     {
         private static readonly IReadOnlyDictionary<string, long> EmptyMetrics
@@ -42,19 +39,19 @@ namespace Core.Scheduling.Models
         /// <summary>完成时间。</summary>
         public DateTimeOffset FinishTime { get; }
 
-        /// <summary>错误描述（业务级或框架级，按 <see cref="Status"/> 区分）。</summary>
+        /// <summary>错误描述(业务级或框架级,按 <see cref="Status"/> 区分)。</summary>
         public string ErrorMessage { get; }
 
-        /// <summary>原始异常对象（仅 <see cref="HandlerExecutionStatus.Faulted"/> 时有值）。</summary>
+        /// <summary>原始异常(仅 <see cref="HandlerExecutionStatus.Faulted"/> 时有值)。</summary>
         public Exception Exception { get; }
 
-        /// <summary>业务自定义指标，例如本次处理的条数、命中数。</summary>
+        /// <summary>业务自定义指标,例如本次处理条数、命中数。</summary>
         public IReadOnlyDictionary<string, long> Metrics { get; }
 
-        /// <summary>是否被视为成功（仅 <see cref="HandlerExecutionStatus.Success"/>）。</summary>
+        /// <summary>是否成功(仅 <see cref="HandlerExecutionStatus.Success"/>)。</summary>
         public bool IsSuccess => Status == HandlerExecutionStatus.Success;
 
-        /// <summary>本次执行耗时。</summary>
+        /// <summary>执行耗时。</summary>
         public TimeSpan Duration => FinishTime - StartTime;
 
         /// <summary>构造成功结果。</summary>
@@ -65,7 +62,7 @@ namespace Core.Scheduling.Models
             IReadOnlyDictionary<string, long> metrics = null)
             => new(handlerCode, HandlerExecutionStatus.Success, startTime, finishTime, null, null, metrics);
 
-        /// <summary>构造业务失败结果（不抛异常）。</summary>
+        /// <summary>构造业务失败结果(不抛异常)。</summary>
         public static HandlerExecutionResult Failure(
             string handlerCode,
             DateTimeOffset startTime,
@@ -82,14 +79,14 @@ namespace Core.Scheduling.Models
             string reason = null)
             => new(handlerCode, HandlerExecutionStatus.Skipped, startTime, finishTime, reason, null, null);
 
-        /// <summary>构造取消结果（由运行时使用）。</summary>
+        /// <summary>构造取消结果(运行时使用)。</summary>
         public static HandlerExecutionResult Cancelled(
             string handlerCode,
             DateTimeOffset startTime,
             DateTimeOffset finishTime)
             => new(handlerCode, HandlerExecutionStatus.Cancelled, startTime, finishTime, "Cancelled by host.", null, null);
 
-        /// <summary>构造框架级异常结果（由运行时使用）。</summary>
+        /// <summary>构造框架级异常结果(运行时使用)。</summary>
         public static HandlerExecutionResult Faulted(
             string handlerCode,
             DateTimeOffset startTime,

@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Core.Scheduling.Abstractions;
 using Core.Scheduling.Quartz.Jobs;
+using Core.Scheduling.Quartz.Options;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -14,17 +15,17 @@ using global::Quartz.Impl.Matchers;
 
 namespace Core.Scheduling.Quartz.Hosting
 {
-    /// <summary>
-    /// 启动期 Job/Trigger 登记宿主。
+    /// <summary>启动期 Job / Trigger 登记宿主。</summary>
+    /// <remarks>
     /// 遍历 <see cref="IScheduledHandlerRegistry"/>:
     /// <list type="bullet">
-    /// <item>FixedInterval → SimpleTrigger;Cron → CronTrigger</item>
-    /// <item>差量调度:trigger 已存在且 schedule 未变 → 不动(保留 NEXT_FIRE_TIME/TIMES_TRIGGERED),变了 → Reschedule</item>
-    /// <item>启用 <c>CleanupOrphanJobs</c> 时清理注册表里没有的孤儿 Job</item>
+    /// <item>FixedInterval → SimpleTrigger;Cron → CronTrigger;</item>
+    /// <item>差量调度:trigger 已存在且 schedule 未变 → 不动(保留 NEXT_FIRE_TIME / TIMES_TRIGGERED),变了 → Reschedule;</item>
+    /// <item><c>CleanupOrphanJobs</c> 开启时清理注册表里没有的孤儿 Job;</item>
     /// <item>handler 描述符 <c>AllowConcurrentExecution=true</c> 用 <see cref="ConcurrentScheduledHandlerJob"/>,
-    ///   否则用 <see cref="ScheduledHandlerJob"/>(带 DisallowConcurrentExecution)</item>
+    /// 否则用 <see cref="ScheduledHandlerJob"/>(带 DisallowConcurrentExecution)。</item>
     /// </list>
-    /// </summary>
+    /// </remarks>
     internal sealed class QuartzSchedulerBootstrapHostedService : IHostedService
     {
         private readonly ISchedulerFactory _schedulerFactory;
@@ -98,7 +99,7 @@ namespace Core.Scheduling.Quartz.Hosting
 
             if (IsTriggerSameAs(existingTrigger, schedule))
             {
-                // schedule 未变,什么都不做,保留 NEXT_FIRE_TIME / TIMES_TRIGGERED
+                // schedule 未变,保留 NEXT_FIRE_TIME / TIMES_TRIGGERED
                 return;
             }
 

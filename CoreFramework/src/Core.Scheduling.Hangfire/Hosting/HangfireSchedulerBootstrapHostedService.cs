@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Core.Scheduling.Abstractions;
 using Core.Scheduling.Hangfire.Internal;
 using Core.Scheduling.Hangfire.Jobs;
+using Core.Scheduling.Hangfire.Options;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -15,17 +16,17 @@ using global::Hangfire.Storage;
 
 namespace Core.Scheduling.Hangfire.Hosting
 {
-    /// <summary>
-    /// 启动期把 <see cref="IScheduledHandler"/> 登记为 Hangfire RecurringJob 的宿主。
+    /// <summary>启动期把 <see cref="IScheduledHandler"/> 登记为 Hangfire RecurringJob 的宿主。</summary>
+    /// <remarks>
     /// <list type="bullet">
-    /// <item>FixedInterval 用 <see cref="CronExpressionTranslator"/> 翻译成 cron(秒级会抛异常)</item>
-    /// <item>Cron 描述符原样透传(Hangfire/Cronos 方言,5 字段分钟级或 6 字段秒级)</item>
-    /// <item><see cref="ScheduleDescriptor.AllowConcurrentExecution"/> 决定选 sequential 还是 concurrent 方法</item>
-    /// <item>cron / 时区 / 并发模式全部未变 → 跳过 AddOrUpdate,保留存储侧 NextExecution 与 Stats</item>
-    /// <item>启用 <c>CleanupOrphanJobs</c> 时,清理"前缀匹配但注册表里没有"的孤儿 RecurringJob</item>
+    /// <item>FixedInterval 用 <see cref="CronExpressionTranslator"/> 翻译为 cron(秒级抛异常);</item>
+    /// <item>Cron 描述符原样透传(Hangfire / Cronos 方言);</item>
+    /// <item>按 <see cref="ScheduleDescriptor.AllowConcurrentExecution"/> 选 sequential 或 concurrent 入口;</item>
+    /// <item>cron / 时区 / 并发模式未变 → 跳过 AddOrUpdate 以保留存储侧 NextExecution 与 Stats;</item>
+    /// <item><c>CleanupOrphanJobs</c> 开启时,清理"前缀匹配但注册表里没有"的孤儿 RecurringJob。</item>
     /// </list>
     /// 启动期只读一次全量 RecurringJob,diff 与 cleanup 复用同一份快照。
-    /// </summary>
+    /// </remarks>
     internal sealed class HangfireSchedulerBootstrapHostedService : IHostedService
     {
         private const string ConcurrentMethodName = nameof(ScheduledHandlerJobInvoker.ExecuteConcurrentAsync);
@@ -52,7 +53,7 @@ namespace Core.Scheduling.Hangfire.Hosting
         {
             var handlers = _registry.GetHandlers();
 
-            // 一次性拉全量 RecurringJob，既给 diff 用又给 orphan cleanup 用，避免存储侧二次扫描
+            // 一次性拉全量 RecurringJob,diff 与 cleanup 共用,避免存储侧二次扫描
             using var connection = JobStorage.Current.GetConnection();
             var existingJobs = connection.GetRecurringJobs()
                 .Where(j => !string.IsNullOrEmpty(j.Id))
@@ -118,7 +119,7 @@ namespace Core.Scheduling.Hangfire.Hosting
         {
             if (!string.Equals(existing.Cron, cron, StringComparison.Ordinal)) return false;
 
-            // Hangfire 存储里 TimeZoneId 缺省可能是 null 或 "UTC",按"都视为 UTC"对齐
+            // Hangfire 存储里 TimeZoneId 缺省可能 null 或 "UTC",按"都视为 UTC"对齐
             var leftTz = string.IsNullOrEmpty(existing.TimeZoneId) ? "UTC" : existing.TimeZoneId;
             var rightTz = string.IsNullOrEmpty(timeZoneId) ? "UTC" : timeZoneId;
             if (!string.Equals(leftTz, rightTz, StringComparison.OrdinalIgnoreCase)) return false;

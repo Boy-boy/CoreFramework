@@ -6,9 +6,8 @@ using Core.Scheduling.Abstractions;
 namespace Core.Scheduling.Internal
 {
     /// <summary>
-    /// 默认处理器注册表。注册一次后内容不可变,handler 数组在构造期缓存,
-    /// 主循环 <see cref="GetHandlers"/> 零分配。
-    /// 注册期校验 <see cref="IScheduledHandler.HandlerCode"/> 必须非空且全局唯一,重复时抛出而不是静默覆盖。
+    /// 默认处理器注册表。构造期校验 HandlerCode 非空且全局唯一(重复直接抛,不静默覆盖);
+    /// handler 数组在构造期缓存一次,主循环零分配。
     /// </summary>
     internal sealed class ScheduledHandlerRegistry : IScheduledHandlerRegistry
     {
@@ -45,7 +44,6 @@ namespace Core.Scheduling.Internal
                 _byCode.Add(handler.HandlerCode, handler);
             }
 
-            // 注册后内容不再变化，缓存一次给 hot path 复用
             _handlers = _byCode.Values.ToArray();
         }
 

@@ -5,16 +5,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using Core.Scheduling.Abstractions;
 using Core.Scheduling.Diagnostics;
-using Core.Scheduling.Hosting;
+using Core.Scheduling.Options;
 using Core.Scheduling.Models;
 using Microsoft.Extensions.Options;
 
 namespace Core.Scheduling.Filters
 {
     /// <summary>
-    /// Metrics 过滤器：把每次执行的次数、耗时、状态发到 <see cref="SchedulingDiagnostics.MeterName"/> Meter。
-    /// 消费者订阅同名 Meter 即可对接 OpenTelemetry/Prometheus。
-    /// 受 <see cref="SchedulingFilterOptions.EnableMetrics"/> 控制,关时直接透传 <c>next</c>,不发任何指标。
+    /// Metrics 过滤器:把执行次数 / 耗时 / 状态发到 <see cref="SchedulingDiagnostics.MeterName"/> Meter,
+    /// 消费者订阅同名 Meter 即可对接 OpenTelemetry / Prometheus。
+    /// 受 <see cref="SchedulingFilterOptions.EnableMetrics"/> 控制,关时直接透传。
     /// </summary>
     internal sealed class MetricsExecutionFilter : IHandlerExecutionFilter, IDisposable
     {
@@ -75,7 +75,7 @@ namespace Core.Scheduling.Filters
                 _executionDuration.Record(durationMs, codeTag, statusTag);
         }
 
-        // 避免热路径上 Enum.ToString() 的反射开销;未知值才回退到 ToString
+        // 避免热路径 Enum.ToString() 的反射开销
         private static string StatusTag(HandlerExecutionStatus status) => status switch
         {
             HandlerExecutionStatus.Success => nameof(HandlerExecutionStatus.Success),

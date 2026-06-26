@@ -1,21 +1,20 @@
 using Core.Modularity;
 using Core.Modularity.Attribute;
 using Core.Scheduling;
-using Core.Scheduling.Hangfire.Hosting;
+using Core.Scheduling.Hangfire.Options;
+using Core.Scheduling.Options;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using SchedulingFilterOptions = Core.Scheduling.Hosting.SchedulingFilterOptions;
 
 namespace Core.Scheduling.Hangfire
 {
     /// <summary>
-    /// 基于 Hangfire 的集群调度模块。
-    /// 与 <see cref="SchedulingBackgroundModule"/>(BG) 及 Quartz 模块互斥;消费者只选一个。
+    /// 基于 Hangfire 的集群调度模块,与 BG / Quartz 模块互斥(三选一)。
     /// 配置节:<c>Scheduling</c>(通用) + <c>Scheduling:Hangfire</c>(Hangfire 专属)。
     /// </summary>
     /// <remarks>
-    /// 适用场景:分钟级及以上节奏 + 需要 Hangfire Dashboard。
-    /// 秒级节奏请改用 BG 或 Quartz —— Hangfire 适配器在秒级 FixedInterval 上会直接抛 <see cref="System.InvalidOperationException"/>。
+    /// 适用:分钟级及以上节奏 + 需要 Hangfire Dashboard。
+    /// 秒级请改用 BG 或 Quartz——本适配器在秒级 FixedInterval 上会抛 <see cref="System.InvalidOperationException"/>。
     /// </remarks>
     [DependsOn(typeof(SchedulingCoreModule))]
     public class SchedulingHangfireModule : CoreModuleBase
@@ -42,8 +41,7 @@ namespace Core.Scheduling.Hangfire
                 filters => CopyFilters(filterOptions, filters));
         }
 
-        // Hangfire 模式只关心 filter 开关三个字段;
-        // BG 专属字段(IdleDelay/ShutdownGraceTimeout/分布式锁/DefaultMaxBackoff)在这里没意义,在类型层就拿不到
+        // Hangfire 只关心 filter 开关三个字段;BG 专属字段在类型层就拿不到
         private static void CopyFilters(SchedulingFilterOptions from, SchedulingFilterOptions to)
         {
             to.EnableTracing = from.EnableTracing;

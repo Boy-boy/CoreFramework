@@ -1,16 +1,15 @@
 using Core.Modularity;
 using Core.Modularity.Attribute;
 using Core.Scheduling;
-using Core.Scheduling.Quartz.Hosting;
+using Core.Scheduling.Options;
+using Core.Scheduling.Quartz.Options;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using SchedulingFilterOptions = Core.Scheduling.Hosting.SchedulingFilterOptions;
 
 namespace Core.Scheduling.Quartz
 {
     /// <summary>
-    /// 基于 Quartz.NET 的集群调度模块。
-    /// 与 <see cref="SchedulingBackgroundModule"/>(BG) 及 Hangfire 模块互斥;消费者只在一个应用里挑一个。
+    /// 基于 Quartz.NET 的集群调度模块,与 BG / Hangfire 模块互斥(三选一)。
     /// 配置节:<c>Scheduling</c>(通用) + <c>Scheduling:Quartz</c>(集群专属)。
     /// </summary>
     [DependsOn(typeof(SchedulingCoreModule))]
@@ -39,8 +38,7 @@ namespace Core.Scheduling.Quartz
                 filters => CopyFilters(filterOptions, filters));
         }
 
-        // Quartz 模式只关心 filter 开关三个字段;
-        // BG 专属字段(IdleDelay/ShutdownGraceTimeout/分布式锁/DefaultMaxBackoff)在这里没意义,在类型层就拿不到
+        // Quartz 只关心 filter 开关三个字段;BG 专属字段在类型层就拿不到
         private static void CopyFilters(SchedulingFilterOptions from, SchedulingFilterOptions to)
         {
             to.EnableTracing = from.EnableTracing;

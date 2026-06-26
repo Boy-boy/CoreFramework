@@ -3,18 +3,15 @@ using Core.Scheduling;
 
 namespace Core.Scheduling.Hangfire.Internal
 {
-    /// <summary>
-    /// 把 <see cref="ScheduleDescriptor"/> 翻译成 Hangfire / Cronos 可识别的 cron 表达式。
-    /// </summary>
+    /// <summary>把 <see cref="ScheduleDescriptor"/> 翻译成 Hangfire / Cronos 可识别的 cron 表达式。</summary>
     /// <remarks>
-    /// Hangfire 1.8+ 内置 Cronos,5 字段为分钟级,6 字段为秒级。
-    /// 本翻译器仅对**整分 / 整时 / 整日**的固定间隔生成等效 cron;非整除或秒级直接抛异常,
-    /// 提示消费者改用 BG 或 Quartz 适配器。
+    /// Hangfire 1.8+ 内置 Cronos:5 字段分钟级、6 字段秒级。
+    /// 本翻译器仅对**整分 / 整时 / 整日**的固定间隔生成等效 cron;非整除或秒级直接抛异常,提示改用 BG 或 Quartz。
     /// </remarks>
     internal static class CronExpressionTranslator
     {
         /// <summary>翻译固定间隔到 5 字段 cron。</summary>
-        /// <exception cref="InvalidOperationException">当间隔 &lt; 60 秒,或不能被整分/整时/整日整除时。</exception>
+        /// <exception cref="InvalidOperationException">间隔 &lt; 60 秒,或不能被整分 / 整时 / 整日整除时。</exception>
         public static string TranslateFixedInterval(TimeSpan interval, string handlerCode)
         {
             if (interval <= TimeSpan.Zero)

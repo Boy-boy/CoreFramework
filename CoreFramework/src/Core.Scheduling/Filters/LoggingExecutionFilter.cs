@@ -2,7 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Core.Scheduling.Abstractions;
-using Core.Scheduling.Hosting;
+using Core.Scheduling.Options;
 using Core.Scheduling.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -10,9 +10,8 @@ using Microsoft.Extensions.Options;
 namespace Core.Scheduling.Filters
 {
     /// <summary>
-    /// 日志过滤器：在 handler 执行前后写结构化日志。
-    /// 受 <see cref="SchedulingFilterOptions.EnableLogging"/> 控制,关时直接透传 <c>next</c>,不写任何调度日志
-    /// (业务自己写的日志不受影响)。
+    /// 日志过滤器:在 handler 执行前后写结构化日志。
+    /// 受 <see cref="SchedulingFilterOptions.EnableLogging"/> 控制,关时直接透传,业务日志不受影响。
     /// </summary>
     internal sealed class LoggingExecutionFilter : IHandlerExecutionFilter
     {

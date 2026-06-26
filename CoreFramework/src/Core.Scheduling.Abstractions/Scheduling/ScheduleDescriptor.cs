@@ -3,9 +3,9 @@ using System;
 namespace Core.Scheduling
 {
     /// <summary>
-    /// 调度描述符：每个 <see cref="IScheduledHandler"/> 自带的触发节奏声明。
-    /// 同一份描述符被默认 BG 适配器和 Quartz 适配器分别解析：
-    /// BG 用 <see cref="Interval"/> 直接计算下次触发；Quartz 翻译成 SimpleTrigger 或 CronTrigger。
+    /// 调度描述符:handler 自带的触发节奏声明。
+    /// BG 直接用 <see cref="Interval"/> 计算下次触发;Quartz 翻译成 SimpleTrigger 或 CronTrigger;
+    /// Hangfire 翻译成 RecurringJob 的 cron 表达式。
     /// </summary>
     public sealed class ScheduleDescriptor
     {
@@ -27,50 +27,39 @@ namespace Core.Scheduling
             MaxBackoff = maxBackoff;
         }
 
-        /// <summary>
-        /// 触发节奏类型。
-        /// </summary>
+        /// <summary>触发节奏类型。</summary>
         public ScheduleKind Kind { get; }
 
-        /// <summary>
-        /// 固定间隔模式下的触发间隔；Cron 模式下为 <see cref="TimeSpan.Zero"/>。
-        /// </summary>
+        /// <summary>固定间隔(Cron 模式下为 <see cref="TimeSpan.Zero"/>)。</summary>
         public TimeSpan Interval { get; }
 
         /// <summary>
-        /// Cron 表达式；固定间隔模式下为 <see langword="null"/>。
-        /// 表达式格式遵循 Quartz Cron（六/七字段，秒级）规范。
+        /// Cron 表达式;固定间隔模式为 <see langword="null"/>。
+        /// 因适配器而异:Quartz 6/7 字段(秒级);Hangfire(Cronos)5 字段(分钟级)或 6 字段(秒级)。
+        /// 跨适配器移植时注意字段数差异。
         /// </summary>
         public string CronExpression { get; }
 
-        /// <summary>
-        /// Cron 解析使用的时区 ID（IANA 或 Windows）；<see langword="null"/> 表示使用系统默认时区。
-        /// </summary>
+        /// <summary>Cron 时区 ID(IANA 或 Windows);<see langword="null"/> 表示系统默认时区。</summary>
         public string TimeZoneId { get; }
 
-        /// <summary>
-        /// 首次触发前的等待时长；默认 <see cref="TimeSpan.Zero"/> 表示部署/首次注册后立刻进入下一轮判定。
-        /// </summary>
+        /// <summary>首次触发前的等待时长(默认 <see cref="TimeSpan.Zero"/>)。</summary>
         public TimeSpan StartDelay { get; }
 
         /// <summary>
-        /// 是否允许同一 handler 同时存在多次执行。
-        /// 默认 <see langword="false"/>：BG 跳过本轮；Quartz 启用 <c>DisallowConcurrentExecution</c>。
+        /// 是否允许并发执行(默认 false)。
+        /// BG 跳过本轮;Quartz 启用 <c>DisallowConcurrentExecution</c>;Hangfire 用带 <c>DisableConcurrentExecution</c> 的 sequential 入口。
         /// </summary>
         public bool AllowConcurrentExecution { get; }
 
-        /// <summary>
-        /// 连续失败时的最大退避间隔；<see langword="null"/> 表示由 BackgroundSchedulingOptions 全局默认值兜底。
-        /// </summary>
+        /// <summary>连续失败时的最大退避间隔;<see langword="null"/> 走 BackgroundSchedulingOptions 全局默认。</summary>
         public TimeSpan? MaxBackoff { get; }
 
-        /// <summary>
-        /// 构造一个固定间隔触发描述符。
-        /// </summary>
-        /// <param name="interval">基础触发间隔，必须大于零。</param>
-        /// <param name="startDelay">首次触发前的等待时长，默认 <see cref="TimeSpan.Zero"/>。</param>
-        /// <param name="allowConcurrentExecution">是否允许同一 handler 并发执行，默认 <see langword="false"/>。</param>
-        /// <param name="maxBackoff">连续失败时的最大退避间隔；<see langword="null"/> 走全局默认。</param>
+        /// <summary>构造固定间隔描述符。</summary>
+        /// <param name="interval">触发间隔,必须 &gt; 0。</param>
+        /// <param name="startDelay">首次触发前等待时长。</param>
+        /// <param name="allowConcurrentExecution">是否允许并发执行。</param>
+        /// <param name="maxBackoff">最大退避间隔。</param>
         public static ScheduleDescriptor FixedInterval(
             TimeSpan interval,
             TimeSpan? startDelay = null,
@@ -90,14 +79,12 @@ namespace Core.Scheduling
                 maxBackoff: maxBackoff);
         }
 
-        /// <summary>
-        /// 构造一个 Cron 触发描述符。注意：默认 BG 适配器不支持 Cron，仅在引入 Quartz 适配器时可用。
-        /// </summary>
-        /// <param name="cronExpression">Quartz 风格 Cron 表达式（秒级，六/七字段）。</param>
-        /// <param name="timeZoneId">解析使用的时区 ID；<see langword="null"/> 使用系统默认。</param>
-        /// <param name="startDelay">首次触发前的等待时长，默认 <see cref="TimeSpan.Zero"/>。</param>
-        /// <param name="allowConcurrentExecution">是否允许同一 handler 并发执行，默认 <see langword="false"/>。</param>
-        /// <param name="maxBackoff">连续失败时的最大退避间隔；<see langword="null"/> 走全局默认。</param>
+        /// <summary>构造 Cron 描述符(Quartz / Hangfire 适配器支持,BG 不支持)。</summary>
+        /// <param name="cronExpression">Cron 表达式;方言随适配器,见 <see cref="CronExpression"/> 说明。</param>
+        /// <param name="timeZoneId">时区 ID;<see langword="null"/> 使用系统默认。</param>
+        /// <param name="startDelay">首次触发前等待时长。</param>
+        /// <param name="allowConcurrentExecution">是否允许并发执行。</param>
+        /// <param name="maxBackoff">最大退避间隔。</param>
         public static ScheduleDescriptor Cron(
             string cronExpression,
             string timeZoneId = null,

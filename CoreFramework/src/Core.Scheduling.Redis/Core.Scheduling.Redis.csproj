@@ -23,7 +23,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\Core.Scheduling.Abstractions\Core.Scheduling.Abstractions.csproj" />
-		<ProjectReference Include="..\Core.Scheduling\Core.Scheduling.csproj" />
+		<ProjectReference Include="..\Core.Scheduling.Background\Core.Scheduling.Background.csproj" />
 		<ProjectReference Include="..\Core.Modularity\Core.Modularity.csproj" />
 	</ItemGroup>
 

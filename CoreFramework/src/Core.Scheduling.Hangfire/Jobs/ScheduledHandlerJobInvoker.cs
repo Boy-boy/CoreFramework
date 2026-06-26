@@ -12,17 +12,14 @@ namespace Core.Scheduling.Hangfire.Jobs
 {
     /// <summary>
     /// Hangfire 适配器 Job:把一次 RecurringJob 触发转成对 <see cref="IScheduledHandler.ExecuteAsync"/> 的调用。
-    /// <para>
-    /// 提供两个公开方法:
-    /// <list type="bullet">
-    /// <item><see cref="ExecuteSequentialAsync"/> 带
-    ///   <see cref="DisableConcurrentExecutionAttribute"/>,本节点同一 HandlerCode 串行;</item>
-    /// <item><see cref="ExecuteConcurrentAsync"/> 不带,允许并发。</item>
-    /// </list>
-    /// Bootstrap 期按 <see cref="ScheduleDescriptor.AllowConcurrentExecution"/> 选其中之一登记。
-    /// 跨节点的互斥由 Hangfire 存储层分布式锁仲裁(同一 RecurringJob 同一时刻只一个节点抢到)。
-    /// </para>
     /// </summary>
+    /// <remarks>
+    /// 提供两个入口:
+    /// <see cref="ExecuteSequentialAsync"/> 带 <see cref="DisableConcurrentExecutionAttribute"/>,本节点同 HandlerCode 串行;
+    /// <see cref="ExecuteConcurrentAsync"/> 不带,允许并发。
+    /// Bootstrap 期按 <see cref="ScheduleDescriptor.AllowConcurrentExecution"/> 选一个登记。
+    /// 跨节点互斥由 Hangfire 存储层分布式锁仲裁。
+    /// </remarks>
     public sealed class ScheduledHandlerJobInvoker
     {
         private readonly IServiceScopeFactory _scopeFactory;
@@ -40,10 +37,9 @@ namespace Core.Scheduling.Hangfire.Jobs
         }
 
         /// <summary>
-        /// 非并发执行入口。lock 持有时长由
-        /// <see cref="Hosting.HangfireSchedulingOptions.NonConcurrentLockTimeoutSeconds"/> 间接控制
-        /// (Hangfire attribute 是编译期常量,这里硬编码 5 分钟,运行期不再读 options;
-        /// 想改请在 options 同步调整以保持文档一致)。
+        /// 非并发执行入口。
+        /// 注:<see cref="DisableConcurrentExecutionAttribute"/> 是编译期常量,这里硬编码 5 分钟;
+        /// 想改请同步调整 <c>HangfireSchedulingOptions.NonConcurrentLockTimeoutSeconds</c> 以保持文档一致。
         /// </summary>
         [DisableConcurrentExecution(timeoutInSeconds: 5 * 60)]
         public Task ExecuteSequentialAsync(string handlerCode, IJobCancellationToken cancellationToken)

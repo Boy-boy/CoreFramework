@@ -8,15 +8,11 @@ using Core.Scheduling.Models;
 namespace Core.Scheduling.Filters
 {
     /// <summary>
-    /// 状态跟踪过滤器：最贴近 handler 的内层 filter。
-    /// 等 handler/内层 filter 返回后,把"最后一次执行"的结果(LastFinishTime / LastStatus /
-    /// ConsecutiveFailureCount 等)写回 <see cref="HandlerStateStore"/>。
+    /// 状态跟踪过滤器:最贴近 handler 的内层 filter,负责把最后一次执行结果写回 <see cref="HandlerStateStore"/>。
     /// </summary>
     /// <remarks>
-    /// 三宿主共用。本 filter <b>不</b>算 NextRunTime——那是 BG 专属职责,
-    /// 由 BG-only 的 <see cref="BackgroundNextRunFilter"/> 在本 filter 之后写入。
-    /// Hangfire/Quartz 模式不注册 BackgroundNextRunFilter,NextRunTime 保留 MarkStarted 写入的
-    /// tentative 值;那两种宿主下"下次触发"应以引擎自身的计算为准,本框架的快照仅供 inspector 参考。
+    /// 三宿主共用,但不算 NextRunTime——那是 BG 专属。
+    /// BG 由 <c>BackgroundNextRunFilter</c> 在本 filter 之后写入;Hangfire/Quartz 模式以引擎自家计算为准。
     /// </remarks>
     internal sealed class StateTrackingFilter : IHandlerExecutionFilter
     {

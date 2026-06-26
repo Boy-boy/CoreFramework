@@ -115,6 +115,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.Scheduling.Hangfire", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.Scheduling.Redis", "src\Core.Scheduling.Redis\Core.Scheduling.Redis.csproj", "{A49D3516-7790-45C1-96A4-51A7D67F7CF7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.Scheduling.Background", "src\Core.Scheduling.Background\Core.Scheduling.Background.csproj", "{23359E12-9E79-4C23-A7AD-FF28E8F672E5}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -701,6 +703,18 @@ Global
 		{A49D3516-7790-45C1-96A4-51A7D67F7CF7}.Release|x64.Build.0 = Release|Any CPU
 		{A49D3516-7790-45C1-96A4-51A7D67F7CF7}.Release|x86.ActiveCfg = Release|Any CPU
 		{A49D3516-7790-45C1-96A4-51A7D67F7CF7}.Release|x86.Build.0 = Release|Any CPU
+		{23359E12-9E79-4C23-A7AD-FF28E8F672E5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{23359E12-9E79-4C23-A7AD-FF28E8F672E5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{23359E12-9E79-4C23-A7AD-FF28E8F672E5}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{23359E12-9E79-4C23-A7AD-FF28E8F672E5}.Debug|x64.Build.0 = Debug|Any CPU
+		{23359E12-9E79-4C23-A7AD-FF28E8F672E5}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{23359E12-9E79-4C23-A7AD-FF28E8F672E5}.Debug|x86.Build.0 = Debug|Any CPU
+		{23359E12-9E79-4C23-A7AD-FF28E8F672E5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{23359E12-9E79-4C23-A7AD-FF28E8F672E5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{23359E12-9E79-4C23-A7AD-FF28E8F672E5}.Release|x64.ActiveCfg = Release|Any CPU
+		{23359E12-9E79-4C23-A7AD-FF28E8F672E5}.Release|x64.Build.0 = Release|Any CPU
+		{23359E12-9E79-4C23-A7AD-FF28E8F672E5}.Release|x86.ActiveCfg = Release|Any CPU
+		{23359E12-9E79-4C23-A7AD-FF28E8F672E5}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -758,6 +772,7 @@ Global
 		{74211249-A08E-4F26-A08E-F07EC2B88AF2} = {03EFE65F-3027-40EA-A790-7C8D31C11E18}
 		{E5C08A08-D35E-4BDA-B40D-6C8EE4C7D864} = {03EFE65F-3027-40EA-A790-7C8D31C11E18}
 		{A49D3516-7790-45C1-96A4-51A7D67F7CF7} = {03EFE65F-3027-40EA-A790-7C8D31C11E18}
+		{23359E12-9E79-4C23-A7AD-FF28E8F672E5} = {03EFE65F-3027-40EA-A790-7C8D31C11E18}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {67653D37-9D27-4AD4-9F01-DB21CA3B5835}

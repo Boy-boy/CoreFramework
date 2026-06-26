@@ -1,4 +1,4 @@
-using Core.Scheduling.Abstractions;
+using Core.Scheduling.DistributedLocking;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
@@ -6,13 +6,13 @@ using StackExchange.Redis;
 namespace Core.Scheduling.Redis
 {
     /// <summary>
-    /// Redis 分布式锁实现。SET NX PX 抢锁 + Lua 校验脚本释放/续租,
+    /// Redis 分布式锁实现:SET NX PX 抢锁 + Lua 校验脚本释放 / 续租,
     /// 用 16 字节随机 token 防止误删别人的锁。
     /// 集群部署时通过 <c>AddSchedulingRedisLock</c> 替换默认 noop 实现。
     /// </summary>
     internal sealed class RedisDistributedHandlerLock : IDistributedHandlerLock
     {
-        // @占位符自动映射匿名对象参数，SDK自动拆分为KEYS和ARGV
+        // @ 占位符自动映射匿名对象参数,SDK 拆为 KEYS 与 ARGV
         private const string ReleaseScript =
             "if redis.call('GET', @key) == @token then return redis.call('DEL', @key) else return 0 end";
 
@@ -36,7 +36,7 @@ namespace Core.Scheduling.Redis
             _options = (options ?? throw new ArgumentNullException(nameof(options))).Value;
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-            // 构造期规整化前缀,运行期 BuildKey 只做一次 Concat
+            // 构造期规整前缀,运行期 BuildKey 只做一次 Concat
             _normalizedPrefix = string.IsNullOrEmpty(_options.KeyPrefix)
                 ? string.Empty
                 : _options.KeyPrefix.TrimEnd(':') + ":";
@@ -55,7 +55,7 @@ namespace Core.Scheduling.Redis
             cancellationToken.ThrowIfCancellationRequested();
             var db = _multiplexer.GetDatabase(_options.Database);
             var key = BuildKey(handlerCode);
-            // 16 字节 GUID 当作 RedisValue,省去 32 字符 hex 字符串分配
+            // 16 字节 GUID 当 RedisValue,省去 32 字符 hex 字符串分配
             RedisValue token = Guid.NewGuid().ToByteArray();
 
             try
@@ -71,7 +71,7 @@ namespace Core.Scheduling.Redis
                     ? null
                     : new RedisLockHandle(db, key, token, handlerCode, _logger);
             }
-            catch (RedisException ex)   // 只捕 Redis 自己的异常,不吞 OOM/Cancel
+            catch (RedisException ex)   // 只捕 Redis 自己的异常,不吞 OOM / Cancel
             {
                 _logger.LogWarning(ex, "Redis acquire failed for {HandlerCode}; skipping this tick.", handlerCode);
                 throw;

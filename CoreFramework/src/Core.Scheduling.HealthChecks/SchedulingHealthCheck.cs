@@ -11,9 +11,8 @@ using Microsoft.Extensions.Options;
 namespace Core.Scheduling.HealthChecks
 {
     /// <summary>
-    /// 调度健康检查。聚合 <see cref="IHandlerExecutionInspector"/> 里所有 handler 的状态,
-    /// 按 <see cref="SchedulingHealthCheckOptions"/> 的三档阈值得出最终健康度。
-    /// 默认健康检查名:<c>scheduling</c>。
+    /// 调度健康检查:聚合 <see cref="IHandlerExecutionInspector"/> 中所有 handler 的状态,
+    /// 按 <see cref="SchedulingHealthCheckOptions"/> 的三档阈值得出最终健康度。默认名:<c>scheduling</c>。
     /// </summary>
     public sealed class SchedulingHealthCheck : IHealthCheck
     {
@@ -98,7 +97,7 @@ namespace Core.Scheduling.HealthChecks
             SchedulingHealthCheckOptions options,
             DateTimeOffset now)
         {
-            // 1. 连续失败:Unhealthy 优先
+            // 1. 连续失败 → Unhealthy(优先)
             if (options.UnhealthyAfterConsecutiveFailures is { } unhealthyAt
                 && state.ConsecutiveFailureCount >= unhealthyAt)
             {
@@ -125,7 +124,7 @@ namespace Core.Scheduling.HealthChecks
                     $"{state.HandlerCode}: stale, last finish {now - finish} ago (> {staleThreshold}).");
             }
 
-            // 4. 退而求其次:中等连续失败 → Degraded
+            // 4. 中等连续失败 → Degraded
             if (options.DegradedAfterConsecutiveFailures is { } degradedAt
                 && state.ConsecutiveFailureCount >= degradedAt)
             {

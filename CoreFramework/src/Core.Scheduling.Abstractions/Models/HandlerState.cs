@@ -2,10 +2,7 @@ using System;
 
 namespace Core.Scheduling.Models
 {
-    /// <summary>
-    /// 处理器运行状态快照，由 <see cref="Abstractions.IHandlerExecutionInspector"/> 暴露给外部只读。
-    /// 不变对象——表示某个时间点的视图，不会再变化。
-    /// </summary>
+    /// <summary>处理器状态快照(不变对象),由 <see cref="Abstractions.IHandlerExecutionInspector"/> 对外暴露只读视图。</summary>
     public sealed class HandlerState
     {
         /// <summary>初始化状态快照。</summary>
@@ -34,28 +31,28 @@ namespace Core.Scheduling.Models
         /// <summary>处理器编码。</summary>
         public string HandlerCode { get; }
 
-        /// <summary>是否正在执行（本节点视角）。</summary>
+        /// <summary>是否正在执行(本节点视角)。</summary>
         public bool IsRunning { get; }
 
         /// <summary>上次开始时间。</summary>
         public DateTimeOffset? LastStartTime { get; }
 
-        /// <summary>上次完成时间（无论成败）。</summary>
+        /// <summary>上次完成时间(无论成败)。</summary>
         public DateTimeOffset? LastFinishTime { get; }
 
         /// <summary>上次成功时间。</summary>
         public DateTimeOffset? LastSuccessTime { get; }
 
-        /// <summary>下一次预计触发时间（仅 BG 模式可信；Quartz 模式以 QRTZ_TRIGGERS 为准）。</summary>
+        /// <summary>下次预计触发时间(仅 BG 模式可信;Quartz 以 QRTZ_TRIGGERS 为准)。</summary>
         public DateTimeOffset? NextRunTime { get; }
 
-        /// <summary>连续失败次数（成功或跳过则归零）。</summary>
+        /// <summary>连续失败次数(成功 / 跳过会归零)。</summary>
         public int ConsecutiveFailureCount { get; }
 
-        /// <summary>上一次错误描述。</summary>
+        /// <summary>上次错误描述。</summary>
         public string LastError { get; }
 
-        /// <summary>上一次执行的状态码。</summary>
+        /// <summary>上次执行的状态码。</summary>
         public HandlerExecutionStatus? LastStatus { get; }
     }
 }

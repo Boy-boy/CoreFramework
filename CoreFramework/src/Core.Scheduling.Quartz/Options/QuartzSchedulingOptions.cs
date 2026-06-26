@@ -1,23 +1,18 @@
 using System;
 
-namespace Core.Scheduling.Quartz.Hosting
+namespace Core.Scheduling.Quartz.Options
 {
     /// <summary>
-    /// Quartz 适配器配置:只承载 Quartz/AdoJobStore/集群相关参数。
-    /// 跨适配器共享的 filter 开关在 <see cref="Core.Scheduling.Hosting.SchedulingFilterOptions"/>;
-    /// BG 专属字段(退避兜底、分布式锁等)在 Quartz 模式下不读取也不绑定。
+    /// Quartz 适配器配置:只承载 Quartz / AdoJobStore / 集群相关参数。
+    /// 跨适配器共享的 filter 开关在 <see cref="Core.Scheduling.Options.SchedulingFilterOptions"/>;
+    /// BG 专属字段在 Quartz 模式下不读也不绑。
     /// </summary>
     public sealed class QuartzSchedulingOptions
     {
-        /// <summary>
-        /// 存储模式。
-        /// </summary>
+        /// <summary>存储模式。</summary>
         public QuartzPersistenceMode PersistenceMode { get; set; } = QuartzPersistenceMode.InMemory;
 
-        /// <summary>
-        /// 持久化数据库连接串。<see cref="QuartzPersistenceMode.SqlServer"/> /
-        /// <see cref="QuartzPersistenceMode.PostgreSql"/> 必填。
-        /// </summary>
+        /// <summary>持久化连接串,SqlServer / PostgreSql 必填。</summary>
         public string ConnectionString { get; set; } = string.Empty;
 
         /// <summary>Quartz 调度器名,集群内各节点必须一致。</summary>
@@ -29,9 +24,7 @@ namespace Core.Scheduling.Quartz.Hosting
         /// <summary>AdoJobStore 表前缀,需与建表脚本一致。</summary>
         public string TablePrefix { get; set; } = "QRTZ_";
 
-        /// <summary>
-        /// 是否启用集群模式。仅在 <see cref="PersistenceMode"/> 非 <see cref="QuartzPersistenceMode.InMemory"/> 时有效。
-        /// </summary>
+        /// <summary>启用集群模式(仅持久化模式下生效)。</summary>
         public bool ClusterEnabled { get; set; } = true;
 
         /// <summary>集群心跳间隔。</summary>
@@ -43,19 +36,14 @@ namespace Core.Scheduling.Quartz.Hosting
         /// <summary>Job 分组,所有 handler 共用此分组。</summary>
         public string JobGroup { get; set; } = "core-scheduling";
 
-        /// <summary>
-        /// 启动期是否清理孤儿 Job（注册表里没有但 QRTZ_ 表里残留的）。
-        /// 多版本灰度并行时建议关闭，避免互相清理对方的 Job。
-        /// </summary>
+        /// <summary>启动期清理孤儿 Job(注册表里没有但 QRTZ_ 表里残留的);多版本灰度并行建议关掉。</summary>
         public bool CleanupOrphanJobs { get; set; } = true;
     }
 
-    /// <summary>
-    /// Quartz 持久化模式。
-    /// </summary>
+    /// <summary>Quartz 持久化模式。</summary>
     public enum QuartzPersistenceMode
     {
-        /// <summary>RAMJobStore,内存版,不集群。仅供开发/单机使用。</summary>
+        /// <summary>RAMJobStore,内存版,不集群,仅供开发 / 单机。</summary>
         InMemory = 0,
 
         /// <summary>SqlServer AdoJobStore,集群可用。</summary>

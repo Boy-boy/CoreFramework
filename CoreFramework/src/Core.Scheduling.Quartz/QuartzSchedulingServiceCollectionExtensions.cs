@@ -1,38 +1,29 @@
 using System;
+using Core.Scheduling.Options;
 using Core.Scheduling.Quartz.Hosting;
 using Core.Scheduling.Quartz.Jobs;
+using Core.Scheduling.Quartz.Options;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using global::Quartz;
-using SchedulingFilterOptions = Core.Scheduling.Hosting.SchedulingFilterOptions;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
-    /// <summary>
-    /// Core.Scheduling.Quartz 依赖注入扩展。
-    /// </summary>
+    /// <summary>Core.Scheduling.Quartz 依赖注入扩展。</summary>
     public static class QuartzSchedulingServiceCollectionExtensions
     {
         /// <summary>
         /// 注册基于 Quartz.NET 的集群调度宿主。
-        /// 会自动调用 <c>AddSchedulingCore</c> 引入共享抽象 + 内置 filter,
-        /// 但**不**注册默认 BG 宿主,与 <c>AddSchedulingBackground</c> 互斥。
-        /// <para>
-        /// <paramref name="configureQuartz"/> 必填(集群存储 / 连接串等没有合理默认);
-        /// <paramref name="configureFilters"/> 可省 —— <see cref="SchedulingFilterOptions"/>
-        /// 的 3 个 filter 开关默认全开,Quartz 场景下多数情况无需调整。
-        /// 想关掉某个 filter 再传入。
-        /// </para>
-        /// <para>
-        /// <paramref name="configureFilters"/> 只接 <see cref="SchedulingFilterOptions"/>:
-        /// BG 专属的 IdleDelay / 分布式锁等字段在 Quartz 模式下无意义,故编译期就拦住。
-        /// </para>
-        /// <para>
-        /// <paramref name="configureQuartz"/> 在注册期仅同步调用一次,回调中如有 I/O 或日志不会被双触发。
-        /// </para>
+        /// 自动调用 <c>AddSchedulingCore</c> 引入共享抽象与内置 filter,与 <c>AddSchedulingBackground</c> 互斥。
         /// </summary>
+        /// <remarks>
+        /// <paramref name="configureQuartz"/> 必填(集群存储 / 连接串无合理默认);
+        /// <paramref name="configureFilters"/> 可省——3 个 filter 开关默认全开。
+        /// 后者只接 <see cref="SchedulingFilterOptions"/>(BG 专属字段在 Quartz 模式无意义,编译期就拦住)。
+        /// <paramref name="configureQuartz"/> 注册期同步调用一次,回调里的 I/O 或日志不会双触发。
+        /// </remarks>
         /// <param name="services">服务集合。</param>
-        /// <param name="configureQuartz">Quartz/集群专属配置(必填)。</param>
-        /// <param name="configureFilters">跨适配器共享的调度配置(filter 开关);省略走默认值。</param>
+        /// <param name="configureQuartz">Quartz / 集群专属配置(必填)。</param>
+        /// <param name="configureFilters">跨适配器共享的 filter 开关,省略走默认值。</param>
         public static IServiceCollection AddSchedulingQuartz(
             this IServiceCollection services,
             Action<QuartzSchedulingOptions> configureQuartz,
@@ -41,10 +32,10 @@ namespace Microsoft.Extensions.DependencyInjection
             if (services == null) throw new ArgumentNullException(nameof(services));
             if (configureQuartz == null) throw new ArgumentNullException(nameof(configureQuartz));
 
-            // filter 回调透传给共享层即可,落到独立的 SchedulingFilterOptions 实例(与 BG 的 SchedulingOptions 解耦)
+            // filter 回调透传到共享层,落到独立 SchedulingFilterOptions 实例(与 BG 解耦)
             services.AddSchedulingCore(configureFilters);
 
-            // 回调只跑一次:先解出 options 用于 AddQuartz(同步),再用同一份注册到 IOptions
+            // 回调跑一次:先解出 options 用于 AddQuartz(同步),再用同一份注册到 IOptions
             var quartzOptions = new QuartzSchedulingOptions();
             configureQuartz(quartzOptions);
 

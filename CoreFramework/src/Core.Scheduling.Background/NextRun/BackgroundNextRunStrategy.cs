@@ -1,14 +1,13 @@
 using System;
-using Core.Scheduling.Abstractions;
 using Core.Scheduling.Models;
+using Core.Scheduling.Options;
 using Microsoft.Extensions.Options;
 
-namespace Core.Scheduling.Hosting
+namespace Core.Scheduling.NextRun
 {
     /// <summary>
-    /// BG 调度宿主使用的实现:走 <see cref="NextRunCalculator"/> 算出真正的下次时间,
-    /// 失败时按指数退避(上限取 <see cref="ScheduleDescriptor.MaxBackoff"/> 或
-    /// <see cref="BackgroundSchedulingOptions.DefaultMaxBackoff"/>)。
+    /// BG 宿主使用的下次时间策略:走 <see cref="NextRunCalculator"/> 算时间,
+    /// 失败时按指数退避(上限取 <see cref="ScheduleDescriptor.MaxBackoff"/> 或 <see cref="BackgroundSchedulingOptions.DefaultMaxBackoff"/>)。
     /// </summary>
     internal sealed class BackgroundNextRunStrategy : INextRunStrategy
     {

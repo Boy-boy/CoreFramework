@@ -4,8 +4,11 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Core.Scheduling.Abstractions;
+using Core.Scheduling.DistributedLocking;
 using Core.Scheduling.Internal;
 using Core.Scheduling.Models;
+using Core.Scheduling.NextRun;
+using Core.Scheduling.Options;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -14,14 +17,14 @@ using Microsoft.Extensions.Options;
 namespace Core.Scheduling.Hosting
 {
     /// <summary>
-    /// 默认调度宿主：BackgroundService + 主循环轮询，无外部依赖，适合单节点或轻量集群。
-    /// <para>
-    /// 每 <see cref="BackgroundSchedulingOptions.IdleDelay"/> 扫一次注册表:NextRunTime 已过且未在跑(或允许并发)即派发到独立 Task。
-    /// 每次派发都过 <see cref="Abstractions.IDistributedHandlerLock"/> 仲裁——默认 noop,集群部署换 Redis 实现即可获得跨节点互斥;
-    /// 持锁期间按 <see cref="BackgroundSchedulingOptions.DistributedLockRenewalFraction"/> 自动续租,防止 handler 执行超过租约导致并发执行。
-    /// 停机时按 <see cref="BackgroundSchedulingOptions.ShutdownGraceTimeout"/> 等 in-flight handler 收尾后再退出。
-    /// </para>
+    /// 默认调度宿主:BackgroundService + 主循环轮询,无外部依赖,适合单节点或轻量集群。
     /// </summary>
+    /// <remarks>
+    /// 每 <see cref="BackgroundSchedulingOptions.IdleDelay"/> 扫一次注册表:NextRunTime 到期且未在跑(或允许并发)即派发到独立 Task。
+    /// 每次派发都过 <see cref="IDistributedHandlerLock"/> 仲裁——默认 noop,集群换 Redis 实现即可跨节点互斥;
+    /// 持锁期间按 <see cref="BackgroundSchedulingOptions.DistributedLockRenewalFraction"/> 自动续租,防止超过租约时并发执行。
+    /// 停机时按 <see cref="BackgroundSchedulingOptions.ShutdownGraceTimeout"/> 等 in-flight handler 收尾后退出。
+    /// </remarks>
     internal sealed class SchedulerHostedService : BackgroundService
     {
         private readonly IServiceScopeFactory _scopeFactory;
@@ -34,7 +37,7 @@ namespace Core.Scheduling.Hosting
 
         private readonly ConcurrentDictionary<Task, byte> _runningTasks = new();
 
-        /// <summary>初始化默认调度宿主。<see cref="IScheduledHandlerRegistry"/> 必须按 singleton 注册。</summary>
+        /// <summary>初始化默认调度宿主。<see cref="IScheduledHandlerRegistry"/> 必须单例注册。</summary>
         public SchedulerHostedService(
             IServiceScopeFactory scopeFactory,
             IScheduledHandlerRegistry registry,
@@ -84,9 +87,7 @@ namespace Core.Scheduling.Hosting
             }
         }
 
-        /// <summary>
-        /// 一次性枚举注册表里所有 handler，给 store 创建条目并把 NextRunTime 初始化为 now + StartDelay。
-        /// </summary>
+        /// <summary>枚举注册表全部 handler,给 store 创建条目并把 NextRunTime 初始化为 now + StartDelay。</summary>
         private void InitializeHandlers()
         {
             var now = _timeProvider.GetUtcNow();
@@ -94,15 +95,13 @@ namespace Core.Scheduling.Hosting
             foreach (var handler in _registry.GetHandlers())
             {
                 var record = _stateStore.Get(handler.HandlerCode);
-                // 初始 NextRunTime = now + StartDelay，避免大堆 handler 同时启动撞车
+                // 初始 NextRunTime = now + StartDelay,避免大堆 handler 同时启动撞车
                 var startAt = now + handler.Schedule.StartDelay;
                 record.MarkInitialized(startAt);
             }
         }
 
-        /// <summary>
-        /// 扫描所有 handler，到期者立刻派发到独立 Task。本方法本身不阻塞。
-        /// </summary>
+        /// <summary>扫描所有 handler,到期者派发到独立 Task(本方法不阻塞)。</summary>
         private void DispatchDueHandlers(CancellationToken stoppingToken)
         {
             var now = _timeProvider.GetUtcNow();
@@ -116,7 +115,7 @@ namespace Core.Scheduling.Hosting
                 if (nextRunTime is { } next && now < next) continue;
                 if (isRunning && !handler.Schedule.AllowConcurrentExecution) continue;
 
-                // 乐观推进 NextRunTime 一个间隔，防止本节点连续轮询里重复触发
+                // 乐观推进 NextRunTime 一个间隔,防止本节点连续轮询里重复触发
                 var tentativeNext = now + (handler.Schedule.Interval > TimeSpan.Zero
                     ? handler.Schedule.Interval
                     : _options.IdleDelay);
@@ -129,8 +128,8 @@ namespace Core.Scheduling.Hosting
         }
 
         /// <summary>
-        /// 一次 handler 执行：建作用域→抢分布式锁→构造上下文→过管线→由 <c>StateTrackingFilter</c> 收尾。
-        /// 单节点默认走 noop 锁,零开销;集群部署用 Redis 实现替换 <see cref="IDistributedHandlerLock"/> 即可。
+        /// 一次 handler 执行:建作用域 → 抢分布式锁 → 构造上下文 → 过管线 → 由 <c>StateTrackingFilter</c> 收尾。
+        /// 单节点默认 noop 锁零开销;集群把 <see cref="IDistributedHandlerLock"/> 替换为 Redis 实现即可。
         /// </summary>
         private async Task ExecuteOnceAsync(string handlerCode, DateTimeOffset scheduledTime, CancellationToken stoppingToken)
         {
@@ -167,7 +166,7 @@ namespace Core.Scheduling.Hosting
 
             if (lockHandle is null)
             {
-                // 别的节点持有锁;把本节点状态推进到下一周期,不算失败
+                // 别的节点持有锁:状态推进到下一周期,不算失败
                 _logger.LogDebug("Handler {HandlerCode} skipped: distributed lock held by another node.", handlerCode);
                 MarkSkipped(handlerCode, fireTime, "Lock held by another node.", handler.Schedule);
                 return;
@@ -175,7 +174,7 @@ namespace Core.Scheduling.Hosting
 
             await using (lockHandle.ConfigureAwait(false))
             {
-                // 持锁期间起心跳,防止 handler 执行时间 > 租约导致别的节点抢锁重叠执行
+                // 持锁期间起心跳,防止执行时间 > 租约导致别的节点抢锁重叠执行
                 using var heartbeatCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
                 Task heartbeatTask = null;
                 if (_options.EnableDistributedLockRenewal)
@@ -190,7 +189,7 @@ namespace Core.Scheduling.Hosting
 
                 try
                 {
-                    // 异常会被 StateTrackingFilter 兜底成 Faulted 结果;不会冒到这里。
+                    // 异常会被 StateTrackingFilter 兜底成 Faulted 结果,不会冒到这里
                     await pipeline.InvokeAsync(handler, context, stoppingToken).ConfigureAwait(false);
                 }
                 catch (Exception ex)
@@ -200,7 +199,7 @@ namespace Core.Scheduling.Hosting
                 }
                 finally
                 {
-                    // 先停心跳再 dispose,避免心跳给已释放的锁续租
+                    // 先停心跳再 dispose,避免给已释放的锁续租
                     await heartbeatCts.CancelAsync();
                     if (heartbeatTask is not null)
                     {
@@ -212,8 +211,8 @@ namespace Core.Scheduling.Hosting
         }
 
         /// <summary>
-        /// 心跳续租循环。每 <paramref name="renewalInterval"/> 调一次 <see cref="IDistributedHandlerLockHandle.RenewAsync"/>。
-        /// 续不上(返回 false)即结束循环,后续由 dispose 兜底释放;锁失效的窗口里 handler 可能重叠执行,只能告警。
+        /// 心跳续租循环。每 <paramref name="renewalInterval"/> 调一次 Renew;续不上(false)即结束循环,
+        /// 后续由 dispose 兜底释放;锁失效窗口里 handler 可能重叠执行,只能告警。
         /// </summary>
         private async Task RenewLockPeriodicallyAsync(
             IDistributedHandlerLockHandle handle,
@@ -257,8 +256,10 @@ namespace Core.Scheduling.Hosting
             }
         }
 
-        /// <summary>抢锁失败/异常时,手动收尾状态:Skipped + 下一周期。
-        /// 不走 pipeline,所以这里手动同时调用 MarkFinished(写共享状态) + TryUpdateNextRunTime(BG 算下次)。</summary>
+        /// <summary>
+        /// 抢锁失败 / 异常时手动收尾:Skipped + 推进到下一周期。
+        /// 不走 pipeline,所以这里同时调用 MarkFinished(写共享状态) + TryUpdateNextRunTime(算下次)。
+        /// </summary>
         private void MarkSkipped(string handlerCode, DateTimeOffset fireTime, string reason, ScheduleDescriptor schedule)
         {
             var finish = _timeProvider.GetUtcNow();
@@ -266,7 +267,8 @@ namespace Core.Scheduling.Hosting
             record.MarkFinished(
                 finish,
                 HandlerExecutionResult.Skipped(handlerCode, fireTime, finish, reason));
-            record.TryUpdateNextRunTime(schedule, _nextRunStrategy);
+            record.TryUpdateNextRunTime(
+                (status, fails, finishTime) => _nextRunStrategy.ComputeNextRun(schedule, status, fails, finishTime));
         }
 
         private void TrackTask(Task task)
@@ -281,7 +283,6 @@ namespace Core.Scheduling.Hosting
         /// <inheritdoc />
         public override async Task StopAsync(CancellationToken cancellationToken)
         {
-            // 触发 BackgroundService 自己的停止信号
             await base.StopAsync(cancellationToken).ConfigureAwait(false);
 
             var pending = _runningTasks.Keys.Where(static t => !t.IsCompleted).ToArray();
@@ -292,7 +293,7 @@ namespace Core.Scheduling.Hosting
                 _options.ShutdownGraceTimeout,
                 pending.Length);
 
-            // WhenAny 本身不抛;Delay 的 OCE 不会冒出来。cancellationToken 作用是外部强制停止时立即返回。
+            // WhenAny 本身不抛;Delay 的 OCE 不会冒出来。cancellationToken 用于外部强制停止时立即返回。
             await Task.WhenAny(
                 Task.WhenAll(pending),
                 Task.Delay(_options.ShutdownGraceTimeout, _timeProvider, cancellationToken))

@@ -11,11 +11,11 @@ namespace Core.Scheduling.Hosting
     /// </summary>
     internal sealed class NoopDistributedHandlerLock : IDistributedHandlerLock
     {
-        public Task<IDistributedHandlerLockHandle?> TryAcquireAsync(
+        public Task<IDistributedHandlerLockHandle> TryAcquireAsync(
             string handlerCode,
             TimeSpan leaseDuration,
             CancellationToken cancellationToken)
-            => Task.FromResult<IDistributedHandlerLockHandle?>(new NoopHandle(handlerCode));
+            => Task.FromResult<IDistributedHandlerLockHandle>(new NoopHandle(handlerCode));
 
         private sealed class NoopHandle : IDistributedHandlerLockHandle
         {

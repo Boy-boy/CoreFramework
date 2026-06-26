@@ -51,7 +51,7 @@ namespace Core.Scheduling.Internal
 
         public IReadOnlyCollection<IScheduledHandler> GetHandlers() => _handlers;
 
-        public IScheduledHandler? Find(string handlerCode)
+        public IScheduledHandler Find(string handlerCode)
             => string.IsNullOrEmpty(handlerCode)
                 ? null
                 : _byCode.GetValueOrDefault(handlerCode);

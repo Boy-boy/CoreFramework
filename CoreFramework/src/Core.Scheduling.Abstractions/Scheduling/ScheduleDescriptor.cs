@@ -12,8 +12,8 @@ namespace Core.Scheduling
         private ScheduleDescriptor(
             ScheduleKind kind,
             TimeSpan interval,
-            string? cronExpression,
-            string? timeZoneId,
+            string cronExpression,
+            string timeZoneId,
             TimeSpan startDelay,
             bool allowConcurrentExecution,
             TimeSpan? maxBackoff)
@@ -41,12 +41,12 @@ namespace Core.Scheduling
         /// Cron 表达式；固定间隔模式下为 <see langword="null"/>。
         /// 表达式格式遵循 Quartz Cron（六/七字段，秒级）规范。
         /// </summary>
-        public string? CronExpression { get; }
+        public string CronExpression { get; }
 
         /// <summary>
         /// Cron 解析使用的时区 ID（IANA 或 Windows）；<see langword="null"/> 表示使用系统默认时区。
         /// </summary>
-        public string? TimeZoneId { get; }
+        public string TimeZoneId { get; }
 
         /// <summary>
         /// 首次触发前的等待时长；默认 <see cref="TimeSpan.Zero"/> 表示部署/首次注册后立刻进入下一轮判定。
@@ -60,7 +60,7 @@ namespace Core.Scheduling
         public bool AllowConcurrentExecution { get; }
 
         /// <summary>
-        /// 连续失败时的最大退避间隔；<see langword="null"/> 表示由 SchedulingOptions 全局默认值兜底。
+        /// 连续失败时的最大退避间隔；<see langword="null"/> 表示由 BackgroundSchedulingOptions 全局默认值兜底。
         /// </summary>
         public TimeSpan? MaxBackoff { get; }
 
@@ -100,7 +100,7 @@ namespace Core.Scheduling
         /// <param name="maxBackoff">连续失败时的最大退避间隔；<see langword="null"/> 走全局默认。</param>
         public static ScheduleDescriptor Cron(
             string cronExpression,
-            string? timeZoneId = null,
+            string timeZoneId = null,
             TimeSpan? startDelay = null,
             bool allowConcurrentExecution = false,
             TimeSpan? maxBackoff = null)

@@ -17,7 +17,7 @@ namespace Core.Scheduling.Models
             DateTimeOffset? lastSuccessTime,
             DateTimeOffset? nextRunTime,
             int consecutiveFailureCount,
-            string? lastError,
+            string lastError,
             HandlerExecutionStatus? lastStatus)
         {
             HandlerCode = handlerCode;
@@ -53,7 +53,7 @@ namespace Core.Scheduling.Models
         public int ConsecutiveFailureCount { get; }
 
         /// <summary>上一次错误描述。</summary>
-        public string? LastError { get; }
+        public string LastError { get; }
 
         /// <summary>上一次执行的状态码。</summary>
         public HandlerExecutionStatus? LastStatus { get; }

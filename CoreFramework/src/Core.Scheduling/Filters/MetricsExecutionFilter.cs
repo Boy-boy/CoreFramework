@@ -67,8 +67,8 @@ namespace Core.Scheduling.Filters
 
         private void EmitMetrics(string handlerCode, HandlerExecutionStatus status, double durationMs)
         {
-            var codeTag = new KeyValuePair<string, object?>(SchedulingDiagnostics.TagHandlerCode, handlerCode);
-            var statusTag = new KeyValuePair<string, object?>(SchedulingDiagnostics.TagStatus, StatusTag(status));
+            var codeTag = new KeyValuePair<string, object>(SchedulingDiagnostics.TagHandlerCode, handlerCode);
+            var statusTag = new KeyValuePair<string, object>(SchedulingDiagnostics.TagStatus, StatusTag(status));
 
             _executionCounter.Add(1, codeTag, statusTag);
             if (durationMs > 0)

@@ -15,7 +15,7 @@ namespace Core.Scheduling.Hosting
     /// <item>Quartz 用 <c>WaitForJobsToComplete</c> + <c>QRTZ_LOCKS</c>。</item>
     /// </list>
     /// </remarks>
-    public sealed class SchedulingOptions
+    public sealed class BackgroundSchedulingOptions
     {
         /// <summary>
         /// 全局默认最大退避间隔。handler 自带的

@@ -61,7 +61,7 @@ namespace Core.Scheduling.Hangfire.Hosting
         /// <summary>
         /// 服务器名(集群中本节点的可读标识)。<see langword="null"/> 由 Hangfire 自己生成 (machine 名 + GUID)。
         /// </summary>
-        public string? ServerName { get; set; }
+        public string ServerName { get; set; }
     }
 
     /// <summary>

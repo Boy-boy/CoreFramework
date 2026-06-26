@@ -25,7 +25,7 @@ namespace Core.Scheduling.Abstractions
         /// 建议设置为 <b>大于最长可能执行时间</b>,长任务请在执行中调 <see cref="IDistributedHandlerLockHandle.RenewAsync"/>。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>抢到锁返回句柄;别的节点已持有则返回 <see langword="null"/>。</returns>
-        Task<IDistributedHandlerLockHandle?> TryAcquireAsync(
+        Task<IDistributedHandlerLockHandle> TryAcquireAsync(
             string handlerCode,
             TimeSpan leaseDuration,
             CancellationToken cancellationToken);

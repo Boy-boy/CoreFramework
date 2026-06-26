@@ -23,8 +23,9 @@ namespace Core.Scheduling
 
         public override void ConfigureServices(ServiceCollectionContext context)
         {
-            // BG 专属字段:与 SchedulingFilterOptions(共享层负责) 分两个 Options 实例独立绑定
-            context.Services.Configure<SchedulingOptions>(Configuration.GetSection("Scheduling"));
+            // BG 专属字段绑到独立子节,与 Quartz / Hangfire / Redis / HealthChecks 同级布局;
+            // 跨适配器共享的 SchedulingFilterOptions 仍由 SchedulingCoreModule 绑根节 "Scheduling"
+            context.Services.Configure<BackgroundSchedulingOptions>(Configuration.GetSection("Scheduling:Background"));
             context.Services.AddHostedService<SchedulerHostedService>();
         }
     }

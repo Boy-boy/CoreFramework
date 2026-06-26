@@ -24,7 +24,7 @@ namespace Core.Scheduling.Internal
         public void Remove(string handlerCode) => _records.TryRemove(handlerCode, out _);
 
         /// <inheritdoc />
-        public HandlerState? GetState(string handlerCode)
+        public HandlerState GetState(string handlerCode)
             => _records.TryGetValue(handlerCode, out var rec) ? rec.Snapshot() : null;
 
         /// <inheritdoc />
@@ -49,7 +49,7 @@ namespace Core.Scheduling.Internal
         private DateTimeOffset? _lastSuccessTime;
         private DateTimeOffset? _nextRunTime;
         private int _consecutiveFailureCount;
-        private string? _lastError;
+        private string _lastError;
         private HandlerExecutionStatus? _lastStatus;
 
         public HandlerStateRecord(string handlerCode)

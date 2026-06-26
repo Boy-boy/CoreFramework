@@ -12,6 +12,6 @@ namespace Core.Scheduling.Abstractions
         IReadOnlyCollection<IScheduledHandler> GetHandlers();
 
         /// <summary>按 <see cref="IScheduledHandler.HandlerCode"/> 查找，不存在返回 <see langword="null"/>。</summary>
-        IScheduledHandler? Find(string handlerCode);
+        IScheduledHandler Find(string handlerCode);
     }
 }

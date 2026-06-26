@@ -16,10 +16,10 @@ namespace Core.Scheduling.Hosting
     /// <summary>
     /// 默认调度宿主：BackgroundService + 主循环轮询，无外部依赖，适合单节点或轻量集群。
     /// <para>
-    /// 每 <see cref="SchedulingOptions.IdleDelay"/> 扫一次注册表:NextRunTime 已过且未在跑(或允许并发)即派发到独立 Task。
+    /// 每 <see cref="BackgroundSchedulingOptions.IdleDelay"/> 扫一次注册表:NextRunTime 已过且未在跑(或允许并发)即派发到独立 Task。
     /// 每次派发都过 <see cref="Abstractions.IDistributedHandlerLock"/> 仲裁——默认 noop,集群部署换 Redis 实现即可获得跨节点互斥;
-    /// 持锁期间按 <see cref="SchedulingOptions.DistributedLockRenewalFraction"/> 自动续租,防止 handler 执行超过租约导致并发执行。
-    /// 停机时按 <see cref="SchedulingOptions.ShutdownGraceTimeout"/> 等 in-flight handler 收尾后再退出。
+    /// 持锁期间按 <see cref="BackgroundSchedulingOptions.DistributedLockRenewalFraction"/> 自动续租,防止 handler 执行超过租约导致并发执行。
+    /// 停机时按 <see cref="BackgroundSchedulingOptions.ShutdownGraceTimeout"/> 等 in-flight handler 收尾后再退出。
     /// </para>
     /// </summary>
     internal sealed class SchedulerHostedService : BackgroundService
@@ -29,7 +29,7 @@ namespace Core.Scheduling.Hosting
         private readonly HandlerStateStore _stateStore;
         private readonly INextRunStrategy _nextRunStrategy;
         private readonly TimeProvider _timeProvider;
-        private readonly SchedulingOptions _options;
+        private readonly BackgroundSchedulingOptions _options;
         private readonly ILogger<SchedulerHostedService> _logger;
 
         private readonly ConcurrentDictionary<Task, byte> _runningTasks = new();
@@ -41,7 +41,7 @@ namespace Core.Scheduling.Hosting
             HandlerStateStore stateStore,
             INextRunStrategy nextRunStrategy,
             TimeProvider timeProvider,
-            IOptions<SchedulingOptions> options,
+            IOptions<BackgroundSchedulingOptions> options,
             ILogger<SchedulerHostedService> logger)
         {
             _scopeFactory = scopeFactory;
@@ -150,7 +150,7 @@ namespace Core.Scheduling.Hosting
             if (leaseDuration <= TimeSpan.Zero)
                 leaseDuration = TimeSpan.FromSeconds(30);
 
-            IDistributedHandlerLockHandle? lockHandle;
+            IDistributedHandlerLockHandle lockHandle;
             try
             {
                 lockHandle = await distributedLock
@@ -177,7 +177,7 @@ namespace Core.Scheduling.Hosting
             {
                 // 持锁期间起心跳,防止 handler 执行时间 > 租约导致别的节点抢锁重叠执行
                 using var heartbeatCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-                Task? heartbeatTask = null;
+                Task heartbeatTask = null;
                 if (_options.EnableDistributedLockRenewal)
                 {
                     var fraction = _options.DistributedLockRenewalFraction;

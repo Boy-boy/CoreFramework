@@ -18,7 +18,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="services">服务集合。</param>
         /// <param name="configureFilters">
         /// 跨适配器共享的 filter 开关配置(可省)。落到独立的 <see cref="SchedulingFilterOptions"/> 实例,
-        /// 与 BG 专属的 <see cref="SchedulingOptions"/> 解耦——后者只在 <c>AddSchedulingBackground</c>(BG) 路径下注册。
+        /// 与 BG 专属的 <see cref="BackgroundSchedulingOptions"/> 解耦——后者只在 <c>AddSchedulingBackground</c>(BG) 路径下注册。
         /// </param>
         public static IServiceCollection AddSchedulingCore(
             this IServiceCollection services,
@@ -60,10 +60,10 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </param>
         public static IServiceCollection AddSchedulingBackground(
             this IServiceCollection services,
-            Action<SchedulingOptions> configureOptions = null,
+            Action<BackgroundSchedulingOptions> configureOptions = null,
             Action<SchedulingFilterOptions> configureFilters = null)
         {
-            services.AddOptions<SchedulingOptions>();
+            services.AddOptions<BackgroundSchedulingOptions>();
             if (configureOptions != null)
                 services.Configure(configureOptions);
 

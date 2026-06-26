@@ -25,10 +25,10 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="tags">健康检查 tag,便于 <c>/health/ready</c> 之类的分组路由。</param>
         public static IHealthChecksBuilder AddSchedulingHealthCheck(
             this IServiceCollection services,
-            Action<SchedulingHealthCheckOptions>? configureOptions = null,
+            Action<SchedulingHealthCheckOptions> configureOptions = null,
             string name = DefaultName,
             HealthStatus? failureStatus = null,
-            IEnumerable<string>? tags = null)
+            IEnumerable<string> tags = null)
         {
             if (services == null) throw new ArgumentNullException(nameof(services));
 
@@ -46,10 +46,10 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         public static IHealthChecksBuilder AddSchedulingHealthCheck(
             this IHealthChecksBuilder builder,
-            Action<SchedulingHealthCheckOptions>? configureOptions = null,
+            Action<SchedulingHealthCheckOptions> configureOptions = null,
             string name = DefaultName,
             HealthStatus? failureStatus = null,
-            IEnumerable<string>? tags = null)
+            IEnumerable<string> tags = null)
         {
             if (builder == null) throw new ArgumentNullException(nameof(builder));
 

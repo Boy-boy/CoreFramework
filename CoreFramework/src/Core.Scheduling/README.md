@@ -12,6 +12,7 @@
 - [30 秒上手](#30-秒上手)
 - [完整 Quickstart(端到端)](#完整-quickstart端到端)
 - [集群方案怎么选](#集群方案怎么选)
+- [完整部署模板(按场景)](#完整部署模板按场景)
 - [配置详解](#配置详解)
 - [Handler 编写契约](#handler-编写契约)
 - [自定义过滤器](#自定义过滤器)
@@ -19,6 +20,9 @@
 - [健康检查](#健康检查)
 - [Inspector / 自查端点](#inspector--自查端点)
 - [常见坑](#常见坑)
+- [故障排查速查](#故障排查速查)
+- [上线前 checklist](#上线前-checklist)
+- [宿主之间互相切换](#宿主之间互相切换)
 - [故意没做的事](#故意没做的事)
 
 ---
@@ -246,42 +250,348 @@ services.AddScheduledHandler<ReconciliationJob>();
 
 ---
 
-## 配置详解
+## 完整部署模板(按场景)
 
-### 基础 `Scheduling` 节
+4 个场景,每个给出**前置条件 / 包引用 / 注册代码 / 完整 `appsettings.json` / 启动验证**,挑你的那一档照抄即可。
 
-同一个 JSON 节同时绑两个 Options 类型:
-- **`SchedulingFilterOptions`** —— 3 个共享 filter 开关,三种宿主都生效
-- **`SchedulingOptions`** —— BG 专属字段(`IdleDelay`、停机、退避、分布式锁),仅 BG 模式下读
+### 场景 A:单机 / 开发 / CI(BG)
 
+**前置条件**:无。
+
+**包引用**:
+```xml
+<PackageReference Include="Core.Scheduling" />
+<PackageReference Include="Core.Scheduling.HealthChecks" /> <!-- 可选 -->
+```
+
+**注册代码(模块化)**:
+```csharp
+modules.Add<SchedulingBackgroundModule>();
+modules.Add<SchedulingHealthChecksModule>();  // 可选
+modules.Add<MyJobsModule>();                  // 你自己的 handler 注册模块
+```
+
+**注册代码(扩展方法)**:
+```csharp
+services.AddSchedulingBackground(bg =>
+{
+    bg.IdleDelay              = TimeSpan.FromMilliseconds(500);
+    bg.ShutdownGraceTimeout   = TimeSpan.FromSeconds(30);
+    bg.DefaultMaxBackoff      = TimeSpan.FromMinutes(5);
+});
+services.AddScheduledHandler<CacheWarmupJob>();
+services.AddScheduledHandler<ReconciliationJob>();
+```
+
+**完整 `appsettings.json`**:
 ```json
 {
   "Scheduling": {
-    "IdleDelay": "00:00:00.500",
-    "ShutdownGraceTimeout": "00:00:30",
-    "DefaultMaxBackoff": "00:05:00",
     "EnableTracing": true,
     "EnableMetrics": true,
     "EnableLogging": true,
-    "DistributedLockLeaseDuration": "00:00:30",
-    "EnableDistributedLockRenewal": true,
-    "DistributedLockRenewalFraction": 0.5
+
+    "Background": {
+      "IdleDelay": "00:00:00.500",
+      "ShutdownGraceTimeout": "00:00:30",
+      "DefaultMaxBackoff": "00:05:00"
+    },
+
+    "HealthChecks": {
+      "UnhealthyAfterConsecutiveFailures": 5,
+      "DegradedAfterConsecutiveFailures": 2,
+      "RunningThresholdForDegraded": "00:05:00",
+      "IncludePerHandlerDetails": true
+    }
   }
 }
 ```
 
-| 字段 | 默认 | 归属类型 | 说明 | BG | Hangfire | Quartz |
-|---|---|---|---|:-:|:-:|:-:|
-| `EnableTracing` | true | `SchedulingFilterOptions` | OTel/Activity span | ✅ | ✅ | ✅ |
-| `EnableMetrics` | true | `SchedulingFilterOptions` | Counter + Histogram | ✅ | ✅ | ✅ |
-| `EnableLogging` | true | `SchedulingFilterOptions` | 结构化日志 | ✅ | ✅ | ✅ |
-| `IdleDelay` | 500 ms | `SchedulingOptions` | 主循环空闲轮询间隔 | ✅ | ❌ | ❌ |
-| `ShutdownGraceTimeout` | 30 s | `SchedulingOptions` | 停机等待 in-flight handler 上限 | ✅ | ❌ | ❌ |
-| `DefaultMaxBackoff` | 5 min | `SchedulingOptions` | 失败退避封顶(`Schedule.MaxBackoff` 优先) | ✅ | ❌ | ❌ |
-| `DistributedLock*` | — | `SchedulingOptions` | 仅 BG + 真实锁(如 Redis)生效 | ✅ | ❌ | ❌ |
+**启动验证**:
+1. 启动后查日志,应该有 `Handler {code} starting at ... (scheduled ...)` 字样
+2. 调 `/scheduling/status` 端点(如果挂了)或健康检查 `/health` 看 `handlerCount` ≥ 1
+3. Metrics 端点应出现 `scheduling_executions_count` 序列
 
-> Hangfire / Quartz 模式下 BG-only 字段(SchedulingOptions)根本不会被绑定,
-> JSON 里写了也无影响。三个 filter 开关由 `SchedulingCoreModule` 统一绑,
+---
+
+### 场景 B:BG + Redis 锁(轻量集群)
+
+**前置条件**:一个 Redis(单实例或集群皆可)。
+
+**包引用**:
+```xml
+<PackageReference Include="Core.Scheduling" />
+<PackageReference Include="Core.Scheduling.Redis" />
+<PackageReference Include="Core.Scheduling.HealthChecks" /> <!-- 可选 -->
+```
+
+**注册代码(模块化)**:
+```csharp
+modules.Add<SchedulingBackgroundModule>();
+modules.Add<SchedulingRedisModule>();   // 顺序无关:Replace 会把 noop 锁换成 Redis 锁
+modules.Add<SchedulingHealthChecksModule>();
+modules.Add<MyJobsModule>();
+```
+
+**注册代码(扩展方法)**:
+```csharp
+services.AddSchedulingBackground(bg =>
+{
+    // 关键:租约必须 > 最长可能执行时间
+    bg.DistributedLockLeaseDuration   = TimeSpan.FromSeconds(60);
+    bg.EnableDistributedLockRenewal   = true;
+    bg.DistributedLockRenewalFraction = 0.5;   // 每 30s 续一次
+});
+services.AddSchedulingRedisLock(redis =>
+{
+    redis.ConnectionString = "redis-1:6379,redis-2:6379";
+    redis.KeyPrefix        = "myapp:scheduling:lock:";
+    redis.Database         = 0;
+});
+services.AddScheduledHandler<CacheWarmupJob>();
+```
+
+**完整 `appsettings.json`**:
+```json
+{
+  "Scheduling": {
+    "EnableTracing": true,
+    "EnableMetrics": true,
+    "EnableLogging": true,
+
+    "Background": {
+      "IdleDelay": "00:00:00.500",
+      "ShutdownGraceTimeout": "00:00:30",
+      "DefaultMaxBackoff": "00:05:00",
+      "DistributedLockLeaseDuration": "00:01:00",
+      "EnableDistributedLockRenewal": true,
+      "DistributedLockRenewalFraction": 0.5
+    },
+
+    "Redis": {
+      "ConnectionString": "redis-1:6379,redis-2:6379",
+      "KeyPrefix": "myapp:scheduling:lock:",
+      "Database": 0
+    },
+
+    "HealthChecks": {
+      "UnhealthyAfterConsecutiveFailures": 5,
+      "DegradedAfterConsecutiveFailures": 2,
+      "RunningThresholdForDegraded": "00:05:00"
+    }
+  }
+}
+```
+
+**启动验证**:
+1. 起 2 个进程,看同一 handler 同一时刻是否只有 1 个进程在跑(日志 `starting` 不会同时出现两份)
+2. 抢不到锁的节点日志会出现:`Handler {code} skipped: distributed lock held by another node.`
+3. `redis-cli KEYS "myapp:scheduling:lock:*"` 应能在执行期间看到锁 key,执行完即消失或在租约到期后消失
+
+> **`ConnectionString` 留空**:意味着复用容器里已注册的 `IConnectionMultiplexer`(常见于已有 `Core.Redis` 的项目);不留空就由 Redis 模块自建多路复用器,**不要两份并存**。
+
+---
+
+### 场景 C:Quartz 集群(SqlServer / Postgres)
+
+**前置条件**:
+- SqlServer 2016+ 或 Postgres 12+,一个独立 DB(或与业务 DB 共用,QRTZ_ 前缀不会冲突)
+- 跑过随包 `sql/tables_sqlserver.sql` 或 `sql/tables_postgres.sql`
+
+**包引用**:
+```xml
+<PackageReference Include="Core.Scheduling" />
+<PackageReference Include="Core.Scheduling.Quartz" />
+<PackageReference Include="Core.Scheduling.HealthChecks" />
+```
+
+**注册代码(模块化)**:
+```csharp
+modules.Add<SchedulingQuartzModule>();      // 内部依赖 SchedulingCoreModule
+modules.Add<SchedulingHealthChecksModule>();
+modules.Add<MyJobsModule>();
+```
+
+**注册代码(扩展方法)**:
+```csharp
+services.AddSchedulingQuartz(quartz =>
+{
+    quartz.PersistenceMode        = QuartzPersistenceMode.SqlServer;
+    quartz.ConnectionString       = "Server=db;Database=Scheduler;Trusted_Connection=True;";
+    quartz.SchedulerName          = "MyApp.Scheduler";
+    quartz.InstanceId             = "AUTO";          // 每节点自动生成
+    quartz.TablePrefix            = "QRTZ_";
+    quartz.ClusterEnabled         = true;
+    quartz.ClusterCheckinInterval = TimeSpan.FromSeconds(10);
+    quartz.ThreadCount            = 4;
+    quartz.JobGroup               = "myapp";
+    quartz.CleanupOrphanJobs      = true;
+});
+services.AddScheduledHandler<CacheWarmupJob>();
+services.AddScheduledHandler<NightlyReconcileJob>();   // 可以用 Cron
+```
+
+**完整 `appsettings.json`**:
+```json
+{
+  "Scheduling": {
+    "EnableTracing": true,
+    "EnableMetrics": true,
+    "EnableLogging": true,
+
+    "Quartz": {
+      "PersistenceMode": "SqlServer",
+      "ConnectionString": "Server=db;Database=Scheduler;Trusted_Connection=True;",
+      "SchedulerName": "MyApp.Scheduler",
+      "InstanceId": "AUTO",
+      "TablePrefix": "QRTZ_",
+      "ClusterEnabled": true,
+      "ClusterCheckinInterval": "00:00:10",
+      "ThreadCount": 4,
+      "JobGroup": "myapp",
+      "CleanupOrphanJobs": true
+    },
+
+    "HealthChecks": {
+      "UnhealthyAfterConsecutiveFailures": 5,
+      "DegradedAfterConsecutiveFailures": 2,
+      "RunningThresholdForDegraded": "00:05:00"
+    }
+  }
+}
+```
+
+**启动验证**:
+1. 启动后看 `QRTZ_SCHEDULER_STATE` 表,每个节点一行
+2. `QRTZ_TRIGGERS` 表能看到所有 handler,`TRIGGER_STATE = WAITING`
+3. 触发后 `QRTZ_FIRED_TRIGGERS` 表会出现一行,执行完消失
+4. 健康检查里 `handlerCount = 已注册数`,`nextRun = null`(框架不算,以 QRTZ_TRIGGERS 为准)
+
+> **集群下不开 `HealthChecks.StaleThresholdForDegraded`** —— 别的节点抢的触发不会更新本节点 LastFinishTime。
+
+---
+
+### 场景 D:Hangfire 集群(SqlServer)
+
+**前置条件**:SqlServer,可选预建 schema(也可让 Hangfire 自建)。
+
+**包引用**:
+```xml
+<PackageReference Include="Core.Scheduling" />
+<PackageReference Include="Core.Scheduling.Hangfire" />
+<PackageReference Include="Core.Scheduling.HealthChecks" />
+```
+
+**注册代码(模块化)**:
+```csharp
+modules.Add<SchedulingHangfireModule>();
+modules.Add<SchedulingHealthChecksModule>();
+modules.Add<MyJobsModule>();
+```
+
+**注册代码(扩展方法)**:
+```csharp
+services.AddSchedulingHangfire(hangfire =>
+{
+    hangfire.PersistenceMode             = HangfirePersistenceMode.SqlServer;
+    hangfire.ConnectionString            = "Server=db;Database=Scheduler;Trusted_Connection=True;";
+    hangfire.SqlServerSchemaName         = "HangFire";
+    hangfire.PrepareSchemaIfNecessary    = false;   // 生产关掉,手动跑官方 migration
+    hangfire.PollingInterval             = TimeSpan.FromSeconds(15);
+    hangfire.JobIdPrefix                 = "myapp:";
+    hangfire.WorkerCount                 = 8;
+    hangfire.CleanupOrphanJobs           = true;
+    hangfire.NonConcurrentLockTimeoutSeconds = 300;
+});
+services.AddScheduledHandler<NightlyReconcileJob>();
+```
+
+**完整 `appsettings.json`**:
+```json
+{
+  "Scheduling": {
+    "EnableTracing": true,
+    "EnableMetrics": true,
+    "EnableLogging": true,
+
+    "Hangfire": {
+      "PersistenceMode": "SqlServer",
+      "ConnectionString": "Server=db;Database=Scheduler;Trusted_Connection=True;",
+      "SqlServerSchemaName": "HangFire",
+      "PrepareSchemaIfNecessary": false,
+      "PollingInterval": "00:00:15",
+      "JobIdPrefix": "myapp:",
+      "WorkerCount": 8,
+      "CleanupOrphanJobs": true,
+      "NonConcurrentLockTimeoutSeconds": 300
+    },
+
+    "HealthChecks": {
+      "UnhealthyAfterConsecutiveFailures": 5,
+      "DegradedAfterConsecutiveFailures": 2
+    }
+  }
+}
+```
+
+**ASP.NET Core 接 Dashboard**(可选,推荐):
+```csharp
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = new[] { /* 自家鉴权 filter */ }
+});
+```
+
+**启动验证**:
+1. 进 `/hangfire/recurring` 应看到所有 handler 对应的 RecurringJob
+2. 进 `/hangfire/jobs/succeeded` 等执行后能看到记录
+3. handler 抛异常或返回 Failure 时,会在 `/hangfire/jobs/failed` 看到重试链
+4. **handler 用秒级 `FixedInterval` 会启动期崩** —— 把那个 handler 改 Cron 或者切到 BG/Quartz
+
+---
+
+## 配置详解
+
+### 基础 `Scheduling` 节
+
+两类配置走两个独立 JSON 子节,落到两个独立 Options 实例,各自独立绑定 / 热更新:
+
+| 子节 | Options 类型 | 谁绑 | 生效范围 |
+|---|---|---|---|
+| `Scheduling` (根) | `SchedulingFilterOptions` | `SchedulingCoreModule` | BG / Hangfire / Quartz 三种宿主都生效 |
+| `Scheduling:Background` | `BackgroundSchedulingOptions` | `SchedulingBackgroundModule` | 仅 BG 宿主读;Hangfire/Quartz 不绑也不读 |
+
+```json
+{
+  "Scheduling": {
+    "EnableTracing": true,
+    "EnableMetrics": true,
+    "EnableLogging": true,
+
+    "Background": {
+      "IdleDelay": "00:00:00.500",
+      "ShutdownGraceTimeout": "00:00:30",
+      "DefaultMaxBackoff": "00:05:00",
+      "DistributedLockLeaseDuration": "00:00:30",
+      "EnableDistributedLockRenewal": true,
+      "DistributedLockRenewalFraction": 0.5
+    }
+  }
+}
+```
+
+| 字段 | 默认 | 归属 | 说明 | BG | Hangfire | Quartz |
+|---|---|---|---|:-:|:-:|:-:|
+| `EnableTracing` | true | `Scheduling` → `SchedulingFilterOptions` | OTel/Activity span | ✅ | ✅ | ✅ |
+| `EnableMetrics` | true | `Scheduling` → `SchedulingFilterOptions` | Counter + Histogram | ✅ | ✅ | ✅ |
+| `EnableLogging` | true | `Scheduling` → `SchedulingFilterOptions` | 结构化日志 | ✅ | ✅ | ✅ |
+| `IdleDelay` | 500 ms | `Scheduling:Background` → `BackgroundSchedulingOptions` | 主循环空闲轮询间隔 | ✅ | ❌ | ❌ |
+| `ShutdownGraceTimeout` | 30 s | `Scheduling:Background` → `BackgroundSchedulingOptions` | 停机等待 in-flight handler 上限 | ✅ | ❌ | ❌ |
+| `DefaultMaxBackoff` | 5 min | `Scheduling:Background` → `BackgroundSchedulingOptions` | 失败退避封顶(`Schedule.MaxBackoff` 优先) | ✅ | ❌ | ❌ |
+| `DistributedLock*` | — | `Scheduling:Background` → `BackgroundSchedulingOptions` | 仅 BG + 真实锁(如 Redis)生效 | ✅ | ❌ | ❌ |
+
+> Hangfire / Quartz 模式下不挂 `SchedulingBackgroundModule`,因此连 `Scheduling:Background`
+> 子节都不会被绑定 —— JSON 里写了也无影响。3 个 filter 开关由 `SchedulingCoreModule` 统一绑根节,
 > 各适配器共用。
 
 ### Quartz 专属 `Scheduling:Quartz`
@@ -405,6 +715,63 @@ public async Task<HandlerExecutionResult> ExecuteAsync(HandlerExecutionContext c
 ```
 
 需要嵌套作用域(如背景循环里多次开 scope)再 `ctx.Services.CreateScope()`;一般用例直接拿就行。
+
+### 配置驱动的 Schedule(运维侧改节奏不用重编)
+
+handler 里把 `Schedule` 从配置读出来,运维改 `appsettings.json` 就能调节奏 —— 无需改代码 / 重新发布。
+
+```csharp
+public sealed class CacheWarmupJob : IScheduledHandler
+{
+    public string HandlerCode  => "cache-warmup";
+    public string DisplayName  => "预热商品缓存";
+    public ScheduleDescriptor Schedule { get; }
+
+    // 注入 IConfiguration,在构造期一次性把 Schedule 解析出来
+    public CacheWarmupJob(IConfiguration configuration)
+    {
+        Schedule = configuration.FromConfiguration(HandlerCode);
+    }
+
+    public Task<HandlerExecutionResult> ExecuteAsync(HandlerExecutionContext ctx, CancellationToken ct)
+        => /* ... */;
+}
+```
+
+对应配置(节路径固定为 `Scheduling:Descriptors:{HandlerCode}`):
+
+```json
+{
+  "Scheduling": {
+    "Descriptors": {
+      "cache-warmup": {
+        "Kind": "FixedInterval",
+        "Interval": "00:10:00",
+        "StartDelay": "00:00:30",
+        "AllowConcurrentExecution": false,
+        "MaxBackoff": "00:05:00"
+      },
+      "nightly-reconcile": {
+        "Kind": "Cron",
+        "CronExpression": "0 0 2 * * ?",
+        "TimeZoneId": "Asia/Shanghai"
+      }
+    }
+  }
+}
+```
+
+| 字段 | 必填 | FixedInterval | Cron |
+|---|:-:|:-:|:-:|
+| `Kind` | ✅ | `"FixedInterval"` | `"Cron"` |
+| `Interval` | FixedInterval 必填 | TimeSpan(`"00:10:00"`) | — |
+| `CronExpression` | Cron 必填 | — | Quartz 6/7 字段(秒级) |
+| `TimeZoneId` | 可选 | — | IANA / Windows tz id |
+| `StartDelay` | 可选 | TimeSpan,默认 0 | 同 FixedInterval |
+| `AllowConcurrentExecution` | 可选 | 默认 false | 同 FixedInterval |
+| `MaxBackoff` | 可选 | TimeSpan,null 走全局默认 | 同 FixedInterval |
+
+> 节点缺失 / `Kind` 缺失 / FixedInterval 缺 `Interval` / Cron 缺 `CronExpression` 都会在 `FromConfiguration` 调用处抛 `InvalidOperationException`,启动期即失败,不会带病上线。
 
 ---
 
@@ -652,6 +1019,128 @@ public sealed class BadJob : IScheduledHandler
 ```
 
 handler 是单例,字段在所有触发之间共享。要每次干净状态请在 `ExecuteAsync` 内部局部 new。
+
+---
+
+## 故障排查速查
+
+按"症状 → 优先查什么"组织。出问题时从对应行往下排。
+
+### 启动期就崩
+
+| 症状 / 异常 | 优先查 |
+|---|---|
+| `Duplicate HandlerCode 'X': A vs B. HandlerCode must be globally unique...` | 两个 handler 类用了同一 `HandlerCode`。改其一。 |
+| `Scheduled handler '...' has an empty HandlerCode.` | 你的 handler 实现 `HandlerCode` 返回了空串 / null。 |
+| `Scheduled handler '...' has null Schedule descriptor.` | `Schedule` 属性返回 null,要 `ScheduleDescriptor.FixedInterval(...)` / `.Cron(...)`。 |
+| `ScheduleKind.Cron is not supported by the default BackgroundService runtime. Reference Core.Scheduling.Quartz...` | BG 宿主见到 Cron,挂 `SchedulingQuartzModule` 或把 handler 改 FixedInterval。 |
+| `Configuration section 'Scheduling:Descriptors:{code}' is missing.` | 用了 `FromConfiguration(handlerCode)` 但 JSON 没写该节点。 |
+| Hangfire 启动崩,异常提示间隔太小 | Hangfire 不支持秒级 — 改 Cron 或切到 BG/Quartz。 |
+| Quartz 启动崩,`No record found for selection of Trigger.` 或类似 | 没跑建表脚本 / TablePrefix 写错。 |
+
+### 跑起来但不触发
+
+| 症状 | 优先查 |
+|---|---|
+| 日志里完全没 `Handler {code} starting` | 1) `IScheduledHandler` 没被注册(`AddScheduledHandler<T>` 漏了);2) `LoggingExecutionFilter` 被关。先调 `inspector.GetAllStates()` 看 `handlerCount`。 |
+| `inspector.GetAllStates()` 返回空 | DI 里没找到 `IScheduledHandler` 实现。检查模块依赖图、`AddScheduledHandler<T>` 调用。 |
+| `inspector.GetAllStates()` 有但 `NextRunTime = null` | **BG 模式**:可能 handler 还没首次执行过(看 `LastStartTime`);**Hangfire/Quartz 模式**:框架不算下次时间,这是正常的,看 Hangfire Dashboard / `QRTZ_TRIGGERS`。 |
+| BG 多节点都在跑同一 handler | Redis 锁没生效。1) 没引 `Core.Scheduling.Redis`;2) `ConnectionString` 写错(看启动日志有没有 Redis 连接异常);3) `KeyPrefix` 不同导致互相不可见 → 各节点的 prefix 必须一致。 |
+| Hangfire/Quartz handler 不被触发 | 进 `/hangfire/recurring` 或 `QRTZ_TRIGGERS`,看 RecurringJob/Trigger 是否被创建。没创建 → Bootstrap 没跑;创建了但状态异常 → 看那两个引擎自家的日志。 |
+
+### 执行结果异常
+
+| 症状 | 优先查 |
+|---|---|
+| `ConsecutiveFailureCount` 一直涨 | handler 真的连续失败。看 `LastError`。退避机制下下次时间会越拖越长(BG)。 |
+| 同一 handler 在 BG 模式下被同时跑两次 | 1) `AllowConcurrentExecution = true`;2) `IdleDelay` 太大导致 NextRunTime 越过两个间隔 → 但这不会并发,因为 `MarkStarted` 推了 tentativeNext;3) 单节点 noop 锁 + 多进程没启用 Redis 锁。 |
+| Redis 锁多节点重叠 | 看 `Distributed lock for handler {code} could not be renewed; another node may have taken it.` 警告。说明 handler 跑得比 `DistributedLockLeaseDuration` 还长,续租跟不上 → 调大租约。 |
+| 健康检查一直 Degraded | 看 `description` 字段告诉你哪个 handler 哪种维度触发:连续失败 / 卡死 / 陈旧。 |
+| 健康检查报"陈旧" | 集群下别的节点抢走的执行不会更新本节点 `LastFinishTime` → **集群里关 `StaleThresholdForDegraded`**。 |
+
+### 观测面缺数
+
+| 症状 | 优先查 |
+|---|---|
+| 没 `scheduling.executions.count` 指标 | 1) `EnableMetrics = false`;2) `.AddMeter("Core.Scheduling")` 没加;3) Exporter 没起。 |
+| 没 Activity span | 1) `EnableTracing = false`;2) `.AddSource("Core.Scheduling")` 没加;3) 没 `Listener` 订阅。 |
+| 日志格式不对 / 没字段 | LoggingExecutionFilter 用结构化日志,确认日志 sink 支持 SeriLog/ZLogger/MEL 的结构化模式。 |
+
+---
+
+## 上线前 checklist
+
+复制到你的 PR 模板里勾选。
+
+**通用(三种宿主都看)**
+- [ ] 每个 handler 的 `HandlerCode` 全局唯一,且**不会随重构改变**(它进 Metrics 标签、日志、QRTZ_JOB_KEY,改了就丢历史曲线)
+- [ ] 每个 handler 的 `DisplayName` 是人话(运维面板能看)
+- [ ] handler 类内**没有可变字段**(单例;字段就是共享状态)
+- [ ] handler 的 scoped 依赖都通过 `ctx.Services.GetRequiredService<T>` 拿,**没在构造期捕获根容器**
+- [ ] 业务可识别的失败用 `HandlerExecutionResult.Failure(...)`,而非抛异常
+- [ ] 取消令牌 `ct` 一路传到 I/O 调用(DB / HTTP)
+- [ ] OpenTelemetry / Prometheus / 日志 sink 已订阅 `Core.Scheduling` 这两个名字
+- [ ] 健康检查已挂到 `/health`(或自己运维面板)
+
+**BG 专属**
+- [ ] `ShutdownGraceTimeout` ≥ 单次 handler 的 P95 时长 + 余量
+- [ ] 多节点时引了 `Core.Scheduling.Redis` 或自家实现,**不要靠 noop 锁**
+- [ ] `DistributedLockLeaseDuration` > 单次 handler 的 P99 时长
+- [ ] `IdleDelay` ≥ 250 ms(更小没意义,CPU 烧)
+
+**Quartz 专属**
+- [ ] 数据库建表脚本(`tables_sqlserver.sql` / `tables_postgres.sql`)已跑
+- [ ] `ClusterEnabled = true`,`InstanceId = "AUTO"`(每节点自动唯一)
+- [ ] `ClusterCheckinInterval` ≥ 5s(默认 10s 即可,别小于 5s 触发抖动)
+- [ ] `JobGroup` 跟其它应用的 Quartz 实例隔离(避免 misfire 互扰)
+- [ ] DB 备份策略覆盖 QRTZ_ 表(丢了就丢了所有 RecurringJob 元数据)
+
+**Hangfire 专属**
+- [ ] 生产环境 `PrepareSchemaIfNecessary = false`,提前跑官方 migration
+- [ ] Cron 表达式是 **5/6 字段(Cronos)**,不是 Quartz 7 字段
+- [ ] 没有秒级 `FixedInterval` handler
+- [ ] Dashboard 加了鉴权(`UseHangfireDashboard` 的 `Authorization`)
+
+**HealthChecks 专属**
+- [ ] 单机才开 `StaleThresholdForDegraded`,集群关掉
+- [ ] `IncludedHandlerCodes` / `ExcludedHandlerCodes` 配置正确(噪声 job 排除)
+
+---
+
+## 宿主之间互相切换
+
+业务侧 `IScheduledHandler` 实现**完全不动**,只需要换模块 + 适配配置。
+
+### 单机 BG → BG + Redis 锁
+
+1. 加包:`Core.Scheduling.Redis`
+2. 加模块:`modules.Add<SchedulingRedisModule>();`(或扩展方法 `services.AddSchedulingRedisLock(...)`)
+3. JSON 新增 `Scheduling:Redis` 子节
+4. **调大** `Scheduling:Background:DistributedLockLeaseDuration` 到 >= 单次 handler P99(默认 30s 偏短)
+5. 无需改 handler 代码
+
+### BG → Quartz
+
+1. 把包 `Core.Scheduling.Redis` 去掉(Quartz 自带 `QRTZ_LOCKS`),把 `Core.Scheduling.Quartz` 加上
+2. 模块换:`SchedulingBackgroundModule` + `SchedulingRedisModule` → `SchedulingQuartzModule`
+3. JSON 删除 `Scheduling:Background` / `Scheduling:Redis` 子节(留着也不影响,只是失效),新增 `Scheduling:Quartz` 子节
+4. 跑建表脚本
+5. **想用 Cron** 的 handler 把 `ScheduleDescriptor.FixedInterval` 改成 `.Cron(...)` —— 这是唯一可能要动的 handler 代码
+6. 健康检查关掉 `StaleThresholdForDegraded`
+
+### BG → Hangfire
+
+同 Quartz,但额外注意:
+- handler 不能用秒级 `FixedInterval`
+- Cron 表达式要换成 5/6 字段
+- 加 Dashboard 鉴权
+
+### Hangfire ↔ Quartz
+
+数据**不能直接迁** —— RecurringJob 表 vs QRTZ_ 表结构完全不同。做法是:
+1. 旧实例先停止(`StopAsync`),让 in-flight 收尾
+2. 启动新实例 — Bootstrap 会按当前 handler 列表重新创建触发器
+3. 旧 DB / 表保留几天作为兜底,确认无误后再清理
 
 ---
 

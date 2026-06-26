@@ -1,15 +1,15 @@
 using System;
 using Core.Scheduling.Models;
 
-namespace Core.Scheduling.Internal
+namespace Core.Scheduling.Hosting
 {
     /// <summary>
     /// 下一次触发时间计算器。仅支持 <see cref="ScheduleKind.FixedInterval"/>;
     /// Cron 需要走 Quartz 适配器(其自带触发器)。
     /// </summary>
     /// <remarks>
-    /// 故意不依赖 <see cref="Hosting.SchedulingOptions"/>:把 <c>maxBackoff</c> 作为参数显式传入,
-    /// 由 BG 的 <see cref="Hosting.BackgroundNextRunStrategy"/> 决定如何取这个值。
+    /// 故意不依赖 <see cref="BackgroundSchedulingOptions"/>:把 <c>maxBackoff</c> 作为参数显式传入,
+    /// 由 BG 的 <see cref="BackgroundNextRunStrategy"/> 决定如何取这个值。
     /// Hangfire/Quartz 不调用本计算器——它们的下次触发完全交给各自引擎。
     /// </remarks>
     internal static class NextRunCalculator

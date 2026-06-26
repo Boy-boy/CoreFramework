@@ -17,9 +17,9 @@ namespace Core.Scheduling.Models
             HandlerExecutionStatus status,
             DateTimeOffset startTime,
             DateTimeOffset finishTime,
-            string? errorMessage,
-            Exception? exception,
-            IReadOnlyDictionary<string, long>? metrics)
+            string errorMessage,
+            Exception exception,
+            IReadOnlyDictionary<string, long> metrics)
         {
             HandlerCode = handlerCode;
             Status = status;
@@ -43,10 +43,10 @@ namespace Core.Scheduling.Models
         public DateTimeOffset FinishTime { get; }
 
         /// <summary>错误描述（业务级或框架级，按 <see cref="Status"/> 区分）。</summary>
-        public string? ErrorMessage { get; }
+        public string ErrorMessage { get; }
 
         /// <summary>原始异常对象（仅 <see cref="HandlerExecutionStatus.Faulted"/> 时有值）。</summary>
-        public Exception? Exception { get; }
+        public Exception Exception { get; }
 
         /// <summary>业务自定义指标，例如本次处理的条数、命中数。</summary>
         public IReadOnlyDictionary<string, long> Metrics { get; }
@@ -62,7 +62,7 @@ namespace Core.Scheduling.Models
             string handlerCode,
             DateTimeOffset startTime,
             DateTimeOffset finishTime,
-            IReadOnlyDictionary<string, long>? metrics = null)
+            IReadOnlyDictionary<string, long> metrics = null)
             => new(handlerCode, HandlerExecutionStatus.Success, startTime, finishTime, null, null, metrics);
 
         /// <summary>构造业务失败结果（不抛异常）。</summary>
@@ -71,7 +71,7 @@ namespace Core.Scheduling.Models
             DateTimeOffset startTime,
             DateTimeOffset finishTime,
             string errorMessage,
-            IReadOnlyDictionary<string, long>? metrics = null)
+            IReadOnlyDictionary<string, long> metrics = null)
             => new(handlerCode, HandlerExecutionStatus.Failure, startTime, finishTime, errorMessage, null, metrics);
 
         /// <summary>构造跳过结果。</summary>
@@ -79,7 +79,7 @@ namespace Core.Scheduling.Models
             string handlerCode,
             DateTimeOffset startTime,
             DateTimeOffset finishTime,
-            string? reason = null)
+            string reason = null)
             => new(handlerCode, HandlerExecutionStatus.Skipped, startTime, finishTime, reason, null, null);
 
         /// <summary>构造取消结果（由运行时使用）。</summary>

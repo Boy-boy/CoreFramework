@@ -88,9 +88,25 @@ namespace Core.Scheduling.Hosting
         }
 
         /// <summary>枚举注册表全部 handler,给 store 创建条目并把 NextRunTime 初始化为 now + StartDelay。</summary>
+        /// <exception cref="NotSupportedException">
+        /// 注册表里有 <see cref="ScheduleKind.Cron"/> 描述符:BG 宿主不支持 Cron,启动期即失败,不带病上线。
+        /// </exception>
         private void InitializeHandlers()
         {
             var now = _timeProvider.GetUtcNow();
+
+            var cronHandlers = _registry.GetHandlers()
+                .Where(h => h.Schedule.Kind == ScheduleKind.Cron)
+                .Select(h => h.HandlerCode)
+                .ToArray();
+            if (cronHandlers.Length > 0)
+            {
+                throw new NotSupportedException(
+                    $"ScheduleKind.Cron is not supported by the default BackgroundService runtime. "
+                    + $"Handler(s) using Cron: {string.Join(", ", cronHandlers)}. "
+                    + "Reference Core.Scheduling.Quartz (SchedulingQuartzModule) or Core.Scheduling.Hangfire (SchedulingHangfireModule) instead, "
+                    + "or change the handler's ScheduleDescriptor to FixedInterval.");
+            }
 
             foreach (var handler in _registry.GetHandlers())
             {

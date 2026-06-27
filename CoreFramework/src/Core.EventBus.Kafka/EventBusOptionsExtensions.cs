@@ -52,9 +52,15 @@ namespace Core.EventBus.Kafka
                 kafkaOptions.MaxConsecutiveFailures = options.MaxConsecutiveFailures;
             });
 
-            services.TryAddSingleton<IIntegrationPublisher, KafkaMessagePublisher>();
+            // publisher 注册为 Scoped:它在 PublishAsync 里用注入的 IServiceProvider 解析 IOutboxStorage,
+            // 必须是当前请求 scope 的 SP,才能让 storage 创建/复用的 DbContext 由 UoW 所在 scope 持有,
+            // 避免临时 scope dispose 导致外层 UoW 持有已释放的 DbContext。
+            // subscriber 仍是 Singleton:管理 broker 长连接 / consumer。
+            // IOutboxRawSender 同步降为 Scoped:它委托给 IIntegrationPublisher,从根容器解析 Scoped 会触发 scope-validation。
+            // OutboxDispatcher 调用时本就在自建的 scope 内 → 兼容。
+            services.TryAddScoped<IIntegrationPublisher, KafkaMessagePublisher>();
             services.TryAddSingleton<IIntegrationSubscriber, KafkaMessageSubscriber>();
-            services.TryAddSingleton(sp =>
+            services.TryAddScoped(sp =>
                 (IOutboxRawSender)sp.GetRequiredService<IIntegrationPublisher>());
             services.AddIntegrationCore();
         }

@@ -30,11 +30,11 @@ namespace Core.EventBus.Kafka
         private readonly ILogger<KafkaMessagePublisher> _logger;
 
         public KafkaMessagePublisher(
-            IServiceScopeFactory scopeFactory,
+            IServiceProvider serviceProvider,
             IKafkaPersistentProducer producer,
             IOptions<EventBusKafkaOptions> options,
             ILogger<KafkaMessagePublisher> logger)
-            : base(scopeFactory)
+            : base(serviceProvider)
         {
             _producer = producer;
             _options = options;

@@ -10,32 +10,29 @@ namespace Core.EventBus.Integration
     /// <remarks>
     /// <para><b>路由逻辑</b>:有 outbox 上下文 → <see cref="IOutboxStorage.StoreMessageAsync"/>(事务一致);无 → <see cref="SendAsync{T}"/>(best-effort)。</para>
     /// <para>
-    /// <b>用 IServiceScopeFactory 的原因</b>:publisher 是 Singleton,直接持构造期 IServiceProvider 拿到的是根容器;
-    /// 一旦 ambient context / storage 注册为 Scoped,scope-validation 开启时会抛"Cannot resolve scoped service from root provider"。
-    /// 每次 PublishAsync 自建临时 scope 兼容任意生命周期。
+    /// <b>生命周期</b>:本类(及派生)注册为 Scoped。直接用注入的 <see cref="IServiceProvider"/>(即当前 scope 的 SP)解析 storage,
+    /// 与 ambient UoW 所在 scope 一致,保证创建的 DbContext 由 UoW 拥有者 scope 持有,不会在 publish 返回后被提前释放。
     /// </para>
     /// </remarks>
     public abstract class IntegrationMessagePublisherBase : IMessagePublisher
     {
-        private readonly IServiceScopeFactory _scopeFactory;
+        private readonly IServiceProvider _serviceProvider;
 
-        protected IntegrationMessagePublisherBase(IServiceScopeFactory scopeFactory)
+        protected IntegrationMessagePublisherBase(IServiceProvider serviceProvider)
         {
-            _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
+            _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         }
 
         /// <summary>统一入口;按 outbox 上下文是否存在自动选择路径。</summary>
         public virtual async Task PublishAsync<T>(T message, CancellationToken cancellationToken = default)
             where T : class, IMessage
         {
-            // 临时 scope 解析,避免 Singleton publisher 拿根容器解析 Scoped 服务
-            await using var scope = _scopeFactory.CreateAsyncScope();
-            var sp = scope.ServiceProvider;
-
-            var ambient = sp.GetService<IOutboxAmbientContext>();
+            var ambient = _serviceProvider.GetService<IOutboxAmbientContext>();
             if (ambient?.IsActive == true)
             {
-                var storage = sp.GetService<IOutboxStorage>();
+                // 从当前 scope 解析 storage:这里 _serviceProvider 是 ambient UoW 所在 scope 的 SP,
+                // storage 内 IDbContextProvider 创建 / 复用的 DbContext 由该 scope 持有,生命周期与 UoW 对齐
+                var storage = _serviceProvider.GetService<IOutboxStorage>();
                 if (storage == null)
                 {
                     throw new InvalidOperationException(

@@ -31,11 +31,11 @@ namespace Core.EventBus.RabbitMQ
         private readonly ILogger<RabbitMqMessagePublisher> _logger;
 
         public RabbitMqMessagePublisher(
-            IServiceScopeFactory scopeFactory,
+            IServiceProvider serviceProvider,
             IRabbitMqPublishChannelPool channelPool,
             IOptions<EventBusRabbitMqOptions> options,
             ILogger<RabbitMqMessagePublisher> logger)
-        : base(scopeFactory)
+        : base(serviceProvider)
         {
             _channelPool = channelPool;
             _options = options;

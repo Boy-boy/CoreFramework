@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Core.EventBus.Local
 {
     /// <summary>
-    /// 本地事件总线模块。引入本模块后业务侧即可注入 <see cref="ILocalMessagePublisher"/> 在
+    /// 本地事件总线模块。引入本模块后业务侧即可注入 <see cref="ILocalPublisher"/> 在
     /// 进程内同步派发事件，handler 由 <see cref="IMessageHandlerInvoker"/> 按 DI scope 调用。
     /// </summary>
     /// <remarks>

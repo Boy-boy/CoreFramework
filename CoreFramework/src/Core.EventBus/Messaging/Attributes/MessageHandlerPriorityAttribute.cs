@@ -44,13 +44,14 @@ namespace Core.EventBus
             {
                 throw new ArgumentNullException(nameof(handlerType));
             }
+            // 签名是 (TMessage, CancellationToken),按第一个入参类型匹配;容忍未来的签名变体。
             var handleMethods = handlerType
                 .GetMethods()
                 .Where(x => x.Name == "HandleAsync");
             foreach (var method in handleMethods)
             {
                 var methodParameterTypes = method.GetParameters().Select(x => x.ParameterType).ToArray();
-                if (methodParameterTypes.Length != 1 || methodParameterTypes[0] != messageType) continue;
+                if (methodParameterTypes.Length < 1 || methodParameterTypes[0] != messageType) continue;
                 var methodPriorityAttributes = method.GetCustomAttributes(true).OfType<MessageHandlerPriorityAttribute>().ToList();
                 if (methodPriorityAttributes.Any())
                 {

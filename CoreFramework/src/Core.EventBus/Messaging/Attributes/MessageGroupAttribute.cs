@@ -32,7 +32,9 @@ namespace Core.EventBus
 
         /// <summary>
         /// 取消息类型上的 <see cref="MessageGroupAttribute"/> 值；
-        /// 未标注时回退到 <see cref="Assembly.GetEntryAssembly"/> 的程序集名小写。
+        /// 未标注时回退到 <see cref="Assembly.GetEntryAssembly"/> 的程序集名小写；
+        /// EntryAssembly 也不可用时（如测试宿主、library host）回退到消息类所在程序集名小写，
+        /// 保证返回值非空，避免下游 broker 用空 queue/group 名造成静默丢失。
         /// </summary>
         public static string GetGroupOrDefault(Type messageType)
         {
@@ -40,12 +42,18 @@ namespace Core.EventBus
             {
                 throw new ArgumentNullException(nameof(messageType));
             }
-            return messageType
-                       .GetCustomAttributes(true)
-                       .OfType<MessageGroupAttribute>()
-                       .FirstOrDefault()
-                       ?.Group
-                   ?? Assembly.GetEntryAssembly()?.GetName().Name?.ToLower();
+
+            var declared = messageType
+                .GetCustomAttributes(true)
+                .OfType<MessageGroupAttribute>()
+                .FirstOrDefault()
+                ?.Group;
+            if (!string.IsNullOrEmpty(declared)) return declared;
+
+            var entry = Assembly.GetEntryAssembly()?.GetName().Name;
+            if (!string.IsNullOrEmpty(entry)) return entry.ToLowerInvariant();
+
+            return messageType.Assembly.GetName().Name?.ToLowerInvariant() ?? messageType.Namespace ?? "default";
         }
     }
 }

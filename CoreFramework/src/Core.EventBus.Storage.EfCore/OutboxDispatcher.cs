@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -97,14 +98,26 @@ namespace Core.EventBus.Storage.EfCore
         /// 启动时尝试初始化存储（典型为 EnsureCreated）。失败也仅日志不抛 —— 让后续主循环
         /// 在真正使用时再次失败暴露问题，避免初始化故障让进程一直 crash 重启。
         /// </summary>
+        /// <remarks>
+        /// 必须显式 <c>await using var uow</c>:storage 内部用 <c>IDbContextProvider.GetDbContextAsync()</c>
+        /// 隐式 Begin 一个 UoW,如果不在这里 Dispose,scope 释放也不会跑 UoW.DisposeAsync ——
+        /// 残留的 ambient UoW 会让下一轮 BeginAsync 误以为外层已存在,返回 no-op 的 ChildUnitOfWork,
+        /// 后续 dispatcher 主循环的 Commit/Rollback 被静默吞掉。
+        /// </remarks>
         private async Task InitializeStorageAsync(CancellationToken ct)
         {
             if (!_options.Value.AutoInitialize) return;
             try
             {
                 using var scope = _scopeFactory.CreateScope();
-                var storage = scope.ServiceProvider.GetRequiredService<IOutboxStorage>();
+                var sp = scope.ServiceProvider;
+                var uowMgr = sp.GetRequiredService<IUnitOfWorkManager>();
+                await using var uow = await uowMgr.BeginAsync(new UnitOfWorkOptions(), ct);
+
+                var storage = sp.GetRequiredService<IOutboxStorage>();
                 await storage.InitializeAsync(ct);
+
+                await uow.CommitAsync(ct);
             }
             catch (Exception ex)
             {
@@ -167,11 +180,14 @@ namespace Core.EventBus.Storage.EfCore
             {
                 // 注意 RetryCount 的语义："已经失败的次数"。本次失败前是 msg.RetryCount，本次失败后是 +1
                 var nextRetry = msg.RetryCount + 1;
-                if (nextRetry > _options.Value.MaxRetries)
+                // 永久性错误(序列化失败 / payload 非法等)直接转死信,避免无意义占用 outbox 并刷屏日志
+                var permanent = IsPermanentFailure(ex);
+                if (permanent || nextRetry > _options.Value.MaxRetries)
                 {
+                    var reason = permanent ? "永久性错误" : $"超过最大重试次数 {_options.Value.MaxRetries}";
                     _logger.LogError(ex,
-                        "Outbox 消息超过最大重试次数 {Max} 转入死信 {MessageId} {MessageName}",
-                        _options.Value.MaxRetries, msg.Id, msg.MessageName);
+                        "Outbox 消息 {Reason} 转入死信 {MessageId} {MessageName}",
+                        reason, msg.Id, msg.MessageName);
                     await storage.MoveToDeadLetterAsync(msg.Id, BuildErrorSummary(ex), ct);
                 }
                 else
@@ -182,6 +198,33 @@ namespace Core.EventBus.Storage.EfCore
                         msg.Id, nextRetry, next);
                     await storage.MarkFailedAsync(msg.Id, BuildErrorSummary(ex), next, ct);
                 }
+            }
+        }
+
+        /// <summary>
+        /// 判定异常是否为"重试也不会成功"的永久性错误,直接转死信。
+        /// </summary>
+        /// <remarks>
+        /// 瞬时类别:网络 / 连接 / 超时 → 退避重试。
+        /// 永久类别:类型加载失败 / 序列化反序列化 / payload 不合法 / 参数错误 → 转死信。
+        /// 其余未知异常默认视为瞬时,留给 MaxRetries 兜底。
+        /// </remarks>
+        private static bool IsPermanentFailure(Exception ex)
+        {
+            switch (ex)
+            {
+                case OperationCanceledException:    // 由 ct 触发,不是 outbox 自身问题
+                case TimeoutException:
+                case SocketException:
+                    return false;
+                case TypeLoadException:
+                case BadImageFormatException:
+                case FormatException:
+                case Newtonsoft.Json.JsonException:
+                case ArgumentException:
+                    return true;
+                default:
+                    return false;
             }
         }
 

@@ -30,9 +30,8 @@ namespace Core.EventBus
     where TMessage : class, IMessage
     {
         /// <summary>
-        /// 处理一条消息。本方法实际是接口名的 typo 拼写（Hand），保留以兼容旧版调用；
-        /// 反射定位也依赖此名称（参见 <see cref="DefaultMessageHandlerInvoker.ResolveHandleMethod"/>）。
+        /// 处理一条消息。反射定位依赖此名称（参见 <see cref="DefaultMessageHandlerInvoker.ResolveHandleMethod"/>）。
         /// </summary>
-        Task HandAsync(TMessage message, CancellationToken cancellationToken = default);
+        Task HandleAsync(TMessage message, CancellationToken cancellationToken = default);
     }
 }

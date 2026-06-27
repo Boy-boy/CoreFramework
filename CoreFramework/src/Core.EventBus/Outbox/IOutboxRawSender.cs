@@ -8,7 +8,7 @@ namespace Core.EventBus.Outbox
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 为什么需要这个接口：业务侧的发布走 <see cref="Integration.IIntegrationMessagePublisher.PublishAsync{T}"/>，
+    /// 为什么需要这个接口：业务侧的发布走 <see cref="Integration.IIntegrationPublisher.PublishAsync{T}"/>，
     /// 该方法在检测到 outbox 上下文时会把消息写进 outbox 表 —— 这是我们要的行为。但当
     /// dispatcher 从 outbox 表读取消息要真正送到 broker 时，再走 PublishAsync 会形成
     /// "outbox → outbox" 的死循环。因此独立出 <see cref="SendRawAsync"/>：它接收已经

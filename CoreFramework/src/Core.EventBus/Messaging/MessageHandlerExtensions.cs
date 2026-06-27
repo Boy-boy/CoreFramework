@@ -7,7 +7,7 @@ namespace Core.EventBus
 {
     /// <summary>
     /// handler 程序集扫描工具方法集。被 <see cref="EventBusOptionsExtensions.Configure"/>
-    /// 与 <see cref="Messaging.MessageSubscribeBase.Initialize"/> 共用。
+    /// 与 <see cref="Messaging.MessageSubscriberBase.InitializeAsync"/> 共用。
     /// </summary>
     public static class MessageHandlerExtensions
     {

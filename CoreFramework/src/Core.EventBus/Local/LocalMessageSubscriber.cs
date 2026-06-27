@@ -1,5 +1,7 @@
 using Core.EventBus.Messaging;
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Core.EventBus.Local
 {
@@ -7,31 +9,33 @@ namespace Core.EventBus.Local
     /// 本地事件订阅器实现。直接把订阅项写入 <see cref="ILocalMessageHandlerManager"/>，
     /// 不像 broker 实现那样需要声明 exchange / queue 之类的基础设施。
     /// </summary>
-    public class LocalMessageSubscribe : MessageSubscribeBase, ILocalMessageSubscribe
+    public class LocalMessageSubscriber : MessageSubscriberBase, ILocalSubscriber
     {
         private readonly ILocalMessageHandlerManager _messageHandlerManager;
 
-        public LocalMessageSubscribe(ILocalMessageHandlerManager messageHandlerManager)
+        public LocalMessageSubscriber(ILocalMessageHandlerManager messageHandlerManager)
         {
             _messageHandlerManager = messageHandlerManager;
         }
 
         /// <inheritdoc />
-        protected override void Subscribe(Type messageType, Type handlerType)
+        protected override Task SubscribeAsync(Type messageType, Type handlerType, CancellationToken cancellationToken)
         {
             _messageHandlerManager.AddHandler(messageType, handlerType);
+            return Task.CompletedTask;
         }
 
         /// <inheritdoc />
-        public override void Subscribe<T, TH>()
+        public override Task SubscribeAsync<T, TH>(CancellationToken cancellationToken = default)
         {
-            Subscribe(typeof(T), typeof(TH));
+            return SubscribeAsync(typeof(T), typeof(TH), cancellationToken);
         }
 
         /// <inheritdoc />
-        public override void UnSubscribe<T, TH>()
+        public override Task UnSubscribeAsync<T, TH>(CancellationToken cancellationToken = default)
         {
             _messageHandlerManager.RemoveHandler(typeof(T), typeof(TH));
+            return Task.CompletedTask;
         }
     }
 }

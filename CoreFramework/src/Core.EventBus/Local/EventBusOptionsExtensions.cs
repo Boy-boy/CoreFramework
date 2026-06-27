@@ -20,8 +20,8 @@ namespace Core.EventBus.Local
         /// <inheritdoc />
         public void AddServices(IServiceCollection services)
         {
-            services.TryAddSingleton<ILocalMessagePublisher, LocalMessagePublisher>();
-            services.TryAddSingleton<ILocalMessageSubscribe, LocalMessageSubscribe>();
+            services.TryAddSingleton<ILocalPublisher, LocalMessagePublisher>();
+            services.TryAddSingleton<ILocalSubscriber, LocalMessageSubscriber>();
             services.TryAddSingleton<ILocalMessageHandlerManager, LocalMessageHandlerManager>();
         }
     }

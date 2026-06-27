@@ -12,13 +12,13 @@ namespace PublishApi.Controllers
     [Route("[controller]")]
     public class WeatherForecastController : ControllerBase
     {
-        private readonly IIntegrationMessagePublisher _publisher;
-        private readonly ILocalMessagePublisher _localPublisher;
+        private readonly IIntegrationPublisher _publisher;
+        private readonly ILocalPublisher _localPublisher;
         private readonly IUnitOfWorkManager _unitOfWorkManager;
 
         public WeatherForecastController(
-            IIntegrationMessagePublisher publisher,
-            ILocalMessagePublisher localPublisher,
+            IIntegrationPublisher publisher,
+            ILocalPublisher localPublisher,
             IUnitOfWorkManager unitOfWorkManager)
         {
             _publisher = publisher;

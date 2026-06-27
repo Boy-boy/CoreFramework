@@ -6,7 +6,7 @@ namespace Core.EventBus
 {
     /// <summary>
     /// 抽象"如何调用一个消息 handler"。所有消费端入口（RabbitMQ subscriber、local publisher 等）
-    /// 都不再直接反射调用 <c>HandAsync</c>，而是把"该怎么调"的责任委托给这个接口。
+    /// 都不再直接反射调用 <c>HandleAsync</c>，而是把"该怎么调"的责任委托给这个接口。
     /// </summary>
     /// <remarks>
     /// <para><b>为什么要这层抽象</b></para>
@@ -36,7 +36,7 @@ namespace Core.EventBus
         /// 调用一个 handler 处理一条消息。
         /// </summary>
         /// <param name="messageType">
-        /// 消息的 CLR 类型。用于通过反射定位 <c>IMessageHandler&lt;TMessage&gt;.HandAsync</c> 方法。
+        /// 消息的 CLR 类型。用于通过反射定位 <c>IMessageHandler&lt;TMessage&gt;.HandleAsync</c> 方法。
         /// </param>
         /// <param name="handlerType">
         /// handler 的 CLR 类型。<b>必须</b>是类型而非已解析实例，以便调用方在自己的 DI scope 内 resolve，

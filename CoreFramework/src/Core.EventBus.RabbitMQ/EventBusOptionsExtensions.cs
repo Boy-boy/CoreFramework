@@ -1,9 +1,12 @@
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using System;
 using Core.EventBus.Integration;
 using Core.EventBus.Outbox;
+using Core.RabbitMQ;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using System;
 
 namespace Core.EventBus.RabbitMQ
 {
@@ -50,18 +53,37 @@ namespace Core.EventBus.RabbitMQ
             else if (_configuration != null)
             {
                 services.Configure<EventBusRabbitMqOptions>(_configuration);
-                options = _configuration.Get<EventBusRabbitMqOptions>();
+                // 配置节点缺失 / 为空时 Get<T>() 返回 null;沿用上面 new 出的默认实例,
+                // 否则下面 options.Connection 会 NRE
+                var fromConfig = _configuration.Get<EventBusRabbitMqOptions>();
+                if (fromConfig != null) options = fromConfig;
             }
 
             services.AddRabbitMq(rabbitMqOptions =>
             {
                 rabbitMqOptions.Connection = options.Connection;
+                // 把 EventBus 维度的失败策略桥接到底层 consumer 的 ack/nack 决策
+                rabbitMqOptions.FailureBehavior = options.FailureBehavior;
+                rabbitMqOptions.DeadLetterExchange = options.DeadLetterExchange;
+                rabbitMqOptions.DeadLetterRoutingKey = options.DeadLetterRoutingKey;
             });
 
-            services.TryAddSingleton<IIntegrationMessagePublisher, RabbitMqMessagePublisher>();
-            services.TryAddSingleton<IIntegrationMessageSubscribe, RabbitMqMessageSubscribe>();
+            // 把 EventBus 维度的 exchange / pool 大小桥接成"具体实例"注册给底层池接口 ——
+            // 池本身在 Core.RabbitMQ 是通用基础设施,只是这里用 EventBus 配置实例化它
+            services.TryAddSingleton<IRabbitMqPublishChannelPool>(sp =>
+            {
+                var ebOptions = sp.GetRequiredService<IOptions<EventBusRabbitMqOptions>>().Value;
+                return new RabbitMqPublishChannelPool(
+                    sp.GetRequiredService<IRabbitMqPersistentConnection>(),
+                    ebOptions.ExchangeName,
+                    ebOptions.ChannelPoolSize,
+                    sp.GetRequiredService<ILogger<RabbitMqPublishChannelPool>>());
+            });
+
+            services.TryAddSingleton<IIntegrationPublisher, RabbitMqMessagePublisher>();
+            services.TryAddSingleton<IIntegrationSubscriber, RabbitMqMessageSubscriber>();
             services.TryAddSingleton(sp =>
-                (IOutboxRawSender)sp.GetRequiredService<IIntegrationMessagePublisher>());
+                (IOutboxRawSender)sp.GetRequiredService<IIntegrationPublisher>());
             services.AddIntegrationCore();
         }
     }

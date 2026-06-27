@@ -5,7 +5,7 @@ namespace Core.EventBus
 {
     /// <summary>
     /// 消息发布者的统一契约。本地事件 / 集成事件分别派生为
-    /// <see cref="Local.ILocalMessagePublisher"/> 与 <see cref="Integration.IIntegrationMessagePublisher"/>，
+    /// <see cref="Local.ILocalPublisher"/> 与 <see cref="Integration.IIntegrationPublisher"/>，
     /// 让业务侧能用同一套语义注入而不感知底层是 in-process 还是跨进程 broker。
     /// </summary>
     public interface IMessagePublisher

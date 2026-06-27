@@ -10,7 +10,7 @@ namespace Core.EventBus
 {
     /// <summary>
     /// <see cref="IMessageHandlerInvoker"/> 的默认实现：
-    /// 为每条消息创建一个 DI scope，在 scope 内 resolve handler 并反射调用 <c>HandAsync</c>。
+    /// 为每条消息创建一个 DI scope，在 scope 内 resolve handler 并反射调用 <c>HandleAsync</c>。
     /// </summary>
     /// <remarks>
     /// <para><b>语义</b></para>
@@ -26,7 +26,7 @@ namespace Core.EventBus
     /// </remarks>
     public sealed class DefaultMessageHandlerInvoker : IMessageHandlerInvoker
     {
-        // 每个 messageType 的 HandAsync MethodInfo 缓存。避免每条消息都做 MakeGenericType + GetMethod
+        // 每个 messageType 的 HandleAsync MethodInfo 缓存。避免每条消息都做 MakeGenericType + GetMethod
         private static readonly ConcurrentDictionary<Type, MethodInfo> HandleMethodCache = new();
 
         private readonly IServiceScopeFactory _scopeFactory;
@@ -61,7 +61,7 @@ namespace Core.EventBus
         }
 
         /// <summary>
-        /// 通过反射定位 <c>IMessageHandler&lt;TMessage&gt;.HandAsync(TMessage, CancellationToken)</c>，
+        /// 通过反射定位 <c>IMessageHandler&lt;TMessage&gt;.HandleAsync(TMessage, CancellationToken)</c>，
         /// 结果按 messageType 缓存，避免每条消息都做一次反射查找。
         /// </summary>
         /// <remarks>
@@ -73,9 +73,9 @@ namespace Core.EventBus
             return HandleMethodCache.GetOrAdd(messageType, static mt =>
             {
                 var concreteType = typeof(IMessageHandler<>).MakeGenericType(mt);
-                return concreteType.GetMethod("HandAsync")
+                return concreteType.GetMethod("HandleAsync")
                     ?? throw new InvalidOperationException(
-                        "未在 IMessageHandler<" + mt.Name + "> 找到 HandAsync 方法。");
+                        "未在 IMessageHandler<" + mt.Name + "> 找到 HandleAsync 方法。");
             });
         }
     }

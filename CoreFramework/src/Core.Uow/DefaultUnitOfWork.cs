@@ -22,9 +22,18 @@ namespace Core.Uow
 
         private readonly Lock _eventLock = new();
 
-        private readonly ILocalMessagePublisher _localMessagePublisher;
+        private readonly ILocalPublisher _localMessagePublisher;
 
-        private readonly IIntegrationMessagePublisher _integrationMessagePublisher;
+        private readonly IIntegrationPublisher _integrationMessagePublisher;
+
+        /// <summary>
+        /// AsyncLocal 入口,Dispose 时把"当前 UoW"指针归还给上层 / 置空。
+        /// 不注入它就只能依赖 <see cref="UnitOfWorkMiddleware"/> 在 finally 里清零,
+        /// EventBus 的后台任务(OutboxDispatcher / InboxAwareMessageHandlerInvoker)不经过该 middleware,
+        /// 会把上一轮的 disposed UoW 残留到下一轮 → 下一轮 Begin 把它当成外层 → 实际拿到的是
+        /// no-op 的 ChildUnitOfWork,Commit/Rollback 都被吞掉。
+        /// </summary>
+        private readonly IUnitOfWorkAccessor _accessor;
 
         private bool _disposed;
 
@@ -33,14 +42,15 @@ namespace Core.Uow
 
         public bool IsCompleted { get; private set; }
 
-        public DefaultUnitOfWork(IServiceProvider serviceProvider)
+        public DefaultUnitOfWork(IServiceProvider serviceProvider, IUnitOfWorkAccessor accessor)
         {
+            _accessor = accessor;
             _databaseApis = new ConcurrentDictionary<string, IDatabaseApi>();
             _transactionApis = new ConcurrentDictionary<string, ITransactionApi>();
             _localEvents = new List<IMessage>();
             _distributedEvents = new List<IMessage>();
-            _localMessagePublisher = serviceProvider.GetService<ILocalMessagePublisher>();
-            _integrationMessagePublisher = serviceProvider.GetService<IIntegrationMessagePublisher>();
+            _localMessagePublisher = serviceProvider.GetService<ILocalPublisher>();
+            _integrationMessagePublisher = serviceProvider.GetService<IIntegrationPublisher>();
         }
 
         public void Initialize(UnitOfWorkOptions options)
@@ -123,6 +133,13 @@ namespace Core.Uow
             _transactionApis.Clear();
             _databaseApis.Clear();
             ClearPendingEvents();
+
+            // 把 accessor 里仍指向自己的 AsyncLocal 槽清空,避免后台任务下一轮 Begin 误当外层。
+            // 注:只有"自己仍是当前 UoW"时才清,否则会破坏调用栈里别处刚 push 的新 UoW
+            if (_accessor != null && ReferenceEquals(_accessor.UnitOfWork, this))
+            {
+                _accessor.UnitOfWork = null;
+            }
         }
 
         private async Task SaveChangesAsync(CancellationToken cancellationToken)

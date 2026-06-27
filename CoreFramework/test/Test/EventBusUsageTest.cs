@@ -46,9 +46,9 @@ namespace Test
             var serviceProvider = services.BuildServiceProvider();
 
             Assert.IsInstanceOfType<LocalMessagePublisher>(
-                serviceProvider.GetRequiredService<ILocalMessagePublisher>());
-            Assert.IsInstanceOfType<LocalMessageSubscribe>(
-                serviceProvider.GetRequiredService<ILocalMessageSubscribe>());
+                serviceProvider.GetRequiredService<ILocalPublisher>());
+            Assert.IsInstanceOfType<LocalMessageSubscriber>(
+                serviceProvider.GetRequiredService<ILocalSubscriber>());
             Assert.IsInstanceOfType<LocalMessageHandlerManager>(
                 serviceProvider.GetRequiredService<ILocalMessageHandlerManager>());
         }
@@ -69,7 +69,7 @@ namespace Test
             var serviceProvider = BuildLocalEventBus();
             await InitializeSubscribesAsync(serviceProvider);
 
-            var publisher = serviceProvider.GetRequiredService<ILocalMessagePublisher>();
+            var publisher = serviceProvider.GetRequiredService<ILocalPublisher>();
             var recorder = serviceProvider.GetRequiredService<TestRecorder>();
 
             await publisher.PublishAsync(new CustomerCreatedEvent { CustomerName = "Alice" });
@@ -83,7 +83,7 @@ namespace Test
             var serviceProvider = BuildLocalEventBus();
             await InitializeSubscribesAsync(serviceProvider);
 
-            var publisher = serviceProvider.GetRequiredService<ILocalMessagePublisher>();
+            var publisher = serviceProvider.GetRequiredService<ILocalPublisher>();
             var recorder = serviceProvider.GetRequiredService<TestRecorder>();
 
             await publisher.PublishAsync(new OrderPlacedEvent { OrderId = "ORD-1" });
@@ -99,7 +99,7 @@ namespace Test
             var serviceProvider = BuildLocalEventBus();
             await InitializeSubscribesAsync(serviceProvider);
 
-            var publisher = serviceProvider.GetRequiredService<ILocalMessagePublisher>();
+            var publisher = serviceProvider.GetRequiredService<ILocalPublisher>();
 
             await publisher.PublishAsync(new OrphanEvent());
         }
@@ -110,7 +110,7 @@ namespace Test
             var serviceProvider = BuildLocalEventBus();
             await InitializeSubscribesAsync(serviceProvider);
 
-            var publisher = serviceProvider.GetRequiredService<ILocalMessagePublisher>();
+            var publisher = serviceProvider.GetRequiredService<ILocalPublisher>();
             var recorder = serviceProvider.GetRequiredService<TestRecorder>();
 
             await publisher.PublishAsync(new BrittleEvent());
@@ -342,7 +342,7 @@ namespace Test
             var serviceProvider = services.BuildServiceProvider();
             await InitializeSubscribesAsync(serviceProvider);
 
-            var publisher = serviceProvider.GetRequiredService<ILocalMessagePublisher>();
+            var publisher = serviceProvider.GetRequiredService<ILocalPublisher>();
             var recorder = serviceProvider.GetRequiredService<TestRecorder>();
 
             await publisher.PublishAsync(new CustomerCreatedEvent { CustomerName = "Charlie" });
@@ -423,7 +423,7 @@ namespace Test
                 _recorder = recorder;
             }
 
-            public Task HandAsync(CustomerCreatedEvent message, CancellationToken cancellationToken = default)
+            public Task HandleAsync(CustomerCreatedEvent message, CancellationToken cancellationToken = default)
             {
                 _recorder.Customers.Add(message.CustomerName);
                 return Task.CompletedTask;
@@ -440,7 +440,7 @@ namespace Test
                 _recorder = recorder;
             }
 
-            public Task HandAsync(OrderPlacedEvent message, CancellationToken cancellationToken = default)
+            public Task HandleAsync(OrderPlacedEvent message, CancellationToken cancellationToken = default)
             {
                 _recorder.Order.Add(nameof(OrderPlacedHighPriorityHandler));
                 return Task.CompletedTask;
@@ -457,7 +457,7 @@ namespace Test
                 _recorder = recorder;
             }
 
-            public Task HandAsync(OrderPlacedEvent message, CancellationToken cancellationToken = default)
+            public Task HandleAsync(OrderPlacedEvent message, CancellationToken cancellationToken = default)
             {
                 _recorder.Order.Add(nameof(OrderPlacedLowPriorityHandler));
                 return Task.CompletedTask;
@@ -467,7 +467,7 @@ namespace Test
         [MessageHandlerPriority(5)]
         public class FaultyBrittleHandler : IMessageHandler<BrittleEvent>
         {
-            public Task HandAsync(BrittleEvent message, CancellationToken cancellationToken = default)
+            public Task HandleAsync(BrittleEvent message, CancellationToken cancellationToken = default)
             {
                 throw new InvalidOperationException("intentional");
             }
@@ -483,7 +483,7 @@ namespace Test
                 _recorder = recorder;
             }
 
-            public Task HandAsync(BrittleEvent message, CancellationToken cancellationToken = default)
+            public Task HandleAsync(BrittleEvent message, CancellationToken cancellationToken = default)
             {
                 _recorder.Order.Add(nameof(SafeBrittleHandler));
                 return Task.CompletedTask;
@@ -492,7 +492,7 @@ namespace Test
 
         public class ThrowingHandler : IMessageHandler<ThrowingEvent>
         {
-            public Task HandAsync(ThrowingEvent message, CancellationToken cancellationToken = default)
+            public Task HandleAsync(ThrowingEvent message, CancellationToken cancellationToken = default)
             {
                 throw new InvalidOperationException("unwrap me");
             }
@@ -501,10 +501,10 @@ namespace Test
         public class MultiMessageHandler
             : IMessageHandler<CustomerCreatedEvent>, IMessageHandler<OrphanEvent>
         {
-            public Task HandAsync(CustomerCreatedEvent message, CancellationToken cancellationToken = default)
+            public Task HandleAsync(CustomerCreatedEvent message, CancellationToken cancellationToken = default)
                 => Task.CompletedTask;
 
-            public Task HandAsync(OrphanEvent message, CancellationToken cancellationToken = default)
+            public Task HandleAsync(OrphanEvent message, CancellationToken cancellationToken = default)
                 => Task.CompletedTask;
         }
 

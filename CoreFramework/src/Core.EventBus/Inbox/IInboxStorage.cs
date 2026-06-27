@@ -35,7 +35,7 @@ namespace Core.EventBus.Inbox
     ///     await uow.CommitAsync();
     ///     return;
     /// }
-    /// await handler.HandAsync(msg);
+    /// await handler.HandleAsync(msg);
     /// await uow.CommitAsync();   // inbox 行 + handler 写入业务表 同事务落库
     /// </code>
     /// </remarks>
@@ -59,12 +59,15 @@ namespace Core.EventBus.Inbox
         /// </returns>
         /// <remarks>
         /// <para>
-        /// 实现要求：插入失败因为主键冲突时<b>应捕获并返回 false</b>（视作并发去重命中），
-        /// 而不是把异常冒泡。其他异常（连接断开等）正常抛出。
-        /// </para>
-        /// <para>
         /// 该方法只把 inbox 行加入 ChangeTracker / 未提交事务；commit 由调用方所在的 UoW 统一负责。
         /// 这样如果 handler 业务失败，inbox 行也会跟随回滚，下次重投时不会被误判为"已处理"。
+        /// </para>
+        /// <para>
+        /// 主键冲突的兜底：由于"先 Add 再统一 commit"的设计与"立即捕获冲突"互斥
+        /// （EfCore 实现选择前者以保证业务行 + inbox 行原子性），主键冲突在 commit 阶段才会暴露为
+        /// <c>DbUpdateException</c>，由 <see cref="Core.EventBus.Storage.EfCore.InboxAwareMessageHandlerInvoker"/>
+        /// 在 commit 异常路径中识别并视作"另一并发消费已抢先登记"语义。
+        /// 实现者扩展其他存储时若选择"立即 INSERT"策略，可在本方法内 catch 主键冲突并返回 false。
         /// </para>
         /// </remarks>
         Task<bool> TryAcquireAsync(Guid messageId, string consumerGroup, CancellationToken cancellationToken = default);

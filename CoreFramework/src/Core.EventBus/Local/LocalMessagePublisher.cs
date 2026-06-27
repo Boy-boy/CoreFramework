@@ -12,7 +12,7 @@ namespace Core.EventBus.Local
     /// <remarks>
     /// <para><b>与集成事件的区别</b></para>
     /// <list type="bullet">
-    ///   <item><description>集成事件（<see cref="Integration.IIntegrationMessagePublisher"/>）：跨进程，
+    ///   <item><description>集成事件（<see cref="Integration.IIntegrationPublisher"/>）：跨进程，
     ///   走 broker，强一致性靠 outbox + inbox 保障；</description></item>
     ///   <item><description>本地事件：同进程同语言运行时，无 broker 中转，不存在网络 / 持久化失败问题，
     ///   因此不走 outbox，直接通过 <see cref="IMessageHandlerInvoker"/> 同步调用 handler。</description></item>
@@ -26,7 +26,7 @@ namespace Core.EventBus.Local
     /// 如需"发布者 + handler 同事务"，应使用 saga 抽象而非 local event。
     /// </para>
     /// </remarks>
-    public class LocalMessagePublisher : ILocalMessagePublisher
+    public class LocalMessagePublisher : ILocalPublisher
     {
         private readonly ILogger<LocalMessagePublisher> _logger;
         private readonly ILocalMessageHandlerManager _handlerManager;

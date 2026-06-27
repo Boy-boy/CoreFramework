@@ -7,7 +7,7 @@ namespace PublishApi.Event
 {
     public class CustomerHandler : IMessageHandler<CustomerEvent>
     {
-        public Task HandAsync(CustomerEvent message, CancellationToken cancellationToken = default)
+        public Task HandleAsync(CustomerEvent message, CancellationToken cancellationToken = default)
         {
           Console.WriteLine(message.Id);
           return Task.CompletedTask;

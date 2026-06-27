@@ -1,4 +1,5 @@
 using Core.EventBus.Inbox;
+using Core.Uow;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -62,10 +63,20 @@ namespace Core.EventBus.Storage.EfCore
 
                 try
                 {
+                    // await using var uow:storage 内部 GetDbContextAsync 会隐式 Begin UoW,
+                    // 不在这里 Dispose,scope 释放也不会跑 UoW.DisposeAsync —— 残留 ambient UoW
+                    // 让下一轮 BeginAsync 误返回 no-op ChildUnitOfWork。详见 OutboxDispatcher.InitializeStorageAsync。
                     using var scope = _scopeFactory.CreateScope();
-                    var inbox = scope.ServiceProvider.GetRequiredService<IInboxStorage>();
+                    var sp = scope.ServiceProvider;
+                    var uowMgr = sp.GetRequiredService<IUnitOfWorkManager>();
+                    await using var uow = await uowMgr.BeginAsync(new UnitOfWorkOptions(), stoppingToken);
+
+                    var inbox = sp.GetRequiredService<IInboxStorage>();
                     var threshold = DateTime.UtcNow.AddDays(-_options.Value.RetentionDays);
                     var deleted = await inbox.CleanupAsync(threshold, stoppingToken);
+
+                    await uow.CommitAsync(stoppingToken);
+
                     if (deleted > 0)
                     {
                         _logger.LogInformation("Inbox 清理删除 {Count} 条 (<{Threshold:u})", deleted, threshold);

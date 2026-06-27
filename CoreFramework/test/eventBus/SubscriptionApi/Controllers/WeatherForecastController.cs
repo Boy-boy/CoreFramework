@@ -17,12 +17,12 @@ namespace SubscriptionApi.Controllers
         };
 
         private readonly ILogger<WeatherForecastController> _logger;
-        private readonly IMessageSubscribe _messageSubscribe;
+        private readonly IMessageSubscriber _messageSubscriber;
 
-        public WeatherForecastController(ILogger<WeatherForecastController> logger,IMessageSubscribe messageSubscribe)
+        public WeatherForecastController(ILogger<WeatherForecastController> logger, IMessageSubscriber messageSubscriber)
         {
             _logger = logger;
-            _messageSubscribe = messageSubscribe;
+            _messageSubscriber = messageSubscriber;
         }
 
         [HttpGet]

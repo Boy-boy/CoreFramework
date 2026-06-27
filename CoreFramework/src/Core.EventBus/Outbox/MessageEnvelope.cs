@@ -34,8 +34,10 @@ namespace Core.EventBus.Outbox
             AssemblyName = aggregateRootEvent.GetType().Assembly.GetName().Name;
             MessageName = aggregateRootEvent.GetType().FullName;
             MessageData = aggregateRootEvent.ToJson();
-            CreateTime = DateTime.Now;
-            UtcTime = DateTime.UtcNow;
+            // 统一用 UTC,避免跨时区/DST 切换日志混淆。CreateTime 保留是为向后兼容字段顺序
+            var nowUtc = DateTime.UtcNow;
+            CreateTime = nowUtc;
+            UtcTime = nowUtc;
             RetryCount = 0;
             NextRetryAt = null;
             LastError = null;

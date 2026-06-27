@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
@@ -6,6 +6,8 @@ using RabbitMQ.Client.Exceptions;
 using System;
 using System.IO;
 using System.Net.Sockets;
+using System.Threading;
+using System.Threading.Tasks;
 using Polly;
 
 namespace Core.RabbitMQ
@@ -17,7 +19,7 @@ namespace Core.RabbitMQ
         private readonly ILogger<DefaultRabbitMqPersistentConnection> _logger;
         private readonly int _retryCount = 6;
         IConnection _connection;
-        bool _disposed;
+        volatile bool _disposed;
 
 
         readonly object _syncRoot = new();
@@ -44,27 +46,40 @@ namespace Core.RabbitMQ
         public void Dispose()
         {
             if (_disposed) return;
-
             _disposed = true;
 
-            try
+            // 不进 _syncRoot：TryConnect 持有 _syncRoot 时可能正在跑 Polly 退避（最坏 ~126s）。
+            // _disposed 是 volatile，TryConnect 出 Polly 后会自检 _disposed 并清理 orphan 连接（见 TryConnect 末尾）。
+            // 这里只负责释放 dispose 调用前已经存在的连接。
+            var conn = Interlocked.Exchange(ref _connection, null);
+            if (conn != null)
             {
-                _connection?.Dispose();
-            }
-            catch (IOException ex)
-            {
-                _logger.LogCritical(ex.ToString());
+                try { conn.Dispose(); }
+                catch (IOException ex) { _logger.LogCritical(ex.ToString()); }
             }
         }
 
         public bool TryConnect()
         {
+            // dispose 之后再调用必须直接返回，否则后面 Polly 退避里仍会成功建连然后 _disposed 把 IsConnected 拉回 false，
+            // 调用方看到失败、对象被 leak。
+            if (_disposed) return false;
+
             if (IsConnected)
                 return true;
+
+            // 配置缺失时给出可读异常，而不是在 Polly 退避里反复抛 NRE 把日志刷爆 / 把启动炸掉。
+            if (string.IsNullOrWhiteSpace(_option?.Connection?.HostName))
+            {
+                throw new InvalidOperationException(
+                    "RabbitMQ HostName 未配置。请在 appsettings.json 的 RabbitMq:Connection:HostName 节点设置 broker 地址" +
+                    "（单机：\"host\"，集群：\"host1;host2;host3\"）。");
+            }
 
             _logger.LogInformation("RabbitMQ Client is trying to connect");
             lock (_syncRoot)
             {
+                if (_disposed) return false;
                 if (IsConnected)
                     return true;
 
@@ -77,7 +92,8 @@ namespace Core.RabbitMQ
 
                 policy.Execute(() =>
                 {
-                    if (IsConnected)
+                    // Polly 退避途中可能被 dispose；每次重试前都要 short-circuit，避免在 disposed 对象上再建连接。
+                    if (_disposed || IsConnected)
                         return;
 
                     var connectionFactory = _option.Connection.ConnectionFactory;
@@ -87,6 +103,20 @@ namespace Core.RabbitMQ
                         ? connectionFactory.CreateConnection()
                         : connectionFactory.CreateConnection(hostnames);
                 });
+
+                // policy.Execute 期间可能并发触发 Dispose：此时 Dispose 看到 _connection 还是 null，
+                // 等 Execute 出来时连接才被赋上，外面已经不会再清理。这里兜底把 orphan 释放掉。
+                if (_disposed)
+                {
+                    var orphan = _connection;
+                    _connection = null;
+                    if (orphan != null)
+                    {
+                        try { orphan.Dispose(); }
+                        catch (Exception ex) { _logger.LogWarning(ex, "RabbitMQ orphan connection dispose failed after disposal race"); }
+                    }
+                    return false;
+                }
 
                 if (IsConnected)
                 {
@@ -103,13 +133,16 @@ namespace Core.RabbitMQ
             }
         }
 
+        /// <summary>
+        /// broker 触发 flow-control 时调用。注意：此时连接<b>仍然 open</b>，<see cref="IsConnected"/> 为 true，
+        /// 因此不需要也不应该重连。等 broker 内存/磁盘恢复后会自动 <c>ConnectionUnblocked</c>。
+        /// </summary>
         private void OnConnectionBlocked(object sender, ConnectionBlockedEventArgs e)
         {
             if (_disposed) return;
 
-            _logger.LogWarning("A RabbitMQ connection is on blocked. Trying to re-connect...");
-
-            TryConnect();
+            // 仅记录，不重连。调用 TryConnect 在此处是 no-op（IsConnected 已经是 true）且语义误导。
+            _logger.LogWarning("RabbitMQ connection blocked by broker (flow-control): {Reason}", e.Reason);
         }
 
         private void OnCallbackException(object sender, CallbackExceptionEventArgs e)
@@ -118,7 +151,8 @@ namespace Core.RabbitMQ
 
             _logger.LogWarning("A RabbitMQ connection throw exception. Trying to re-connect...");
 
-            TryConnect();
+            // 不能在 client dispatcher 线程上同步等 Polly 几十秒退避，否则会拖垮 broker 心跳与其他回调。
+            ReconnectInBackground();
         }
 
         private void OnConnectionShutdown(object sender, ShutdownEventArgs reason)
@@ -127,7 +161,26 @@ namespace Core.RabbitMQ
 
             _logger.LogWarning("A RabbitMQ connection is on shutdown. Trying to re-connect...");
 
-            TryConnect();
+            ReconnectInBackground();
+        }
+
+        /// <summary>
+        /// 把重连甩到线程池。重连失败时只 log，避免 unobserved task 拖垮宿主。
+        /// </summary>
+        private void ReconnectInBackground()
+        {
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    TryConnect();
+                }
+                catch (Exception ex)
+                {
+                    // 重连失败不应让进程崩。后续 broker 操作触发的下一次 TryConnect 会再试。
+                    _logger.LogError(ex, "RabbitMQ background reconnect failed");
+                }
+            });
         }
     }
 }

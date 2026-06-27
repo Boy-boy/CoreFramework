@@ -8,7 +8,7 @@ namespace Core.EventBus.Integration
     /// PublishAsync 的事务一致性语义由 <see cref="IntegrationMessagePublisherBase"/> 接管：
     /// 检测到 outbox 上下文时把消息持久化到 outbox 表，否则直发 broker。
     /// </remarks>
-    public interface IIntegrationMessagePublisher : IMessagePublisher
+    public interface IIntegrationPublisher : IMessagePublisher
     {
     }
 }

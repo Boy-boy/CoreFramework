@@ -9,7 +9,6 @@ using Microsoft.Extensions.Options;
 using Polly;
 using RabbitMQ.Client.Exceptions;
 using System;
-using System.Collections.Concurrent;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -20,7 +19,7 @@ namespace Core.EventBus.RabbitMQ
     /// <summary>
     /// RabbitMQ 集成事件 publisher，同时实现：
     /// <list type="bullet">
-    ///   <item><description><see cref="IIntegrationMessagePublisher"/>：业务侧直接调用入口（继承自 <see cref="IntegrationMessagePublisherBase"/>，
+    ///   <item><description><see cref="IIntegrationPublisher"/>：业务侧直接调用入口（继承自 <see cref="IntegrationMessagePublisherBase"/>，
     ///   PublishAsync 会先判断是否有 outbox 上下文）</description></item>
     ///   <item><description><see cref="IOutboxRawSender"/>：outbox dispatcher 的"绕过 outbox 直发"入口</description></item>
     /// </list>
@@ -44,23 +43,31 @@ namespace Core.EventBus.RabbitMQ
     /// <c>DeliveryMode = 2</c> + <c>exchange durable: true</c> 让消息在 broker 重启后不丢；
     /// <c>mandatory: true</c> 在 routing 不到任何 queue 时立即 return 而不是静默丢弃。
     /// </para>
+    ///
+    /// <para><b>channel 池化</b></para>
+    /// <para>
+    /// publisher 自身是 Singleton,所有发布共享一个 <see cref="RabbitMqPublishChannelPool"/>。
+    /// 每条 channel 在首次创建时一次性完成 ExchangeDeclare + ConfirmSelect + BasicReturn 监听挂载,
+    /// 后续 publish 只走纯 BasicPublish + WaitForConfirms;
+    /// 旧版"每条消息开/关一条 channel"造成的 broker 端 channel 暴涨 + 多余 RPC 已消除。
+    /// </para>
     /// </remarks>
-    public class RabbitMqMessagePublisher : IntegrationMessagePublisherBase, IIntegrationMessagePublisher, IOutboxRawSender
+    public class RabbitMqMessagePublisher : IntegrationMessagePublisherBase, IIntegrationPublisher, IOutboxRawSender
     {
         /// <summary>Polly 重试次数；线性退避 1s/2s/3s 总等约 6 秒，超过则抛给上游。</summary>
         private readonly int _retryCount = 3;
-        private readonly IRabbitMqPersistentConnection _persistentConnection;
+        private readonly IRabbitMqPublishChannelPool _channelPool;
         private readonly IOptions<EventBusRabbitMqOptions> _options;
         private readonly ILogger<RabbitMqMessagePublisher> _logger;
 
         public RabbitMqMessagePublisher(
             IServiceScopeFactory scopeFactory,
-            IRabbitMqPersistentConnection persistentConnection,
+            IRabbitMqPublishChannelPool channelPool,
             IOptions<EventBusRabbitMqOptions> options,
             ILogger<RabbitMqMessagePublisher> logger)
         : base(scopeFactory)
         {
-            _persistentConnection = persistentConnection;
+            _channelPool = channelPool;
             _options = options;
             _logger = logger;
         }
@@ -73,8 +80,16 @@ namespace Core.EventBus.RabbitMQ
         {
             var data = message.ToJson();
             var routingKey = MessageNameAttribute.GetNameOrDefault(message.GetType());
-            PublishToBroker(message.Id, routingKey, data);
             EventBusDiagnosticListener.TracingPublishBefore(message);
+            try
+            {
+                PublishToBroker(message.Id, routingKey, data, cancellationToken);
+            }
+            catch (System.Exception ex)
+            {
+                EventBusDiagnosticListener.TracingPublishError(message, ex.Message);
+                throw;
+            }
             EventBusDiagnosticListener.TracingPublishAfter(message);
             return Task.CompletedTask;
         }
@@ -87,7 +102,7 @@ namespace Core.EventBus.RabbitMQ
         public Task SendRawAsync(MessageEnvelope message, CancellationToken cancellationToken = default)
         {
             var routingKey = ResolveRoutingKey(message);
-            PublishToBroker(message.Id, routingKey, message.MessageData);
+            PublishToBroker(message.Id, routingKey, message.MessageData, cancellationToken);
             return Task.CompletedTask;
         }
 
@@ -122,7 +137,17 @@ namespace Core.EventBus.RabbitMQ
         /// <summary>
         /// 真正向 broker 投递消息。两个公共入口最终都汇合到此处，保证投递参数完全一致。
         /// </summary>
-        private void PublishToBroker(Guid messageId, string routingKey, string payload)
+        /// <remarks>
+        /// 单条 publish 流程:
+        /// <list type="number">
+        ///   <item><description>从 channel 池租一条 channel(空闲则取,无空闲则按 ChannelPoolSize 上限新建)</description></item>
+        ///   <item><description>BasicPublish 写入,mandatory:true,DeliveryMode:2</description></item>
+        ///   <item><description>WaitForConfirms 同步等到 broker ack 或 BasicReturn 退回</description></item>
+        ///   <item><description>归还 channel 到池</description></item>
+        /// </list>
+        /// ExchangeDeclare / ConfirmSelect / BasicReturn 挂载都在 channel 首次创建时一次性完成,本方法不再触发。
+        /// </remarks>
+        private void PublishToBroker(Guid messageId, string routingKey, string payload, CancellationToken cancellationToken)
         {
             _logger.LogTrace("RabbitMQ publish messageId={MessageId} routingKey={RoutingKey}", messageId, routingKey);
 
@@ -141,31 +166,28 @@ namespace Core.EventBus.RabbitMQ
             var body = Encoding.UTF8.GetBytes(payload).AsMemory();
             var exchangeName = _options.Value.ExchangeName;
 
-            policy.Execute(() =>
+            // 把 cancellationToken 传给 Polly: retry 之间检查取消,确保关闭进程时不会一直空等
+            policy.Execute(ct =>
             {
-                if (!_persistentConnection.IsConnected)
-                {
-                    _persistentConnection.TryConnect();
-                }
+                ct.ThrowIfCancellationRequested();
 
-                using var channel = _persistentConnection.CreateModel();
-                channel.ExchangeDeclare(
-                    exchange: exchangeName,
-                    type: "direct",
-                    durable: true,                                 // broker 重启后 exchange 仍在
-                    autoDelete: false,
-                    arguments: new ConcurrentDictionary<string, object>());
+                using var rental = _channelPool.Acquire(ct);
+                var channel = rental.Channel;
 
                 var properties = channel.CreateBasicProperties();
                 properties.DeliveryMode = 2;                       // persistent：消息落 broker 磁盘
-                properties.MessageId = messageId.ToString();       // 与 outbox / inbox 的 Id 对应，便于追踪
+                properties.MessageId = messageId.ToString();       // 与 outbox / inbox 的 Id 对应，便于追踪 + BasicReturn 回调日志能直接看到原始 id
                 channel.BasicPublish(
                     exchange: exchangeName,
                     routingKey: routingKey,
                     mandatory: true,                               // routing 不到 queue 立刻 return 而非丢弃
                     basicProperties: properties,
                     body: body);
-            });
+
+                // 等待 broker 对本次发布给出明确回执;失败(退回 / nack / 超时)统一抛 RabbitMqPublishFailedException,
+                // 上层 outbox dispatcher 据此 MarkFailed,不会再被错误地当作"已成功"删掉 outbox 行
+                rental.WaitForConfirmsOrThrow(TimeSpan.FromSeconds(5));
+            }, cancellationToken);
         }
     }
 }

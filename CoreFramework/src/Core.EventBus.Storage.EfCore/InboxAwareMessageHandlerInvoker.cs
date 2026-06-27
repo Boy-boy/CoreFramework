@@ -1,6 +1,8 @@
 using Core.EventBus;
 using Core.EventBus.Inbox;
+using Core.EventBus.Storage.EfCore.Configurations;
 using Core.Uow;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
@@ -25,7 +27,7 @@ namespace Core.EventBus.Storage.EfCore
     ///       <item><description>返回 false（已处理）→ commit 一个空事务（让 broker 能 ack）→ return</description></item>
     ///     </list>
     ///   </description></item>
-    ///   <item><description>resolve handler，反射调用 <c>HandAsync(message)</c></description></item>
+    ///   <item><description>resolve handler，反射调用 <c>HandleAsync(message)</c></description></item>
     ///   <item><description>commit UoW：业务行 + inbox 行原子落库</description></item>
     ///   <item><description>异常路径：rollback（含 inbox 行）+ rethrow → 上游 subscriber 不 ack → broker 重投</description></item>
     /// </list>
@@ -74,8 +76,10 @@ namespace Core.EventBus.Storage.EfCore
             // inbox 可选：用户没注册时 sp.GetService 返回 null，本调用退化为"只有 UoW 包装"
             var inbox = sp.GetService<IInboxStorage>();
 
-            // ② 开 transactional UoW
-            await using var uow = uowMgr.Begin(new UnitOfWorkOptions(isTransactional: true));
+            // ② 开 transactional UoW（与 OutboxDispatcher 用法一致,避免同步 Begin 在消费热路径上阻塞线程池）
+            await using var uow = await uowMgr.BeginAsync(
+                new UnitOfWorkOptions(isTransactional: true),
+                cancellationToken);
 
             try
             {
@@ -112,6 +116,20 @@ namespace Core.EventBus.Storage.EfCore
                 // ⑤ commit：业务行 + inbox 行原子落库
                 await uow.CommitAsync(cancellationToken);
             }
+            catch (DbUpdateException dbEx) when (IsInboxDuplicateKey(dbEx))
+            {
+                // 并发场景:另一并发消费已经先一步成功登记 inbox 行,本次 commit 因主键冲突失败。
+                // 语义上等价于"已处理过",回滚业务变更后不再抛 —— 上游 subscriber 可以正常 ack 跳过。
+                _logger.LogDebug(
+                    "并发消费已先一步登记 inbox messageId={MessageId} handler={Handler},本次跳过",
+                    message.Id, handlerType.FullName);
+                try { await uow.RollbackAsync(CancellationToken.None); }
+                catch (Exception rbEx)
+                {
+                    _logger.LogError(rbEx, "Rollback 失败 messageId={MessageId}", message.Id);
+                }
+                return;
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex,
@@ -130,6 +148,32 @@ namespace Core.EventBus.Storage.EfCore
                 // 重抛 → 上游 subscriber 决定是否 ack；典型实现是不 ack → broker 重投
                 throw;
             }
+        }
+
+        /// <summary>
+        /// 判定一个 <see cref="DbUpdateException"/> 是否由 inbox 表主键冲突触发。
+        /// 这是常并发场景下"另一消费者已先一步登记"的等价信号。
+        /// </summary>
+        /// <remarks>
+        /// 不同 provider 的内层异常类型不同(SqlException / PostgresException / MySqlException...),
+        /// 这里采用最稳健的多 provider 兼容方式:检查内层异常文本里是否同时包含
+        /// "duplicate"/"PRIMARY"/"23505" 等典型主键冲突标识 +inbox 表名。
+        /// </remarks>
+        private static bool IsInboxDuplicateKey(DbUpdateException ex)
+        {
+            var inner = ex.InnerException;
+            if (inner == null) return false;
+            var msg = inner.Message ?? string.Empty;
+            var tableName = InboxMessageConfiguration.TableName;
+            var hasInboxRef = msg.IndexOf(tableName, StringComparison.OrdinalIgnoreCase) >= 0;
+            var hasDuplicateSignal =
+                msg.IndexOf("duplicate", StringComparison.OrdinalIgnoreCase) >= 0
+                || msg.IndexOf("PRIMARY", StringComparison.OrdinalIgnoreCase) >= 0
+                || msg.IndexOf("UNIQUE", StringComparison.OrdinalIgnoreCase) >= 0
+                || msg.IndexOf("23505", StringComparison.Ordinal) >= 0
+                || msg.IndexOf("2627", StringComparison.Ordinal) >= 0   // SqlServer
+                || msg.IndexOf("2601", StringComparison.Ordinal) >= 0;  // SqlServer
+            return hasInboxRef && hasDuplicateSignal;
         }
     }
 }

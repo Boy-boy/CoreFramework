@@ -19,7 +19,7 @@ namespace EntityFrameworkCore.Api.Events
             _repository = repository;
         }
 
-        public async Task HandAsync(AddLocalStudentEvent message, CancellationToken cancellationToken = default)
+        public async Task HandleAsync(AddLocalStudentEvent message, CancellationToken cancellationToken = default)
         {
             var student = new Student("李四", 24);
             await _repository.AddAsync(student);
@@ -35,7 +35,7 @@ namespace EntityFrameworkCore.Api.Events
             _repository = repository;
         }
 
-        public async Task HandAsync(AddStudentEvent message, CancellationToken cancellationToken = default)
+        public async Task HandleAsync(AddStudentEvent message, CancellationToken cancellationToken = default)
         {
             var student = new Student("李四", 24);
             await _repository.AddAsync(student);

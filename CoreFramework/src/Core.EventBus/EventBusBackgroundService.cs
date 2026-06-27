@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -33,7 +34,7 @@ namespace Core.EventBus
         /// 应用启动时被 HostedService 框架调用一次：扫描 handler 程序集，
         /// 把 (messageType, handlerType) 对推送到 local / integration 两条 subscribe 通道。
         /// </summary>
-        public Task StartAsync(CancellationToken cancellationToken)
+        public async Task StartAsync(CancellationToken cancellationToken)
         {
             using var scope = _serviceScopeFactory.CreateScope();
             var provider = scope.ServiceProvider;
@@ -46,16 +47,37 @@ namespace Core.EventBus
                 // 这里显式告警，给排查留线索
                 _logger.LogWarning(
                     "EventBus 启动时未发现任何 handler 程序集。请检查是否调用了 EventBusOptions.AddConsumers(...)。");
-                return Task.CompletedTask;
+                return;
             }
 
             // subscriber 是可选的：项目没引用 broker 模块时 integration 一端可能为 null
-            var localMessageSubscribe = provider.GetService<ILocalMessageSubscribe>();
-            var integrationMessageSubscribe = provider.GetService<IIntegrationMessageSubscribe>();
-            localMessageSubscribe?.Initialize(assemblies);
-            integrationMessageSubscribe?.Initialize(assemblies);
+            var localSubscriber = provider.GetService<ILocalSubscriber>();
+            var integrationSubscriber = provider.GetService<IIntegrationSubscriber>();
+            if (localSubscriber != null)
+            {
+                await localSubscriber.InitializeAsync(assemblies, cancellationToken).ConfigureAwait(false);
+            }
+            if (integrationSubscriber != null)
+            {
+                await integrationSubscriber.InitializeAsync(assemblies, cancellationToken).ConfigureAwait(false);
+            }
 
-            return Task.CompletedTask;
+            // 报告实际订阅数 —— 程序集存在但里面没有任何 IMessageHandler 实现时,
+            // 单测 / 部署版本错位排查不再"完全没日志"
+            var handlerCount = MessageHandlerExtensions.GetHandlerTypes(assemblies).Count();
+            if (handlerCount == 0)
+            {
+                _logger.LogWarning(
+                    "EventBus 已注册 {AssemblyCount} 个 handler 程序集,但未扫描到任何 IMessageHandler 实现。" +
+                    "请确认 handler 是否为 public 非抽象类、且实现 IMessageHandler<T>。",
+                    assemblies.Length);
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "EventBus 在 {AssemblyCount} 个程序集中扫描到 {HandlerCount} 个 handler 实现",
+                    assemblies.Length, handlerCount);
+            }
         }
 
         /// <summary>

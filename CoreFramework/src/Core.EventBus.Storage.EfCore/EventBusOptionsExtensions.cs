@@ -78,10 +78,11 @@ namespace Core.EventBus.Storage.EfCore
             services.TryAddScoped<IInboxStorage, EfCoreInboxStorage<TDbContext>>();
             services.TryAddSingleton<StorageMarkerService>();
 
-            // 关键：先 RemoveAll 再 AddSingleton 强制替换 AddEventBus 注册的 DefaultMessageHandlerInvoker。
-            // 这样消费端无需任何业务侧改动就自动获得 UoW + 幂等去重
+            // 关键：先 RemoveAll 再 TryAddSingleton 强制替换 AddEventBus 注册的 DefaultMessageHandlerInvoker。
+            // 这样消费端无需任何业务侧改动就自动获得 UoW + 幂等去重。
+            // TryAddSingleton 而非 AddSingleton:让本扩展被意外多次调用时不会产生多个 invoker 实例
             services.RemoveAll<IMessageHandlerInvoker>();
-            services.AddSingleton<IMessageHandlerInvoker, InboxAwareMessageHandlerInvoker>();
+            services.TryAddSingleton<IMessageHandlerInvoker, InboxAwareMessageHandlerInvoker>();
 
             services.AddHostedService<OutboxDispatcher>();
             services.AddHostedService<InboxCleanupService>();

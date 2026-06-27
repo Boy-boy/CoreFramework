@@ -7,8 +7,10 @@ using Newtonsoft.Json;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Core.EventBus.Integration;
 
@@ -40,21 +42,21 @@ namespace Core.EventBus.RabbitMQ
     /// （未在本类范围内）使语义更严格。
     /// </para>
     /// </remarks>
-    public class RabbitMqMessageSubscribe : MessageSubscribeBase, IIntegrationMessageSubscribe
+    public class RabbitMqMessageSubscriber : MessageSubscriberBase, IIntegrationSubscriber
     {
         private readonly IIntegrationMessageHandlerManager _messageHandlerManager;
         private readonly IRabbitMqMessageConsumerManager _rabbitMqMessageConsumerManager;
         private readonly IMessageHandlerInvoker _invoker;
         private readonly IOptions<EventBusRabbitMqOptions> _options;
-        private readonly ILogger<RabbitMqMessageSubscribe> _logger;
+        private readonly ILogger<RabbitMqMessageSubscriber> _logger;
         private readonly object _lock = new();
 
-        public RabbitMqMessageSubscribe(
+        public RabbitMqMessageSubscriber(
             IIntegrationMessageHandlerManager messageHandlerManager,
             IRabbitMqMessageConsumerManager rabbitMqMessageConsumerManager,
             IMessageHandlerInvoker invoker,
             IOptions<EventBusRabbitMqOptions> options,
-            ILogger<RabbitMqMessageSubscribe> logger)
+            ILogger<RabbitMqMessageSubscriber> logger)
         {
             _messageHandlerManager = messageHandlerManager;
             _rabbitMqMessageConsumerManager = rabbitMqMessageConsumerManager;
@@ -86,20 +88,21 @@ namespace Core.EventBus.RabbitMQ
         }
 
         /// <summary>启动时按 (messageType, handlerType) 注册订阅；幂等。</summary>
-        protected override void Subscribe(Type messageType, Type handlerType)
+        protected override async Task SubscribeAsync(Type messageType, Type handlerType, CancellationToken cancellationToken)
         {
             _messageHandlerManager.AddHandler(messageType, handlerType);
-            TryCreateMessageConsumer(messageType);
+            await TryCreateMessageConsumerAsync(messageType, cancellationToken).ConfigureAwait(false);
         }
 
-        public override void Subscribe<T, TH>()
+        public override Task SubscribeAsync<T, TH>(CancellationToken cancellationToken = default)
         {
-            Subscribe(typeof(T), typeof(TH));
+            return SubscribeAsync(typeof(T), typeof(TH), cancellationToken);
         }
 
-        public override void UnSubscribe<T, TH>()
+        public override Task UnSubscribeAsync<T, TH>(CancellationToken cancellationToken = default)
         {
             _messageHandlerManager.RemoveHandler(typeof(T), typeof(TH));
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -110,17 +113,52 @@ namespace Core.EventBus.RabbitMQ
         ///   <item><description>挂上 <see cref="Consumer_Received"/> 作为消息回调</description></item>
         /// </list>
         /// </summary>
-        private void TryCreateMessageConsumer(Type messageType)
+        private async Task TryCreateMessageConsumerAsync(Type messageType, CancellationToken cancellationToken)
         {
+            WarnIfFailureBehaviorWithoutDeadLetter();
+
             var exchangeName = _options.Value.ExchangeName;
             var queueName = MessageGroupAttribute.GetGroupOrDefault(messageType);
+            var queueDeclare = new RabbitMqQueueDeclareConfigure(queueName);
+
+            // 若配置了 DLX,把它写入 queue 声明的 arguments;
+            // 已存在的同名 queue 若属性不一致会被 broker 拒绝,这是预期行为 —— 让用户明确感知到 schema 变化
+            if (!string.IsNullOrEmpty(_options.Value.DeadLetterExchange))
+            {
+                queueDeclare.Arguments["x-dead-letter-exchange"] = _options.Value.DeadLetterExchange;
+                if (!string.IsNullOrEmpty(_options.Value.DeadLetterRoutingKey))
+                {
+                    queueDeclare.Arguments["x-dead-letter-routing-key"] = _options.Value.DeadLetterRoutingKey;
+                }
+            }
+
             var rabbitMqMessageConsumer = _rabbitMqMessageConsumerManager.TryCreate(
                 new RabbitMqExchangeDeclareConfigure(exchangeName),
-               new RabbitMqQueueDeclareConfigure(queueName));
+                queueDeclare);
 
             var eventName = MessageNameAttribute.GetNameOrDefault(messageType);
-            rabbitMqMessageConsumer.BindAsync(eventName);
+            await rabbitMqMessageConsumer.BindAsync(eventName).ConfigureAwait(false);
             rabbitMqMessageConsumer.OnMessageReceived(Consumer_Received);
+        }
+
+        /// <summary>
+        /// 启动期一次性告警:若失败策略会丢消息(NackNoRequeue / RequeueOnce 的二次失败)但没配 DLX,
+        /// 二次失败的消息会被 broker 直接丢弃,运维侧无法回溯。
+        /// </summary>
+        private int _failureBehaviorWarned;
+        private void WarnIfFailureBehaviorWithoutDeadLetter()
+        {
+            if (Interlocked.Exchange(ref _failureBehaviorWarned, 1) != 0) return;
+
+            var fb = _options.Value.FailureBehavior;
+            var dropOnFailure = fb == RabbitMqFailureBehavior.NackNoRequeue || fb == RabbitMqFailureBehavior.RequeueOnce;
+            if (dropOnFailure && string.IsNullOrEmpty(_options.Value.DeadLetterExchange))
+            {
+                _logger.LogWarning(
+                    "FailureBehavior={Behavior} 在非重投路径会丢消息,但未配置 EventBus:RabbitMq:DeadLetterExchange。" +
+                    "二次失败/不重投的消息将被 broker 直接丢弃,运维侧无法回溯。建议配置 DLX 或改用 AlwaysAck。",
+                    fb);
+            }
         }
 
         /// <summary>
@@ -134,18 +172,14 @@ namespace Core.EventBus.RabbitMQ
         {
             var eventName = eventArgs.RoutingKey;
             var message = Encoding.UTF8.GetString(eventArgs.Body.ToArray());
-            try
+            // 异常不再吞:Core.RabbitMQ 的 Consumer_Received 会拿到这个异常并按
+            // RabbitMqOptions.FailureBehavior 决定 ack / nack(重投或转 DLX),
+            // 配合上层 inbox 去重达成"业务最终一致"。
+            if (message.ToLowerInvariant().Contains("throw-fake-exception"))
             {
-                if (message.ToLowerInvariant().Contains("throw-fake-exception"))
-                {
-                    throw new InvalidOperationException($"Fake exception requested: \"{message}\"");
-                }
-                await ProcessEvent(eventName, message);
+                throw new InvalidOperationException($"Fake exception requested: \"{message}\"");
             }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex.Message, "----- ERROR Processing message \"{Message}\"", message);
-            }
+            await ProcessEvent(eventName, message);
         }
 
         /// <summary>
@@ -174,6 +208,7 @@ namespace Core.EventBus.RabbitMQ
                 _logger.LogTrace("Enable diagnostic listeners before consume,name is {name}", DiagnosticListenerConstants.BeforeConsume);
                 EventBusDiagnosticListener.TracingConsumeBefore(integrationEvent);
 
+                List<Exception> handlerErrors = null;
                 foreach (var wrapper in wrappers)
                 {
                     try
@@ -184,20 +219,29 @@ namespace Core.EventBus.RabbitMQ
                     }
                     catch (Exception e)
                     {
-                        // 单个 handler 失败不阻断其他 handler。
-                        // 注意：当前 catch 后未"不 ack" → 异常仍会被吞掉 → 这条消息会被 ack
-                        // 如需"失败重投"，必须改 RabbitMQ consumer 走 manual ack 模式
+                        // 当轮不阻断其他 handler,但循环结束聚合上抛 ——
+                        // 让底层 Consumer_Received 按 FailureBehavior 决定 ack/nack,
+                        // 而不是像旧版那样静默 ack 导致消息丢失
                         _logger.LogError(e,
                             "Message processing failure: messageType={MessageType} handlerType={HandlerType}",
                             messageType, wrapper.HandlerType);
 
                         _logger.LogTrace("Enable diagnostic listeners incorrect consume,name is {name}", DiagnosticListenerConstants.ErrorConsume);
                         EventBusDiagnosticListener.TracingConsumeError(integrationEvent, wrapper.HandlerType, e.Message);
+
+                        (handlerErrors ??= new List<Exception>()).Add(e);
                     }
                 }
 
                 _logger.LogTrace("Enable diagnostic listeners after consume,name is {name}", DiagnosticListenerConstants.AfterConsume);
                 EventBusDiagnosticListener.TracingConsumeAfter(integrationEvent);
+
+                if (handlerErrors != null && handlerErrors.Count > 0)
+                {
+                    throw new AggregateException(
+                        $"{handlerErrors.Count} handler(s) failed for routingKey={eventName}",
+                        handlerErrors);
+                }
             }
             else
             {

@@ -21,6 +21,8 @@ namespace Core.EventBus
         public IReadOnlyList<IMessageHandlerWrapper> MessageHandlerWrappers => _wrappers;
 
         /// <inheritdoc />
+        /// <remarks>幂等:同 (messageType, handlerType) 重复注册直接返回不抛错,适配启动期被多次扫描程序集的场景。
+        /// 但 messageName 撞车(不同 messageType 对应同 MessageNameAttribute 值)仍会抛错,这是真正的配置冲突。</remarks>
         public void AddHandler(Type messageType, Type handlerType)
         {
             lock (_writeLock)
@@ -28,8 +30,8 @@ namespace Core.EventBus
                 var current = _wrappers;
                 if (current.Any(w => w.MessageType == messageType && w.HandlerType == handlerType))
                 {
-                    throw new ArgumentException(
-                        $"Handler Type {handlerType.Name} already registered for '{messageType.Name}'");
+                    // 幂等返回:重复扫描程序集 / 多模块并存时同一对会被注册多次
+                    return;
                 }
 
                 var messageName = MessageNameAttribute.GetNameOrDefault(messageType);

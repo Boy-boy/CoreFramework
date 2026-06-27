@@ -101,6 +101,7 @@ namespace Core.EventBus.Storage.EfCore
             ctx.Set<DeadLetterMessageEntity>().Add(new DeadLetterMessageEntity
             {
                 Id = entity.Id,
+                MessageId = entity.MessageId,
                 Version = entity.Version,
                 AssemblyName = entity.AssemblyName,
                 MessageName = entity.MessageName,

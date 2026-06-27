@@ -37,6 +37,8 @@ namespace Core.EventBus.Storage.EfCore
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            await InitializeStorageAsync(stoppingToken);
+
             while (!stoppingToken.IsCancellationRequested)
             {
                 // 先睡再做:首次清理不会和启动期高峰撞车
@@ -74,6 +76,33 @@ namespace Core.EventBus.Storage.EfCore
                     // 清理失败不影响主流程,下次定时再尝试
                     _logger.LogError(ex, "Inbox 清理失败");
                 }
+            }
+        }
+
+        /// <summary>启动时建表;受 <see cref="InboxOptions.AutoInitialize"/> 控制。失败仅日志不抛,与 OutboxDispatcher 一致。</summary>
+        /// <remarks>
+        /// 必须显式 await using uow:storage 内部 GetDbContextAsync 隐式 Begin UoW,
+        /// 不在此 Dispose 时 scope 释放不会跑 UoW.DisposeAsync —— 残留 ambient UoW 会让下一轮 BeginAsync
+        /// 误返回 no-op ChildUnitOfWork,后续 Commit/Rollback 被静默吞掉。
+        /// </remarks>
+        private async Task InitializeStorageAsync(CancellationToken ct)
+        {
+            if (!_options.Value.AutoInitialize) return;
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var sp = scope.ServiceProvider;
+                var uowMgr = sp.GetRequiredService<IUnitOfWorkManager>();
+                await using var uow = await uowMgr.BeginAsync(new UnitOfWorkOptions(), ct);
+
+                var storage = sp.GetRequiredService<IInboxStorage>();
+                await storage.InitializeAsync(ct);
+
+                await uow.CommitAsync(ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "InboxCleanupService 初始化存储失败");
             }
         }
     }

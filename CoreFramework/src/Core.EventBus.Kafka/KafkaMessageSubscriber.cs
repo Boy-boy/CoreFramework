@@ -11,6 +11,7 @@ using Core.Kafka;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Core.EventBus.Kafka
 {
@@ -122,21 +123,27 @@ namespace Core.EventBus.Kafka
             return string.IsNullOrEmpty(prefix) ? messageName : prefix + messageName;
         }
 
-        /// <summary>Kafka 消息抵达入口。</summary>
-        /// <remarks>
-        /// "throw-fake-exception" 特判用于测试:payload 含该字符串强制抛异常,演示
-        /// PollLoop 跳过 commit + Seek 回 offset → broker 重投的路径。
-        /// </remarks>
+        /// <summary>Kafka 消息抵达入口;payload 解码为 UTF-8 字符串、提取 broker MessageId 后交给 <see cref="ProcessEvent"/>。</summary>
         private Task Consumer_Received(IConsumer<string, byte[]> consumer, ConsumeResult<string, byte[]> result)
         {
             var topic = result.Topic;
             var payload = result.Message.Value;
             var message = Encoding.UTF8.GetString(payload);
-            if (message.ToLowerInvariant().Contains("throw-fake-exception"))
+            // publisher 同时写 Key + Headers["messageId"];优先 Headers,缺失回退 Key
+            var brokerMessageId = ExtractBrokerMessageId(result);
+            return ProcessEvent(topic, message, brokerMessageId);
+        }
+
+        /// <summary>从 Kafka 消息提取 broker 端记录的 MessageId(<see cref="KafkaMessagePublisher"/> 在 Headers + Key 各写一份)。</summary>
+        private static string ExtractBrokerMessageId(ConsumeResult<string, byte[]> result)
+        {
+            if (result.Message.Headers != null
+                && result.Message.Headers.TryGetLastBytes("messageId", out var headerBytes)
+                && headerBytes != null)
             {
-                throw new InvalidOperationException($"Fake exception requested: \"{message}\"");
+                return Encoding.UTF8.GetString(headerBytes);
             }
-            return ProcessEvent(topic, message);
+            return result.Message.Key;
         }
 
         /// <summary>反序列化 payload,查找订阅该 topic 的所有 handler,依次调用 invoker。</summary>
@@ -145,7 +152,7 @@ namespace Core.EventBus.Kafka
         /// provider 会在 wrapper leak 的 scope 里预先 resolve handler 实例,
         /// 而 invoker 需要在自己的新 scope 里 resolve,以保证 DbContext / UoW 生命周期正确。
         /// </remarks>
-        private async Task ProcessEvent(string topic, string message)
+        private async Task ProcessEvent(string topic, string message, string brokerMessageId)
         {
             _logger.LogTrace("Processing Kafka event: topic={Topic}", topic);
 
@@ -181,6 +188,12 @@ namespace Core.EventBus.Kafka
                     return;
                 }
 
+                // 反序列化产物身份校验:null / 缺 Id 都跳过(跟 JsonException 同语义,不卡 partition)
+                if (!ValidateIdentity(integrationEvent, brokerMessageId, topic, messageType, message))
+                {
+                    return;
+                }
+
                 _logger.LogTrace("Enable diagnostic listeners before consume,name is {name}", DiagnosticListenerConstants.BeforeConsume);
                 EventBusDiagnosticListener.TracingConsumeBefore(integrationEvent);
 
@@ -207,15 +220,16 @@ namespace Core.EventBus.Kafka
                     }
                 }
 
-                _logger.LogTrace("Enable diagnostic listeners after consume,name is {name}", DiagnosticListenerConstants.AfterConsume);
-                EventBusDiagnosticListener.TracingConsumeAfter(integrationEvent);
-
                 if (handlerErrors != null && handlerErrors.Count > 0)
                 {
+                    // 不发 AfterConsume:监控混淆 ErrorConsume + AfterConsume 会误判为"消费成功"
                     throw new AggregateException(
                         $"{handlerErrors.Count} handler(s) failed for topic={topic}",
                         handlerErrors);
                 }
+
+                _logger.LogTrace("Enable diagnostic listeners after consume,name is {name}", DiagnosticListenerConstants.AfterConsume);
+                EventBusDiagnosticListener.TracingConsumeAfter(integrationEvent);
             }
             else
             {
@@ -223,6 +237,93 @@ namespace Core.EventBus.Kafka
 
                 _logger.LogTrace("Not subscribed to enable diagnostic listener,name is {name}", DiagnosticListenerConstants.NotSubscribed);
                 EventBusDiagnosticListener.TracingNotSubscribed(message);
+            }
+        }
+
+        /// <summary>校验并对齐消息身份:优先以 brokerMessageId 为权威 Id;否则用 raw JSON 验证 payload 显式带 Id 字段。</summary>
+        /// <remarks>
+        /// <para>关键风险:<see cref="Message"/> 基类构造里 <c>Id = Guid.NewGuid()</c>。
+        /// 若外部消息 payload 没有 Id 字段,Newtonsoft 用基类构造生成的新 Guid 填充 → 看起来"非 Empty"但其实
+        /// 每次反序列化都是不同值 → inbox 按 Id 去重彻底失效 → 重投会全部当新消息处理。</para>
+        /// <para>处理策略(按优先级):</para>
+        /// <list type="number">
+        ///   <item><description>broker 端有效 Guid:权威 Id,直接覆盖 payload Id(publisher 写入,可信)。不一致 warn。</description></item>
+        ///   <item><description>broker 端缺失/非 Guid:检查 raw JSON 是否显式含 Id 字段。无 → reject(同 poison)。</description></item>
+        ///   <item><description>有显式 Id 但反序列化后是 Empty:reject。</description></item>
+        /// </list>
+        /// </remarks>
+        private bool ValidateIdentity(IMessage integrationEvent, string brokerMessageId, string topic, Type messageType, string rawPayload)
+        {
+            if (integrationEvent == null)
+            {
+                _logger.LogError(
+                    "Kafka payload 反序列化为 null,跳过该条 offset topic={Topic} messageType={MessageType} payload={Payload}",
+                    topic, messageType, TrimForLog(rawPayload));
+                EventBusDiagnosticListener.TracingConsumeError(null, null, "deserialized payload is null");
+                return false;
+            }
+
+            // 路径 1:broker 端写了合法 Guid → 权威,覆盖 payload Id
+            if (!string.IsNullOrEmpty(brokerMessageId) && Guid.TryParse(brokerMessageId, out var brokerId))
+            {
+                if (brokerId == Guid.Empty)
+                {
+                    _logger.LogError(
+                        "Kafka brokerMessageId 为 Guid.Empty,跳过该条 offset topic={Topic} messageType={MessageType}",
+                        topic, messageType);
+                    EventBusDiagnosticListener.TracingConsumeError(integrationEvent, null, "brokerMessageId is Guid.Empty");
+                    return false;
+                }
+                if (integrationEvent.Id != brokerId)
+                {
+                    // 可能是外部消息没带 Id(基类构造生成了新 Guid),也可能是 publisher 改实现 / 中间件改写
+                    _logger.LogWarning(
+                        "Kafka payload Id={PayloadId} 与 brokerMessageId={BrokerMessageId} 不一致,以 brokerMessageId 为准 topic={Topic}",
+                        integrationEvent.Id, brokerMessageId, topic);
+                    integrationEvent.Id = brokerId;
+                }
+                return true;
+            }
+
+            // 路径 2:broker 端缺失/非 Guid → 必须从 raw JSON 验证 payload 显式带 Id
+            // 否则 Message 基类构造生成的随机 Guid 会让 inbox 去重失效
+            if (!HasExplicitIdField(rawPayload))
+            {
+                _logger.LogError(
+                    "Kafka payload 没有显式 Id 字段且 brokerMessageId 不可用,inbox 去重会失效,跳过 topic={Topic} messageType={MessageType} payload={Payload}",
+                    topic, messageType, TrimForLog(rawPayload));
+                EventBusDiagnosticListener.TracingConsumeError(integrationEvent, null, "payload missing explicit Id field");
+                return false;
+            }
+
+            if (integrationEvent.Id == Guid.Empty)
+            {
+                _logger.LogError(
+                    "Kafka payload Id 字段值为 Guid.Empty,inbox 去重会失效,跳过 topic={Topic} messageType={MessageType}",
+                    topic, messageType);
+                EventBusDiagnosticListener.TracingConsumeError(integrationEvent, null, "payload Id is Guid.Empty");
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>检查 raw JSON 顶层是否显式包含非空 Id 字段(大小写不敏感)。</summary>
+        /// <remarks>解析失败/格式异常视为"没有显式 Id";调用方据此 reject。</remarks>
+        private static bool HasExplicitIdField(string rawJson)
+        {
+            if (string.IsNullOrWhiteSpace(rawJson)) return false;
+            try
+            {
+                var token = JToken.Parse(rawJson);
+                if (token is not JObject jo) return false;
+                if (!jo.TryGetValue("Id", StringComparison.OrdinalIgnoreCase, out var idToken)) return false;
+                return idToken.Type != JTokenType.Null
+                       && !string.IsNullOrWhiteSpace(idToken.ToString());
+            }
+            catch
+            {
+                return false;
             }
         }
 

@@ -16,6 +16,7 @@ namespace Core.EventBus.Storage.EfCore.Configurations
         {
             builder.ToTable(TableName);
             builder.HasKey(x => x.Id);
+            builder.Property(x => x.MessageId).IsRequired();
             builder.Property(x => x.Version).IsRequired();
             builder.Property(x => x.AssemblyName).IsRequired().HasMaxLength(256);
             builder.Property(x => x.MessageName).IsRequired().HasMaxLength(512);
@@ -29,6 +30,10 @@ namespace Core.EventBus.Storage.EfCore.Configurations
             // 运维查询常按"最近 N 小时新增死信"过滤;DeadAtUtc 单列索引足够
             builder.HasIndex(x => x.DeadAtUtc)
                 .HasDatabaseName("IX_EventBus_DeadLetter_DeadAt");
+
+            // 按业务 MessageId 排查"这条消息是否进死信";不加唯一,同一 MessageId 多次进死信合法
+            builder.HasIndex(x => x.MessageId)
+                .HasDatabaseName("IX_EventBus_DeadLetter_MessageId");
         }
     }
 }

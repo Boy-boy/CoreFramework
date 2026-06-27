@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Core.EventBus.Integration;
 using Core.EventBus.Outbox;
 using Microsoft.Extensions.Configuration;
@@ -29,6 +30,9 @@ namespace Core.EventBus.Kafka
 
         public void AddServices(IServiceCollection services)
         {
+            // 同一进程仅允许一个 integration broker;检测到其他实现则抛错
+            GuardSingleIntegrationBroker(services);
+
             var options = new EventBusKafkaOptions();
             if (_options != null)
             {
@@ -52,17 +56,25 @@ namespace Core.EventBus.Kafka
                 kafkaOptions.MaxConsecutiveFailures = options.MaxConsecutiveFailures;
             });
 
-            // publisher 注册为 Scoped:它在 PublishAsync 里用注入的 IServiceProvider 解析 IOutboxStorage,
-            // 必须是当前请求 scope 的 SP,才能让 storage 创建/复用的 DbContext 由 UoW 所在 scope 持有,
-            // 避免临时 scope dispose 导致外层 UoW 持有已释放的 DbContext。
-            // subscriber 仍是 Singleton:管理 broker 长连接 / consumer。
-            // IOutboxRawSender 同步降为 Scoped:它委托给 IIntegrationPublisher,从根容器解析 Scoped 会触发 scope-validation。
-            // OutboxDispatcher 调用时本就在自建的 scope 内 → 兼容。
+            // publisher / IOutboxRawSender 用 Scoped:与 UoW 所在 scope 对齐,避免 outbox 写入后 DbContext 提前释放
+            // subscriber 保留 Singleton:管理 broker 长连接
             services.TryAddScoped<IIntegrationPublisher, KafkaMessagePublisher>();
             services.TryAddSingleton<IIntegrationSubscriber, KafkaMessageSubscriber>();
             services.TryAddScoped(sp =>
                 (IOutboxRawSender)sp.GetRequiredService<IIntegrationPublisher>());
             services.AddIntegrationCore();
+        }
+
+        /// <summary>已注册非自身实现 → 抛错;同 broker 重复调用幂等放行。工厂 / 实例注册也拒绝:IOutboxRawSender 会基于 IIntegrationPublisher 强转,自定义 publisher 不实现 IOutboxRawSender 将在运行时抛 InvalidCastException;需要自定义请同时显式注册 IOutboxRawSender 并跳过 AddRabbitMq/AddKafka。</summary>
+        private static void GuardSingleIntegrationBroker(IServiceCollection services)
+        {
+            var existing = services.FirstOrDefault(s => s.ServiceType == typeof(IIntegrationPublisher));
+            if (existing == null) return;
+            if (existing.ImplementationType == typeof(KafkaMessagePublisher)) return;
+            var label = existing.ImplementationType?.Name
+                ?? (existing.ImplementationFactory != null ? "<factory>" : "<instance>");
+            throw new InvalidOperationException(
+                $"已注册 IIntegrationPublisher = {label};EventBus 同一时刻仅支持一个 integration broker,请只调用 AddRabbitMq / AddKafka 之一。自定义实现需自行注册 IIntegrationPublisher + IOutboxRawSender 并跳过 AddRabbitMq/AddKafka。");
         }
     }
 }

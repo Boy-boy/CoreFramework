@@ -118,7 +118,9 @@ public interface IMessageHandler<in TMessage> : IMessageHandler where TMessage :
 ```
 
 - 一个 handler 类可以同时实现多个 `IMessageHandler<T>`，处理不同事件。
-- handler 由 DI 在**每条消息**新开的 scope 内 resolve，可放心注入 Scoped 服务（DbContext / Repository）。
+- handler 的 scope 归属按发布路径区分：
+  - **broker 消费**（Kafka / RabbitMQ）：`InboxAwareMessageHandlerInvoker` 在**每条消息**新开 scope + 新 UoW —— 注入的 Scoped 服务（DbContext / Repository）属于这个新 scope。
+  - **本地事件**（`ILocalPublisher`）：`LocalMessageHandlerInvoker` **复用调用方 scope** —— handler 拿到的 DbContext / Repository 与发布者业务共享，自动加入外层 UoW（详见"场景 1"）。
 
 ### Publisher 接口（命名简明，按发布目标二选一）
 
@@ -208,9 +210,14 @@ public class CustomerController(ILocalPublisher localPublisher) : ControllerBase
 
 **语义要点：**
 - 所有匹配的 handler 在 **PublishAsync 同步执行**（按优先级降序）。
-- 单个 handler 抛异常**不影响其他 handler**：异常被 catch + log，下一个继续跑。
+- 单个 handler 抛异常**不会阻断其他 handler**：异常被收集，循环结束后聚合 `AggregateException` 上抛。
 - **不走 outbox**：本地事件没有"broker 不可达"问题，直接走 DI scope。
-- 但若用了 `AddEfCoreEventBusStorage`，本地 handler 也会被 `InboxAwareMessageHandlerInvoker` 包在独立 UoW 里执行 —— 与发布者的 UoW 是**两个独立事务**。需要"发布者 + handler 同事务"请用 Saga 而非本地事件。
+- **事务边界（重要）**：本地路径走 `LocalMessageHandlerInvoker`（Scoped，**不开新 scope、不开新 UoW、不查 inbox**），handler 与发布者共享调用方 scope。事务归属由调用上下文决定：
+  - **发布者在外层 UoW 内**（常见 — 业务在 UoW 里 publish + commit）：handler 内拿到的 `DbContext` 自动加入外层 UoW，handler 与发布者**共享同一事务** — 发布者回滚会撤销 handler 数据；handler 失败聚合上抛 → 外层 `UoW.CommitAsync` 失败 → 业务回滚。
+  - **发布者在 UoW 外**（罕见 — 测试 / hosted service 直发）：handler 内 `DbContext` 走自己的 `SaveChanges` 即时落库，每个 handler 独立。
+- 本地路径**不查 inbox**：本地事件不存在 broker 重投，无需去重；inbox 表只对 broker 消费侧有意义。
+- 想要 best-effort 语义（handler 失败不影响发布者业务），请在 handler 内 try-catch 吞掉异常。
+- 跨服务长事务 / 补偿 / 超时管理才需要 Saga，单机本地事件这条路径上同事务一致性已具备。
 
 ---
 
@@ -253,7 +260,7 @@ options.AddRabbitMq(Configuration.GetSection("EventBus:RabbitMq"));
 - `[MessageGroup]` → queue 名（消费组：同 group 多实例**竞争消费**，不同 group **广播**）。
 
 **发布端容错（publisher confirms + channel 池）：**
-- publisher 是 Singleton，所有发布共享一个 `RabbitMqPublishChannelPool`（大小由 `ChannelPoolSize` 控制，默认 8）。每条 channel 在首次创建时一次性完成 `ExchangeDeclare` + `ConfirmSelect` + `BasicReturn` 监听挂载，后续 publish 复用同一 channel 只走纯 `BasicPublish` + `WaitForConfirms`。
+- publisher 注册为 **Scoped**（详见架构内幕一节）；所有 scope 共享同一个 Singleton `RabbitMqPublishChannelPool`（大小由 `ChannelPoolSize` 控制，默认 8）。每条 channel 在首次创建时一次性完成 `ExchangeDeclare` + `ConfirmSelect` + `BasicReturn` 监听挂载，后续 publish 复用同一 channel 只走纯 `BasicPublish` + `WaitForConfirms`。
 - 每条消息都标 `mandatory: true` + `DeliveryMode: 2`，落 broker 磁盘且无路由时立即 return。
 - `WaitForConfirmsOrThrow(5s)` 把"被退回 / nack / 等待超时"统一转成 `RabbitMqPublishFailedException`（派生类：`RabbitMqPublishReturnedException` / `RabbitMqPublishUnconfirmedException`），不会再被错误地当作"发布成功"。
 - 仅对**连接级**瞬时错误（`BrokerUnreachableException` / `SocketException`）做 Polly 3 次线性退避（1s/2s/3s）；其他失败原样冒到上游（业务侧捕获或被 outbox dispatcher 进入 MarkFailed 退避循环）。
@@ -423,7 +430,8 @@ public class ChargeCustomerHandler : IMessageHandler<OrderCreatedEvent>
     {
         _db.Charges.Add(new Charge { OrderId = msg.OrderId, Amount = msg.Amount });
         // 不需要手动 SaveChanges / 不需要查 inbox：
-        // InboxAwareMessageHandlerInvoker 自动在外层 UoW 内完成
+        // 此处是 broker 路径 —— InboxAwareMessageHandlerInvoker 自己开 UoW + 查 inbox + 调 handler + Commit,
+        // handler 写入跟 inbox 行同事务落库
     }
 }
 ```
@@ -462,9 +470,9 @@ public class SendEmailHandler : IMessageHandler<OrderCreatedEvent> { ... }    //
 
 | 推荐 | 不推荐 |
 |---|---|
-| 注入 Scoped 服务（`DbContext` / Repository） | 持有跨调用可变状态（handler 是新 scope 实例） |
+| 注入 Scoped 服务（`DbContext` / Repository） | 持有跨调用可变状态 — broker 路径每条新 scope；本地路径与调用方共享 scope，长期持有也会被回收 |
 | 写库 / 调外部 API / 发新事件 | 在 handler 里手动开 `BeginTransaction`（外层 UoW 已经管理） |
-| 抛业务异常让 inbox 重试 | 在 handler 内吞掉所有异常（消息会被当作成功） |
+| 抛业务异常让 inbox 重试（broker）/ 让外层 UoW 回滚（本地） | 在 handler 内吞掉所有异常（broker 端消息会被当作成功；本地端发布者业务无法回滚）|
 
 ---
 
@@ -683,9 +691,13 @@ public MyController(ILocalPublisher local, IIntegrationPublisher integration) { 
 
 ### Q: 想让本地事件和发布者同事务？
 
-**不行**。本地 handler 在 `InboxAwareMessageHandlerInvoker` 下被包在**独立** UoW 里执行 —— 发布者 commit 后，handler 失败不会回滚发布者的写入。
+**可以，且这就是默认行为**。`LocalMessagePublisher` 注册为 Scoped，`LocalMessageHandlerInvoker` 用调用方 scope 的 SP 直接 resolve handler — handler 内拿到的 `DbContext` 会通过 `IDbContextProvider` 自动加入外层 UoW，`SaveChanges` 在 `UoW.CommitAsync` 时一并触发。
+- handler 抛异常 → `LocalMessagePublisher` 聚合 `AggregateException` 上抛 → `UoW.CommitAsync` 失败 → 业务回滚（含 handler 写入）。
+- 发布者后续业务失败回滚 → handler 已加入外层 UoW 的写入也跟着回滚。
 
-如果业务真的需要"发布者 + handler 同事务"，那这两段逻辑本就该写在**同一个方法**里，不要用事件解耦。
+唯一例外是 broker 路径（集成事件）：`InboxAwareMessageHandlerInvoker` 在 broker 消费侧会**开新 scope + 新 UoW**，因为消费端没有"发布者业务事务"可加入。
+
+如果业务想要 best-effort 语义（handler 失败不影响发布者业务），请在 handler 内部 try-catch 吞掉异常。
 
 ### Q: 单元测试里如何 mock？
 
@@ -706,7 +718,8 @@ public MyController(ILocalPublisher local, IIntegrationPublisher integration) { 
 ┌──────────────────────────────────────────────────────────────┐
 │ 集成层 (Core.EventBus + Storage.EfCore)                      │
 │   IntegrationMessagePublisherBase ─→ outbox 路由判定         │
-│   InboxAwareMessageHandlerInvoker  ─→ 幂等 + UoW             │
+│   InboxAwareMessageHandlerInvoker  ─→ broker 端幂等 + 新 UoW │
+│   LocalMessageHandlerInvoker       ─→ 本地端复用调用方 scope │
 │   EventBusBackgroundService        ─→ 启动期程序集扫描       │
 │   OutboxDispatcher                 ─→ 后台投递循环           │
 └──────────────────────────────────────────────────────────────┘
@@ -763,11 +776,39 @@ InboxAwareMessageHandlerInvoker：
               broker ack（RabbitMQ）/ Commit offset（Kafka）
 ```
 
-### 为什么 publisher 是 Singleton 但要在临时 scope 里 resolve IOutboxAmbientContext
+### publisher 注册为 Scoped
 
-`IntegrationMessagePublisherBase` 注册为 Singleton；但它依赖的 `IOutboxAmbientContext` / `IOutboxStorage` 是 Scoped。Singleton 持根 ServiceProvider 在 scope-validation 严格的环境会立刻抛 "Cannot resolve scoped service from root provider"。
+`IntegrationMessagePublisherBase` 及派生（`RabbitMqMessagePublisher` / `KafkaMessagePublisher`）注册为 **Scoped**：`PublishAsync` 在 outbox 路径要解析 `IOutboxStorage`（Scoped），storage 经 `IDbContextProvider` 拿到的 `DbContext` 必须由当前 UoW 所在 scope 持有，否则 publisher 返回后 scope 释放，外层 UoW 拿到 disposed `DbContext`，commit 时 SaveChanges 直接炸、outbox 行同步消失。
 
-解法是 publisher 持 `IServiceScopeFactory`，**每次 `PublishAsync` 都开临时 scope 重新 resolve**。这是为什么 publisher 构造函数不直接注入 `IOutboxAmbientContext` 而是注入 `IServiceScopeFactory` 的原因。
+**对调用方的影响**：
+
+| 调用上下文 | 怎么注入 |
+|---|---|
+| Controller / Application Service / Repository | 直接注入 `IIntegrationPublisher` |
+| `BackgroundService` / `IHostedService` / 自定义 Singleton | **不能**直接注入；改注入 `IServiceScopeFactory`，运行时开 scope：<br/>`using var scope = scopeFactory.CreateScope();`<br/>`var publisher = scope.ServiceProvider.GetRequiredService<IIntegrationPublisher>();`<br/>`await publisher.PublishAsync(evt);` |
+| `OutboxDispatcher` / `InboxAwareMessageHandlerInvoker` | 框架已自建 scope，无需关心 |
+
+### 不支持同时启用多个 integration broker
+
+`AddRabbitMq()` 和 `AddKafka()` 互斥：同一进程同时调用，第二个会抛：
+
+```
+InvalidOperationException: 已注册 IIntegrationPublisher = RabbitMqMessagePublisher;
+EventBus 同一时刻仅支持一个 integration broker,请只调用 AddRabbitMq / AddKafka 之一。
+```
+
+同 broker 重复调用幂等放行。要同时写两类 broker，请在业务侧自建独立 producer。
+
+### outbox 行的两个 Id
+
+`MessageEnvelope` 上有两个独立 Guid：
+
+| 字段 | 来源 | 用途 |
+|---|---|---|
+| `Id` | 写入 outbox 时新生成 | outbox / 死信表行主键，dispatcher 内部寻址 |
+| `MessageId` | 业务 `IMessage.Id` | broker header MessageId / Kafka partition key / inbox 去重键 |
+
+直发路径同样用业务 `IMessage.Id` 作 broker MessageId，两条路径语义一致，运维按 broker MessageId 跨直发 / outbox 路径关联同一条事件。
 
 ### 故意没做的事
 

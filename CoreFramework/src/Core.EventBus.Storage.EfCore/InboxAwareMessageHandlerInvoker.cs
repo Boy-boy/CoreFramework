@@ -1,11 +1,12 @@
 using Core.EventBus;
 using Core.EventBus.Inbox;
-using Core.EventBus.Storage.EfCore.Configurations;
+using Core.EventBus.Storage.EfCore.Entities;
 using Core.Uow;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
 using System.Threading;
@@ -131,26 +132,17 @@ namespace Core.EventBus.Storage.EfCore
             }
         }
 
-        /// <summary>判定 <see cref="DbUpdateException"/> 是否由 inbox 表主键冲突触发(并发"先到者已登记"信号)。</summary>
+        /// <summary>判定 <see cref="DbUpdateException"/> 是否由 inbox 行冲突触发(并发"先到者已登记"信号)。</summary>
         /// <remarks>
-        /// 不同 provider 的内层异常类型不同,这里用最稳健的多 provider 兼容方式:
-        /// 检查内层异常文本同时包含"duplicate"/"PRIMARY"/"23505"等典型主键冲突标识 + inbox 表名。
+        /// <para>用 <see cref="DbUpdateException.Entries"/> 而非错误消息字符串识别:
+        /// 不依赖 provider 错误码/文案,业务表 unique 冲突也不会误判。</para>
+        /// <para>判定标准:失败的 entry 集合中存在 <see cref="InboxMessageEntity"/> 且处于 <see cref="EntityState.Added"/>。
+        /// EF Core 在 SaveChanges 失败时会把抛错那一行(及相关行)挂到 <c>Entries</c> 上。</para>
         /// </remarks>
         private static bool IsInboxDuplicateKey(DbUpdateException ex)
         {
-            var inner = ex.InnerException;
-            if (inner == null) return false;
-            var msg = inner.Message ?? string.Empty;
-            var tableName = InboxMessageConfiguration.TableName;
-            var hasInboxRef = msg.IndexOf(tableName, StringComparison.OrdinalIgnoreCase) >= 0;
-            var hasDuplicateSignal =
-                msg.IndexOf("duplicate", StringComparison.OrdinalIgnoreCase) >= 0
-                || msg.IndexOf("PRIMARY", StringComparison.OrdinalIgnoreCase) >= 0
-                || msg.IndexOf("UNIQUE", StringComparison.OrdinalIgnoreCase) >= 0
-                || msg.IndexOf("23505", StringComparison.Ordinal) >= 0
-                || msg.IndexOf("2627", StringComparison.Ordinal) >= 0   // SqlServer
-                || msg.IndexOf("2601", StringComparison.Ordinal) >= 0;  // SqlServer
-            return hasInboxRef && hasDuplicateSignal;
+            return ex.Entries.Any(e =>
+                e.Entity is InboxMessageEntity && e.State == EntityState.Added);
         }
     }
 }

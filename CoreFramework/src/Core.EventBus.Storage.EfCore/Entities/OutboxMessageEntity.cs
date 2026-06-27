@@ -13,7 +13,10 @@ namespace Core.EventBus.Storage.EfCore.Entities
     /// </remarks>
     public class OutboxMessageEntity
     {
+        /// <summary>outbox 表行主键;dispatcher 内部寻址使用。</summary>
         public Guid Id { get; set; }
+        /// <summary>业务消息 Id;broker header MessageId + inbox 去重键。</summary>
+        public Guid MessageId { get; set; }
         public int Version { get; set; }
         public string AssemblyName { get; set; }
         public string MessageName { get; set; }
@@ -29,6 +32,7 @@ namespace Core.EventBus.Storage.EfCore.Entities
         public static OutboxMessageEntity FromEnvelope(MessageEnvelope m) => new()
         {
             Id = m.Id,
+            MessageId = m.MessageId,
             Version = m.Version,
             AssemblyName = m.AssemblyName,
             MessageName = m.MessageName,
@@ -44,6 +48,7 @@ namespace Core.EventBus.Storage.EfCore.Entities
         public MessageEnvelope ToEnvelope() => new()
         {
             Id = Id,
+            MessageId = MessageId,
             Version = Version,
             AssemblyName = AssemblyName,
             MessageName = MessageName,

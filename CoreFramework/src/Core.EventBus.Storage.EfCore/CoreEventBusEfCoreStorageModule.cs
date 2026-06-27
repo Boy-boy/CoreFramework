@@ -2,7 +2,6 @@ using Core.EntityFrameworkCore;
 using Core.Modularity;
 using Core.Modularity.Attribute;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Core.EventBus.Storage.EfCore
 {
@@ -32,7 +31,8 @@ namespace Core.EventBus.Storage.EfCore
 
         public override void ConfigureServices(ServiceCollectionContext context)
         {
-            context.Services.TryAddSingleton<StorageMarkerService>();
+            // 真正的服务注册在 EventBusOptionsExtensions<TDbContext>.AddServices 阶段完成,
+            // 模块本身只承担依赖声明 + DependsOn 编排,无需注册任何服务
         }
     }
 }

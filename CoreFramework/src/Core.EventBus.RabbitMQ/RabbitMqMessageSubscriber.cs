@@ -4,6 +4,7 @@ using Core.RabbitMQ;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System;
@@ -127,24 +128,20 @@ namespace Core.EventBus.RabbitMQ
             }
         }
 
-        /// <summary>消息抵达入口。</summary>
-        /// <remarks>payload 含 "throw-fake-exception" 时强制抛异常,用于演示异常路径(重投/inbox 去重)。</remarks>
+        /// <summary>消息抵达入口;handler 异常上抛由底层 Consumer 按 <see cref="EventBusRabbitMqOptions.FailureBehavior"/> 决定 ack/nack。</summary>
+        /// <remarks>反序列化失败 / Id 校验失败 路径直接 return,底层 Consumer 视作 processed → ACK,与 Kafka 跳过 poison 一致。</remarks>
         private async Task Consumer_Received(IModel model, BasicDeliverEventArgs eventArgs)
         {
             var eventName = eventArgs.RoutingKey;
             var message = Encoding.UTF8.GetString(eventArgs.Body.ToArray());
-            // 异常上抛:由底层 Consumer_Received 按 FailureBehavior 决定 ack/nack(重投或转 DLX),
-            // 配合 inbox 去重达成最终一致
-            if (message.ToLowerInvariant().Contains("throw-fake-exception"))
-            {
-                throw new InvalidOperationException($"Fake exception requested: \"{message}\"");
-            }
-            await ProcessEvent(eventName, message);
+            // publisher 把业务 IMessage.Id 写入 BasicProperties.MessageId,与 payload Id 交叉校验用
+            var brokerMessageId = eventArgs.BasicProperties?.MessageId;
+            await ProcessEvent(eventName, message, brokerMessageId);
         }
 
         /// <summary>反序列化 payload,查找所有订阅该 routing key 的 handler 依次调 invoker。</summary>
         /// <remarks>直接遍历 wrapper 而非 <c>IMessageHandlerProvider.GetHandlers</c>:后者会预先 resolve handler 实例,而 invoker 需在自己的新 scope 里 resolve 以保证 DbContext/UoW 生命周期。</remarks>
-        private async Task ProcessEvent(string eventName, string message)
+        private async Task ProcessEvent(string eventName, string message, string brokerMessageId)
         {
             _logger.LogTrace("Processing RabbitMQ event: {eventName}", eventName);
 
@@ -157,7 +154,32 @@ namespace Core.EventBus.RabbitMQ
 
             if (messageType != null)
             {
-                var integrationEvent = (IMessage)JsonConvert.DeserializeObject(message, messageType);
+                IMessage integrationEvent;
+                try
+                {
+                    integrationEvent = (IMessage)JsonConvert.DeserializeObject(message, messageType);
+                }
+                catch (JsonException ex)
+                {
+                    // payload 损坏/schema 不兼容:同一 payload 重投永远同 JsonException。
+                    // 直接 log + return → 底层 Consumer 视作 processed=true 自动 ACK,
+                    // 跳过 FailureBehavior(requeue/nack 对反序列化失败都没意义)。
+                    // 重要:ACK 不会触发 RabbitMQ 的 dead-letter 路由,所以即使配了 DeadLetterExchange
+                    // 也收不到反序列化失败的消息。可观测性只能依赖此处的 LogError + ConsumeError 诊断。
+                    // 如需 DLX 收集 poison message,需自行改为抛异常 + FailureBehavior=NackNoRequeue,
+                    // 但要承担 ack/nack 失败重投导致的 broker 阻塞风险。
+                    _logger.LogError(ex,
+                        "RabbitMQ payload 反序列化失败,跳过该条 routingKey={RoutingKey} messageType={MessageType} payload={Payload}",
+                        eventName, messageType, TrimForLog(message));
+                    EventBusDiagnosticListener.TracingConsumeError(null, null, ex.Message);
+                    return;
+                }
+
+                // 反序列化产物身份校验:null / 缺 Id 都跳过(同样 ACK 推进,与 JsonException 路径语义一致)
+                if (!ValidateIdentity(integrationEvent, brokerMessageId, eventName, messageType, message))
+                {
+                    return;
+                }
 
                 _logger.LogTrace("Enable diagnostic listeners before consume,name is {name}", DiagnosticListenerConstants.BeforeConsume);
                 EventBusDiagnosticListener.TracingConsumeBefore(integrationEvent);
@@ -185,15 +207,16 @@ namespace Core.EventBus.RabbitMQ
                     }
                 }
 
-                _logger.LogTrace("Enable diagnostic listeners after consume,name is {name}", DiagnosticListenerConstants.AfterConsume);
-                EventBusDiagnosticListener.TracingConsumeAfter(integrationEvent);
-
                 if (handlerErrors != null && handlerErrors.Count > 0)
                 {
+                    // 不发 AfterConsume:监控混淆 ErrorConsume + AfterConsume 会误判为"消费成功"
                     throw new AggregateException(
                         $"{handlerErrors.Count} handler(s) failed for routingKey={eventName}",
                         handlerErrors);
                 }
+
+                _logger.LogTrace("Enable diagnostic listeners after consume,name is {name}", DiagnosticListenerConstants.AfterConsume);
+                EventBusDiagnosticListener.TracingConsumeAfter(integrationEvent);
             }
             else
             {
@@ -202,6 +225,101 @@ namespace Core.EventBus.RabbitMQ
 
                 _logger.LogTrace("Not subscribed to enable diagnostic listener,name is {name}", DiagnosticListenerConstants.NotSubscribed);
                 EventBusDiagnosticListener.TracingNotSubscribed(message);
+            }
+        }
+
+        /// <summary>截断超长 payload,防反序列化失败日志被异常大消息撑爆。</summary>
+        private static string TrimForLog(string payload)
+        {
+            const int MaxLogPayload = 512;
+            if (string.IsNullOrEmpty(payload) || payload.Length <= MaxLogPayload) return payload;
+            return payload.Substring(0, MaxLogPayload) + "...(truncated)";
+        }
+
+        /// <summary>校验并对齐消息身份:优先以 brokerMessageId 为权威 Id;否则用 raw JSON 验证 payload 显式带 Id 字段。</summary>
+        /// <remarks>
+        /// <para>关键风险:<see cref="Message"/> 基类构造里 <c>Id = Guid.NewGuid()</c>。
+        /// 若外部消息 payload 没有 Id 字段,Newtonsoft 用基类构造生成的新 Guid 填充 → 看起来"非 Empty"但其实
+        /// 每次反序列化都是不同值 → inbox 按 Id 去重彻底失效 → 重投会全部当新消息处理。</para>
+        /// <para>处理策略(按优先级):</para>
+        /// <list type="number">
+        ///   <item><description>broker 端有效 Guid:权威 Id,直接覆盖 payload Id(publisher 写入,可信)。不一致 warn。</description></item>
+        ///   <item><description>broker 端缺失/非 Guid:检查 raw JSON 是否显式含 Id 字段。无 → reject(同 poison)。</description></item>
+        ///   <item><description>有显式 Id 但反序列化后是 Empty:reject。</description></item>
+        /// </list>
+        /// </remarks>
+        private bool ValidateIdentity(IMessage integrationEvent, string brokerMessageId, string eventName, Type messageType, string rawPayload)
+        {
+            if (integrationEvent == null)
+            {
+                _logger.LogError(
+                    "RabbitMQ payload 反序列化为 null,跳过该条 routingKey={RoutingKey} messageType={MessageType} payload={Payload}",
+                    eventName, messageType, TrimForLog(rawPayload));
+                EventBusDiagnosticListener.TracingConsumeError(null, null, "deserialized payload is null");
+                return false;
+            }
+
+            // 路径 1:broker 端写了合法 Guid → 权威,覆盖 payload Id
+            if (!string.IsNullOrEmpty(brokerMessageId) && Guid.TryParse(brokerMessageId, out var brokerId))
+            {
+                if (brokerId == Guid.Empty)
+                {
+                    _logger.LogError(
+                        "RabbitMQ brokerMessageId 为 Guid.Empty,跳过该条 routingKey={RoutingKey} messageType={MessageType}",
+                        eventName, messageType);
+                    EventBusDiagnosticListener.TracingConsumeError(integrationEvent, null, "brokerMessageId is Guid.Empty");
+                    return false;
+                }
+                if (integrationEvent.Id != brokerId)
+                {
+                    // 可能是外部消息没带 Id(基类构造生成了新 Guid),也可能是 publisher 改实现 / 中间件改写
+                    _logger.LogWarning(
+                        "RabbitMQ payload Id={PayloadId} 与 brokerMessageId={BrokerMessageId} 不一致,以 brokerMessageId 为准 routingKey={RoutingKey}",
+                        integrationEvent.Id, brokerMessageId, eventName);
+                    integrationEvent.Id = brokerId;
+                }
+                return true;
+            }
+
+            // 路径 2:broker 端缺失/非 Guid → 必须从 raw JSON 验证 payload 显式带 Id
+            // 否则 Message 基类构造生成的随机 Guid 会让 inbox 去重失效
+            if (!HasExplicitIdField(rawPayload))
+            {
+                _logger.LogError(
+                    "RabbitMQ payload 没有显式 Id 字段且 brokerMessageId 不可用,inbox 去重会失效,跳过 routingKey={RoutingKey} messageType={MessageType} payload={Payload}",
+                    eventName, messageType, TrimForLog(rawPayload));
+                EventBusDiagnosticListener.TracingConsumeError(integrationEvent, null, "payload missing explicit Id field");
+                return false;
+            }
+
+            if (integrationEvent.Id == Guid.Empty)
+            {
+                _logger.LogError(
+                    "RabbitMQ payload Id 字段值为 Guid.Empty,inbox 去重会失效,跳过 routingKey={RoutingKey} messageType={MessageType}",
+                    eventName, messageType);
+                EventBusDiagnosticListener.TracingConsumeError(integrationEvent, null, "payload Id is Guid.Empty");
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>检查 raw JSON 顶层是否显式包含非空 Id 字段(大小写不敏感)。</summary>
+        /// <remarks>解析失败/格式异常视为"没有显式 Id";调用方据此 reject。</remarks>
+        private static bool HasExplicitIdField(string rawJson)
+        {
+            if (string.IsNullOrWhiteSpace(rawJson)) return false;
+            try
+            {
+                var token = JToken.Parse(rawJson);
+                if (token is not JObject jo) return false;
+                if (!jo.TryGetValue("Id", StringComparison.OrdinalIgnoreCase, out var idToken)) return false;
+                return idToken.Type != JTokenType.Null
+                       && !string.IsNullOrWhiteSpace(idToken.ToString());
+            }
+            catch
+            {
+                return false;
             }
         }
     }

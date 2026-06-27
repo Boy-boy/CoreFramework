@@ -61,11 +61,22 @@ namespace Core.EventBus.RabbitMQ
             return Task.CompletedTask;
         }
 
-        /// <summary>outbox dispatcher 直发入口:payload 已是表里持久化的 JSON,不二次序列化、不依赖 CLR 类型,生产/消费版本不一致时仍能完整流到 broker。</summary>
+        /// <summary>outbox dispatcher 直发入口;payload 即 outbox 表里持久化的 JSON,不再二次序列化。broker header MessageId 用业务 <see cref="MessageEnvelope.MessageId"/>,与直发路径语义一致。</summary>
+        /// <remarks>diagnostic 追踪与直发路径对称:listener 拿到的 MessageType 为 null(此时类型仅以 envelope.MessageName 字符串存在)。</remarks>
         public Task SendRawAsync(MessageEnvelope message, CancellationToken cancellationToken = default)
         {
             var routingKey = ResolveRoutingKey(message);
-            PublishToBroker(message.Id, routingKey, message.MessageData, cancellationToken);
+            EventBusDiagnosticListener.TracingPublishBefore(null);
+            try
+            {
+                PublishToBroker(message.MessageId, routingKey, message.MessageData, cancellationToken);
+            }
+            catch (System.Exception ex)
+            {
+                EventBusDiagnosticListener.TracingPublishError(null, ex.Message);
+                throw;
+            }
+            EventBusDiagnosticListener.TracingPublishAfter(null);
             return Task.CompletedTask;
         }
 
@@ -120,7 +131,7 @@ namespace Core.EventBus.RabbitMQ
 
                 var properties = channel.CreateBasicProperties();
                 properties.DeliveryMode = 2;                       // persistent:消息落 broker 磁盘
-                properties.MessageId = messageId.ToString();       // 与 outbox/inbox Id 对应,便于追踪与 BasicReturn 日志关联
+                properties.MessageId = messageId.ToString();       // 业务消息 Id,即消费端 inbox 去重键
                 channel.BasicPublish(
                     exchange: exchangeName,
                     routingKey: routingKey,

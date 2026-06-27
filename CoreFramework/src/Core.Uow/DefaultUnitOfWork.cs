@@ -75,6 +75,20 @@ namespace Core.Uow
 
                 var (localBatch, distributedBatch) = DrainEvents();
 
+                if (localBatch.Count > 0 && _localMessagePublisher == null)
+                {
+                    throw new InvalidOperationException(
+                        $"UnitOfWork 累积了 {localBatch.Count} 个本地事件但未注册 ILocalPublisher。" +
+                        "请在启动时调用 EventBusOptions.AddLocalMq() / CoreEventBusLocalModule 引入本地事件模块。");
+                }
+
+                if (distributedBatch.Count > 0 && _integrationMessagePublisher == null)
+                {
+                    throw new InvalidOperationException(
+                        $"UnitOfWork 累积了 {distributedBatch.Count} 个集成事件但未注册 IIntegrationPublisher。" +
+                        "请在启动时调用 EventBusOptions.AddRabbitMq(...) / AddKafka(...) 引入对应 broker 模块。");
+                }
+
                 foreach (var localEvent in localBatch)
                 {
                     await _localMessagePublisher.PublishAsync(localEvent, cancellationToken);

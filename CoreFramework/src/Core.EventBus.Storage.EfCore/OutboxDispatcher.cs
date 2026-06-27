@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System;
+using System.IO;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -147,7 +148,14 @@ namespace Core.EventBus.Storage.EfCore
             {
                 await sender.SendRawAsync(msg, ct);
                 await storage.DeleteAsync(msg.Id, ct);
-                _logger.LogDebug("Outbox 消息已投递并删除 {MessageId} {MessageName}", msg.Id, msg.MessageName);
+                _logger.LogDebug("Outbox 消息已投递并删除 OutboxId={OutboxId} MessageId={MessageId} {MessageName}",
+                    msg.Id, msg.MessageId, msg.MessageName);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // ct 触发的取消不算"投递失败",不递增 RetryCount;
+                // 让外层 ProcessBatchAsync rollback,整批未提交,下轮重新拉
+                throw;
             }
             catch (Exception ex)
             {
@@ -159,16 +167,16 @@ namespace Core.EventBus.Storage.EfCore
                 {
                     var reason = permanent ? "永久性错误" : $"超过最大重试次数 {_options.Value.MaxRetries}";
                     _logger.LogError(ex,
-                        "Outbox 消息 {Reason} 转入死信 {MessageId} {MessageName}",
-                        reason, msg.Id, msg.MessageName);
+                        "Outbox 消息 {Reason} 转入死信 OutboxId={OutboxId} MessageId={MessageId} {MessageName}",
+                        reason, msg.Id, msg.MessageId, msg.MessageName);
                     await storage.MoveToDeadLetterAsync(msg.Id, BuildErrorSummary(ex), ct);
                 }
                 else
                 {
-                    var next = OutboxBackoff.CalculateNextRetry(nextRetry, _options.Value, DateTime.UtcNow);
+                    var next = OutboxBackoff.CalculateNextRetry(nextRetry, _options.Value, DateTime.UtcNow, msg.MessageId);
                     _logger.LogWarning(ex,
-                        "Outbox 消息投递失败 {MessageId} 第 {Retry} 次将在 {Next:u} 重试",
-                        msg.Id, nextRetry, next);
+                        "Outbox 消息投递失败 OutboxId={OutboxId} MessageId={MessageId} 第 {Retry} 次将在 {Next:u} 重试",
+                        msg.Id, msg.MessageId, nextRetry, next);
                     await storage.MarkFailedAsync(msg.Id, BuildErrorSummary(ex), next, ct);
                 }
             }
@@ -176,7 +184,8 @@ namespace Core.EventBus.Storage.EfCore
 
         /// <summary>判定异常是否为"重试也不会成功"的永久性错误,直接转死信。</summary>
         /// <remarks>
-        /// 瞬时:网络 / 连接 / 超时 → 退避重试;永久:类型加载失败 / 序列化 / payload 非法 / 参数错误 → 转死信;
+        /// 瞬时:网络 / 连接 / 超时 → 退避重试;
+        /// 永久:类型加载 / 程序集找不到 / 序列化 / payload 非法 / 参数错误 → 转死信;
         /// 其余未知默认视为瞬时,留给 MaxRetries 兜底。
         /// </remarks>
         private static bool IsPermanentFailure(Exception ex)
@@ -189,6 +198,10 @@ namespace Core.EventBus.Storage.EfCore
                     return false;
                 case TypeLoadException:
                 case BadImageFormatException:
+                case FileNotFoundException:         // 程序集/类型已删除
+                case FileLoadException:
+                case MissingMethodException:
+                case MissingMemberException:
                 case FormatException:
                 case Newtonsoft.Json.JsonException:
                 case ArgumentException:

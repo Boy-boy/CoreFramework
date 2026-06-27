@@ -20,6 +20,7 @@ namespace Core.EventBus.Outbox
         public MessageEnvelope(IMessage aggregateRootEvent)
         {
             Id = Guid.NewGuid();
+            MessageId = aggregateRootEvent.Id;
             Version = 1;
             AssemblyName = aggregateRootEvent.GetType().Assembly.GetName().Name;
             MessageName = aggregateRootEvent.GetType().FullName;
@@ -33,8 +34,11 @@ namespace Core.EventBus.Outbox
             LastError = null;
         }
 
-        /// <summary>outbox / inbox 关联的唯一 id;同时作为 broker MessageId,供 inbox 去重。</summary>
+        /// <summary>outbox / 死信表行主键;仅 dispatcher 内部寻址使用,不进入 broker 元数据。</summary>
         public Guid Id { get; set; }
+
+        /// <summary>业务消息 Id(<see cref="IMessage.Id"/>);broker header MessageId + inbox 去重键。</summary>
+        public Guid MessageId { get; set; }
 
         /// <summary>载体格式版本号,当前固定为 1;未来调整字段语义时可借此分流。</summary>
         public int Version { get; set; }

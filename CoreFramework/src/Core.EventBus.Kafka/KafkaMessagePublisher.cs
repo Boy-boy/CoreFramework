@@ -59,15 +59,24 @@ namespace Core.EventBus.Kafka
             EventBusDiagnosticListener.TracingPublishAfter(message);
         }
 
-        /// <summary>
-        /// outbox dispatcher 直发入口;payload 已是 outbox 表里持久化的 JSON,
-        /// 不二次序列化也不依赖 CLR 类型,保证生产/消费端版本短暂不一致时 payload 仍能流到 broker。
-        /// </summary>
+        /// <summary>outbox dispatcher 直发入口;payload 即 outbox 表里持久化的 JSON,不再二次序列化。broker header / partition key 用业务 <see cref="MessageEnvelope.MessageId"/>,与直发路径语义一致。</summary>
+        /// <remarks>diagnostic 追踪与直发路径对称:listener 拿到的 MessageType 为 null(此时类型仅以 envelope.MessageName 字符串存在),
+        /// 链路追踪可借 <c>errorMessage</c> + envelope.MessageName 组合定位。</remarks>
         public async Task SendRawAsync(MessageEnvelope message, CancellationToken cancellationToken = default)
         {
             var topic = ResolveTopic(ResolveMessageName(message));
             var data = Encoding.UTF8.GetBytes(message.MessageData);
-            await PublishToBroker(message.Id, topic, data, cancellationToken).ConfigureAwait(false);
+            EventBusDiagnosticListener.TracingPublishBefore(null);
+            try
+            {
+                await PublishToBroker(message.MessageId, topic, data, cancellationToken).ConfigureAwait(false);
+            }
+            catch (System.Exception ex)
+            {
+                EventBusDiagnosticListener.TracingPublishError(null, ex.Message);
+                throw;
+            }
+            EventBusDiagnosticListener.TracingPublishAfter(null);
         }
 
         /// <summary>

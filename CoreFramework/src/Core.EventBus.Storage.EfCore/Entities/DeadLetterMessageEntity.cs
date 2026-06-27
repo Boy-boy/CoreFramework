@@ -10,7 +10,10 @@ namespace Core.EventBus.Storage.EfCore.Entities
     /// </remarks>
     public class DeadLetterMessageEntity
     {
+        /// <summary>死信表行主键(沿用 outbox 行原 <see cref="OutboxMessageEntity.Id"/>);便于按 outbox 链路追溯。</summary>
         public Guid Id { get; set; }
+        /// <summary>业务消息 Id;沿用 outbox 行原 <see cref="OutboxMessageEntity.MessageId"/>。</summary>
+        public Guid MessageId { get; set; }
         public int Version { get; set; }
         public string AssemblyName { get; set; }
         public string MessageName { get; set; }

@@ -8,6 +8,8 @@ namespace Core.EventBus.Diagnostics
     /// </summary>
     /// <remarks>
     /// 每个方法都先做双层 <c>IsEnabled</c> 短路:未启用监听时不分配匿名对象、也不调 Write,几乎零开销。
+    /// <para>所有方法都对 <c>message</c> / <c>handlerType</c> 做 null 兜底:反序列化失败、payload 解析前等场景
+    /// 无法提供完整对象,允许 caller 传 null 而不引发 NRE。</para>
     /// </remarks>
     public class EventBusDiagnosticListener
     {
@@ -20,7 +22,7 @@ namespace Core.EventBus.Diagnostics
                 return;
             var result = new
             {
-                MessageType = message.GetType(),
+                MessageType = message?.GetType(),
                 MessageData = message,
                 ExecutionTime = DateTime.UtcNow
             };
@@ -35,7 +37,7 @@ namespace Core.EventBus.Diagnostics
 
             var result = new
             {
-                MessageType = message.GetType(),
+                MessageType = message?.GetType(),
                 MessageData = message,
                 ExecutionTime = DateTime.UtcNow
             };
@@ -50,7 +52,7 @@ namespace Core.EventBus.Diagnostics
 
             var result = new
             {
-                MessageType = message.GetType(),
+                MessageType = message?.GetType(),
                 MessageData = message,
                 ExecutionTime = DateTime.UtcNow,
                 ErrorMessage = errorMessage
@@ -66,7 +68,7 @@ namespace Core.EventBus.Diagnostics
 
             var result = new
             {
-                MessageType = message.GetType(),
+                MessageType = message?.GetType(),
                 MessageData = message,
                 ExecutionTime = DateTime.UtcNow
             };
@@ -81,14 +83,14 @@ namespace Core.EventBus.Diagnostics
 
             var result = new
             {
-                MessageType = message.GetType(),
+                MessageType = message?.GetType(),
                 MessageData = message,
                 ExecutionTime = DateTime.UtcNow
             };
             EventBusDiagnostics.Write(DiagnosticListenerConstants.AfterConsume, result);
         }
 
-        /// <summary>消费消息执行错误。</summary>
+        /// <summary>消费消息执行错误;反序列化失败场景下 message/handlerType 允许为 null。</summary>
         public static void TracingConsumeError(IMessage message, Type handlerType, string errorMessage)
         {
             if (!EventBusDiagnostics.IsEnabled() || !EventBusDiagnostics.IsEnabled(DiagnosticListenerConstants.ErrorConsume))
@@ -96,7 +98,7 @@ namespace Core.EventBus.Diagnostics
 
             var result = new
             {
-                MessageType = message.GetType(),
+                MessageType = message?.GetType(),
                 MessageData = message,
                 HandlerType = handlerType,
                 ExecutionTime = DateTime.UtcNow,
@@ -113,7 +115,7 @@ namespace Core.EventBus.Diagnostics
 
             var result = new
             {
-                MessageType = message.GetType(),
+                MessageType = message?.GetType(),
                 MessageData = message,
                 ExecutionTime = DateTime.UtcNow
             };

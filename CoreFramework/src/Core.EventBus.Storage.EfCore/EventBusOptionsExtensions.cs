@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using System;
+using System.Linq;
 
 namespace Core.EventBus.Storage.EfCore
 {
@@ -67,15 +68,31 @@ namespace Core.EventBus.Storage.EfCore
             // 保证生产者写入和业务在同一上下文
             services.TryAddScoped<IOutboxStorage, EfCoreOutboxStorage<TDbContext>>();
             services.TryAddScoped<IInboxStorage, EfCoreInboxStorage<TDbContext>>();
-            services.TryAddSingleton<StorageMarkerService>();
 
-            // 先 RemoveAll 再 TryAddSingleton 强制替换 AddEventBus 注册的 DefaultMessageHandlerInvoker;
-            // TryAdd 防止本扩展被多次调用产生多个 invoker 实例
-            services.RemoveAll<IMessageHandlerInvoker>();
+            // 只替换 DefaultMessageHandlerInvoker 这一具体实现,保留用户自定义 wrapper / decorator;
+            // 同时 TryAddSingleton 防止本扩展被多次调用产生多个 inbox-aware invoker 实例
+            for (var i = services.Count - 1; i >= 0; i--)
+            {
+                var sd = services[i];
+                if (sd.ServiceType == typeof(IMessageHandlerInvoker)
+                    && sd.ImplementationType == typeof(DefaultMessageHandlerInvoker))
+                {
+                    services.RemoveAt(i);
+                }
+            }
             services.TryAddSingleton<IMessageHandlerInvoker, InboxAwareMessageHandlerInvoker>();
 
-            services.AddHostedService<OutboxDispatcher>();
-            services.AddHostedService<InboxCleanupService>();
+            // 防重复注册:AddHostedService 无 Try 语义,本扩展被多次调用(模块多次注入 / 多 DbContext)
+            // 会启动多个 dispatcher 实例 → 与 FetchReadyAsync 无锁配合产生 N 倍重复投递。
+            // 多 DbContext 场景下 IOutboxStorage 只能注册一个,多 dispatcher 也无意义。
+            if (!services.Any(s => s.ImplementationType == typeof(OutboxDispatcher)))
+            {
+                services.AddHostedService<OutboxDispatcher>();
+            }
+            if (!services.Any(s => s.ImplementationType == typeof(InboxCleanupService)))
+            {
+                services.AddHostedService<InboxCleanupService>();
+            }
         }
     }
 }

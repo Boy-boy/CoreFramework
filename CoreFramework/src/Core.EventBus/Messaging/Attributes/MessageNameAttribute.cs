@@ -4,15 +4,10 @@ using System.Linq;
 namespace Core.EventBus
 {
     /// <summary>
-    /// 为消息类型显式指定"对外名字"。
+    /// 为消息类型显式指定对外名字;用于稳定的路由 key 与跨服务合约对齐。
     /// </summary>
     /// <remarks>
-    /// <para><b>用途</b></para>
-    /// <list type="bullet">
-    ///   <item><description>broker routing key（如 RabbitMQ exchange.binding）</description></item>
-    ///   <item><description>跨语言 / 跨服务的合约对齐 —— CLR 全名变更时仍能稳定路由</description></item>
-    /// </list>
-    /// <para>未标注时回退到 <see cref="Type.FullName"/>。</para>
+    /// 未标注时回退到 <see cref="Type.FullName"/>。
     /// </remarks>
     [AttributeUsage(AttributeTargets.Class)]
     public class MessageNameAttribute : Attribute
@@ -29,9 +24,7 @@ namespace Core.EventBus
             Name = name;
         }
 
-        /// <summary>
-        /// 取消息类型上的 <see cref="MessageNameAttribute"/> 值；未标注时返回 <see cref="Type.FullName"/>。
-        /// </summary>
+        /// <summary>取消息类型上的特性值;未标注时返回 <see cref="Type.FullName"/>。</summary>
         public static string GetNameOrDefault(Type messageType)
         {
             if (messageType == null)

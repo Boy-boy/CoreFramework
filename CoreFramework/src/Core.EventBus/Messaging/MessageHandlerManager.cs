@@ -5,14 +5,13 @@ using System.Linq;
 namespace Core.EventBus
 {
     /// <summary>
-    /// 线程安全的订阅项注册表。读取走"不可变快照"，写入走 copy-on-write，
-    /// 保证 publisher 在遍历 wrapper 时不会被并发 Subscribe/UnSubscribe 打断。
+    /// 线程安全的订阅项注册表:读走不可变快照,写走 copy-on-write,publisher 遍历时不会被并发订阅打断。
     /// </summary>
     public class MessageHandlerManager : IMessageHandlerManager
     {
         private readonly Lock _writeLock = new();
 
-        // 写入路径在 lock 内做 copy-on-write，读路径直接取这个引用 —— 无锁、零拷贝枚举
+        // 写在 lock 内做 copy-on-write,读直接取这个引用 —— 无锁、零拷贝枚举
         private volatile IReadOnlyList<IMessageHandlerWrapper> _wrappers = Array.Empty<IMessageHandlerWrapper>();
 
         /// <inheritdoc />
@@ -80,7 +79,7 @@ namespace Core.EventBus
                 messageTypeFullyRemoved = next.All(w => w.MessageType != messageType);
             }
 
-            // 事件回调放在 lock 外，避免订阅者重入到 manager 引发死锁
+            // 回调放 lock 外,避免订阅者重入引发死锁
             if (messageTypeFullyRemoved)
             {
                 OnEventRemoved?.Invoke(this, messageType);

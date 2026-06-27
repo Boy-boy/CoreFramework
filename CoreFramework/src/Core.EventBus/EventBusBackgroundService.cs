@@ -11,11 +11,10 @@ using System.Threading.Tasks;
 namespace Core.EventBus
 {
     /// <summary>
-    /// 在应用启动时把 [MessageHandler] 标注的 handler 注册到对应的 subscriber（local / integration）。
+    /// 应用启动时把 handler 程序集中的订阅推送到 local / integration 两条 subscribe 通道。
     /// </summary>
     /// <remarks>
-    /// outbox 投递循环已不在本服务范围内 —— 由 <c>Core.EventBus.Storage.EfCore.OutboxDispatcher</c>
-    /// 作为独立的 <see cref="BackgroundService"/> 承担。这里只承担一次性的订阅注册任务。
+    /// 只承担一次性的订阅注册;outbox 投递循环由独立的 BackgroundService 承担。
     /// </remarks>
     public class EventBusBackgroundService : IHostedService
     {
@@ -30,10 +29,7 @@ namespace Core.EventBus
             _logger = logger;
         }
 
-        /// <summary>
-        /// 应用启动时被 HostedService 框架调用一次：扫描 handler 程序集，
-        /// 把 (messageType, handlerType) 对推送到 local / integration 两条 subscribe 通道。
-        /// </summary>
+        /// <summary>启动时扫描 handler 程序集,把订阅对推送到 local / integration 通道。</summary>
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             using var scope = _serviceScopeFactory.CreateScope();
@@ -43,14 +39,13 @@ namespace Core.EventBus
             var assemblies = options.MessageHandlerAssemblies;
             if (assemblies == null || assemblies.Length == 0)
             {
-                // 静默 no-op 在生产排查时极难发现：用户经常忘了调 AddConsumers(...)
-                // 这里显式告警，给排查留线索
+                // 静默 no-op 在生产排查极难发现:显式告警留线索
                 _logger.LogWarning(
                     "EventBus 启动时未发现任何 handler 程序集。请检查是否调用了 EventBusOptions.AddConsumers(...)。");
                 return;
             }
 
-            // subscriber 是可选的：项目没引用 broker 模块时 integration 一端可能为 null
+            // subscriber 是可选的:未引用对应模块时一端可能为 null
             var localSubscriber = provider.GetService<ILocalSubscriber>();
             var integrationSubscriber = provider.GetService<IIntegrationSubscriber>();
             if (localSubscriber != null)
@@ -62,8 +57,7 @@ namespace Core.EventBus
                 await integrationSubscriber.InitializeAsync(assemblies, cancellationToken).ConfigureAwait(false);
             }
 
-            // 报告实际订阅数 —— 程序集存在但里面没有任何 IMessageHandler 实现时,
-            // 单测 / 部署版本错位排查不再"完全没日志"
+            // 报告实际订阅数:程序集存在但无 handler 实现时,部署版本错位排查不再"完全没日志"
             var handlerCount = MessageHandlerExtensions.GetHandlerTypes(assemblies).Count();
             if (handlerCount == 0)
             {
@@ -80,9 +74,7 @@ namespace Core.EventBus
             }
         }
 
-        /// <summary>
-        /// 应用关闭时被 HostedService 框架调用。本服务无后台循环，无须清理资源 → no-op。
-        /// </summary>
+        /// <summary>无后台循环,no-op。</summary>
         public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }

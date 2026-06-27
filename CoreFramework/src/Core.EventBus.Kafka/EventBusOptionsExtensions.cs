@@ -8,9 +8,9 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace Core.EventBus.Kafka
 {
     /// <summary>
-    /// Kafka broker 的 <see cref="IEventBusOptionsExtensions"/> 实现：
-    /// 仅负责把 <see cref="EventBusKafkaOptions"/> 绑到 IOptions，并把 connection 配置桥接到底层 <c>CoreKafkaModule</c>。
-    /// publisher / subscribe / IOutboxRawSender 等服务的注册由 <see cref="CoreEventBusKafkaModule"/> 完成，不在这里重复。
+    /// Kafka broker 的 <see cref="IEventBusOptionsExtensions"/> 实现:绑定
+    /// <see cref="EventBusKafkaOptions"/>,桥接 connection 到 <c>CoreKafkaModule</c>,
+    /// 并注册 publisher / subscriber / <see cref="IOutboxRawSender"/>。
     /// </summary>
     public class EventBusOptionsExtensions : IEventBusOptionsExtensions
     {
@@ -38,7 +38,7 @@ namespace Core.EventBus.Kafka
             else if (_configuration != null)
             {
                 services.Configure<EventBusKafkaOptions>(_configuration);
-                // 配置节点缺失 / 为空时 Get<T>() 返回 null;沿用上面 new 出的默认实例
+                // 配置节点缺失/为空时 Get<T>() 返回 null,沿用默认实例
                 var fromConfig = _configuration.Get<EventBusKafkaOptions>();
                 if (fromConfig != null) options = fromConfig;
             }
@@ -46,7 +46,7 @@ namespace Core.EventBus.Kafka
             services.AddKafka(kafkaOptions =>
             {
                 kafkaOptions.Connection = options.Connection;
-                // 把 EventBus 维度的失败退避桥接到底层 consumer 的 Seek-retry 间隔
+                // 桥接到底层 consumer 的 Seek-retry 间隔
                 kafkaOptions.FailureBackoff = options.FailureBackoff;
                 // poison message 触顶 commit-skip 的最大重试次数
                 kafkaOptions.MaxConsecutiveFailures = options.MaxConsecutiveFailures;

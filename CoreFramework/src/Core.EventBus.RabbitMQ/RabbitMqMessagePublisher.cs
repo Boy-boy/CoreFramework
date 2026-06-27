@@ -16,45 +16,15 @@ using System.Threading.Tasks;
 
 namespace Core.EventBus.RabbitMQ
 {
-    /// <summary>
-    /// RabbitMQ 集成事件 publisher，同时实现：
-    /// <list type="bullet">
-    ///   <item><description><see cref="IIntegrationPublisher"/>：业务侧直接调用入口（继承自 <see cref="IntegrationMessagePublisherBase"/>，
-    ///   PublishAsync 会先判断是否有 outbox 上下文）</description></item>
-    ///   <item><description><see cref="IOutboxRawSender"/>：outbox dispatcher 的"绕过 outbox 直发"入口</description></item>
-    /// </list>
-    /// 两个入口最终都走 <see cref="PublishToBroker"/>，仅 payload 来源不同。
-    /// </summary>
+    /// <summary>RabbitMQ 集成事件 publisher;同时实现 <see cref="IIntegrationPublisher"/>(业务直发)与 <see cref="IOutboxRawSender"/>(outbox dispatcher 直发),两个入口都汇合到 <see cref="PublishToBroker"/>。</summary>
     /// <remarks>
-    /// <para><b>容错策略</b></para>
-    /// <list type="bullet">
-    ///   <item><description>Polly 在 <see cref="BrokerUnreachableException"/> / <see cref="SocketException"/> 时
-    ///   做 3 次线性退避重试（1s/2s/3s）—— 应对短暂网络抖动</description></item>
-    ///   <item><description>更大范围的故障（持续不可达、消息持续被拒）由调用方处理：
-    ///     <list type="bullet">
-    ///       <item><description>业务调用方（PublishAsync 直发路径）：异常冒到业务层</description></item>
-    ///       <item><description>dispatcher 调用方（SendRawAsync）：异常被 dispatcher 捕获 → 进 MarkFailed 退避循环</description></item>
-    ///     </list>
-    ///   </description></item>
-    /// </list>
-    ///
-    /// <para><b>持久化</b></para>
-    /// <para>
-    /// <c>DeliveryMode = 2</c> + <c>exchange durable: true</c> 让消息在 broker 重启后不丢；
-    /// <c>mandatory: true</c> 在 routing 不到任何 queue 时立即 return 而不是静默丢弃。
-    /// </para>
-    ///
-    /// <para><b>channel 池化</b></para>
-    /// <para>
-    /// publisher 自身是 Singleton,所有发布共享一个 <see cref="RabbitMqPublishChannelPool"/>。
-    /// 每条 channel 在首次创建时一次性完成 ExchangeDeclare + ConfirmSelect + BasicReturn 监听挂载,
-    /// 后续 publish 只走纯 BasicPublish + WaitForConfirms;
-    /// 旧版"每条消息开/关一条 channel"造成的 broker 端 channel 暴涨 + 多余 RPC 已消除。
-    /// </para>
+    /// 容错:Polly 对 <see cref="BrokerUnreachableException"/> / <see cref="SocketException"/> 做 3 次线性退避(1s/2s/3s),持续故障冒给调用方(业务层或 dispatcher 的 MarkFailed 退避循环)。
+    /// 持久化:<c>DeliveryMode=2</c> + exchange durable 抗 broker 重启,<c>mandatory=true</c> 让无 routing 立即 return 而非静默丢弃。
+    /// channel 池化:Singleton publisher 共享 <see cref="RabbitMqPublishChannelPool"/>,channel 首次创建时一次性完成 ExchangeDeclare + ConfirmSelect + BasicReturn 挂载,后续复用走纯 BasicPublish + WaitForConfirms。
     /// </remarks>
     public class RabbitMqMessagePublisher : IntegrationMessagePublisherBase, IIntegrationPublisher, IOutboxRawSender
     {
-        /// <summary>Polly 重试次数；线性退避 1s/2s/3s 总等约 6 秒，超过则抛给上游。</summary>
+        /// <summary>Polly 重试次数,线性退避 1s/2s/3s 共约 6s,超时抛给上游。</summary>
         private readonly int _retryCount = 3;
         private readonly IRabbitMqPublishChannelPool _channelPool;
         private readonly IOptions<EventBusRabbitMqOptions> _options;
@@ -72,10 +42,7 @@ namespace Core.EventBus.RabbitMQ
             _logger = logger;
         }
 
-        /// <summary>
-        /// <see cref="IntegrationMessagePublisherBase.PublishAsync{T}"/> 判定为"直发"时调用本方法。
-        /// payload 来源是强类型消息对象，需要在这里序列化为 JSON。
-        /// </summary>
+        /// <summary>直发路径入口:把强类型消息序列化为 JSON 后投递。</summary>
         public override Task SendAsync<T>(T message, CancellationToken cancellationToken = default)
         {
             var data = message.ToJson();
@@ -94,11 +61,7 @@ namespace Core.EventBus.RabbitMQ
             return Task.CompletedTask;
         }
 
-        /// <summary>
-        /// outbox dispatcher 的直发入口。payload 已经是 outbox 表里持久化的 JSON，
-        /// 不再二次序列化也不再依赖 CLR 类型 —— 这样即使生产端版本和消费端版本短暂不一致，
-        /// payload 仍然能完整流到 broker。
-        /// </summary>
+        /// <summary>outbox dispatcher 直发入口:payload 已是表里持久化的 JSON,不二次序列化、不依赖 CLR 类型,生产/消费版本不一致时仍能完整流到 broker。</summary>
         public Task SendRawAsync(MessageEnvelope message, CancellationToken cancellationToken = default)
         {
             var routingKey = ResolveRoutingKey(message);
@@ -106,16 +69,8 @@ namespace Core.EventBus.RabbitMQ
             return Task.CompletedTask;
         }
 
-        /// <summary>
-        /// 解析 routing key：尝试 <c>Assembly.Load + GetType</c> 重建 CLR 类型，
-        /// 用上面 <c>[MessageName]</c> 特性返回的值；如果重建失败（类型已重命名/移除）
-        /// 则回退到 outbox 表里存的 <see cref="MessageEnvelope.MessageName"/>（CLR 全名）。
-        /// </summary>
-        /// <remarks>
-        /// 之所以要重建类型而不直接用 <see cref="MessageEnvelope.MessageName"/>：
-        /// 因为业务可能在事件类上加 <c>[MessageName("order.created")]</c>，
-        /// 那么 broker routing key 应该是 "order.created" 而不是 CLR 全名。
-        /// </remarks>
+        /// <summary>解析 routing key:重建 CLR 类型后取 <c>[MessageName]</c> 值,失败则回退到 envelope 里存的 CLR 全名。</summary>
+        /// <remarks>必须重建类型,否则带 <c>[MessageName("order.created")]</c> 的事件会用 CLR 全名作 routing key 而非业务名。</remarks>
         private string ResolveRoutingKey(MessageEnvelope message)
         {
             try
@@ -129,29 +84,18 @@ namespace Core.EventBus.RabbitMQ
             }
             catch
             {
-                // 程序集找不到、类型已删除等：不报错，按存储的原名走 —— 让消费端按 routing key 自行决定如何处理
+                // 程序集/类型缺失:按 envelope 原名走,由消费端按 routing key 自行决定
             }
             return message.MessageName;
         }
 
-        /// <summary>
-        /// 真正向 broker 投递消息。两个公共入口最终都汇合到此处，保证投递参数完全一致。
-        /// </summary>
-        /// <remarks>
-        /// 单条 publish 流程:
-        /// <list type="number">
-        ///   <item><description>从 channel 池租一条 channel(空闲则取,无空闲则按 ChannelPoolSize 上限新建)</description></item>
-        ///   <item><description>BasicPublish 写入,mandatory:true,DeliveryMode:2</description></item>
-        ///   <item><description>WaitForConfirms 同步等到 broker ack 或 BasicReturn 退回</description></item>
-        ///   <item><description>归还 channel 到池</description></item>
-        /// </list>
-        /// ExchangeDeclare / ConfirmSelect / BasicReturn 挂载都在 channel 首次创建时一次性完成,本方法不再触发。
-        /// </remarks>
+        /// <summary>真正向 broker 投递;两个公共入口都汇合到此,保证参数一致。</summary>
+        /// <remarks>单条流程:租 channel → BasicPublish(mandatory + DeliveryMode=2) → WaitForConfirms → 归还。ExchangeDeclare / ConfirmSelect / BasicReturn 挂载在 channel 首次创建时一次性完成。</remarks>
         private void PublishToBroker(Guid messageId, string routingKey, string payload, CancellationToken cancellationToken)
         {
             _logger.LogTrace("RabbitMQ publish messageId={MessageId} routingKey={RoutingKey}", messageId, routingKey);
 
-            // 仅对"连接级"瞬时错误重试。业务错误（如 routing 失败）不在此重试，否则会放大故障
+            // 仅对连接级瞬时错误重试;业务错误(如 routing 失败)不重试,避免放大故障
             var policy = Policy.Handle<BrokerUnreachableException>()
                 .Or<SocketException>()
                 .WaitAndRetry(_retryCount,
@@ -166,7 +110,7 @@ namespace Core.EventBus.RabbitMQ
             var body = Encoding.UTF8.GetBytes(payload).AsMemory();
             var exchangeName = _options.Value.ExchangeName;
 
-            // 把 cancellationToken 传给 Polly: retry 之间检查取消,确保关闭进程时不会一直空等
+            // 把 cancellationToken 传给 Polly,retry 之间检查取消,避免进程关闭时空等
             policy.Execute(ct =>
             {
                 ct.ThrowIfCancellationRequested();
@@ -175,8 +119,8 @@ namespace Core.EventBus.RabbitMQ
                 var channel = rental.Channel;
 
                 var properties = channel.CreateBasicProperties();
-                properties.DeliveryMode = 2;                       // persistent：消息落 broker 磁盘
-                properties.MessageId = messageId.ToString();       // 与 outbox / inbox 的 Id 对应，便于追踪 + BasicReturn 回调日志能直接看到原始 id
+                properties.DeliveryMode = 2;                       // persistent:消息落 broker 磁盘
+                properties.MessageId = messageId.ToString();       // 与 outbox/inbox Id 对应,便于追踪与 BasicReturn 日志关联
                 channel.BasicPublish(
                     exchange: exchangeName,
                     routingKey: routingKey,
@@ -184,8 +128,8 @@ namespace Core.EventBus.RabbitMQ
                     basicProperties: properties,
                     body: body);
 
-                // 等待 broker 对本次发布给出明确回执;失败(退回 / nack / 超时)统一抛 RabbitMqPublishFailedException,
-                // 上层 outbox dispatcher 据此 MarkFailed,不会再被错误地当作"已成功"删掉 outbox 行
+                // 等 broker 明确回执;失败(退回/nack/超时)统一抛 RabbitMqPublishFailedException,
+                // 让 outbox dispatcher 据此 MarkFailed 而非误判已成功
                 rental.WaitForConfirmsOrThrow(TimeSpan.FromSeconds(5));
             }, cancellationToken);
         }

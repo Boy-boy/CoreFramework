@@ -6,15 +6,10 @@ using EventBusOptionsExtensions = Core.EventBus.RabbitMQ.EventBusOptionsExtensio
 
 namespace Microsoft.Extensions.DependencyInjection
 {
-    /// <summary>
-    /// 提供 <c>options.AddRabbitMq(...)</c> 流式扩展，把 RabbitMQ broker 加入 EventBus 扩展链。
-    /// 支持 Action 配置与 IConfiguration 两种来源。
-    /// </summary>
+    /// <summary><c>options.AddRabbitMq(...)</c> 流式扩展;支持 Action 与 IConfiguration 两种配置来源。</summary>
     public static class EventBusRabbitMqServiceCollectionExtensions
     {
-        /// <summary>
-        /// 用 <c>Action&lt;EventBusRabbitMqOptions&gt;</c> 形式配置 RabbitMQ。适合代码侧组装 / 测试场景。
-        /// </summary>
+        /// <summary>用 Action 配置 RabbitMQ,适合代码侧组装/测试。</summary>
         public static EventBusOptions AddRabbitMq(this EventBusOptions options, Action<EventBusRabbitMqOptions> actionOptions)
         {
             if (actionOptions == null)
@@ -24,10 +19,7 @@ namespace Microsoft.Extensions.DependencyInjection
             return options;
         }
 
-        /// <summary>
-        /// 用 appsettings.json 节点配置 RabbitMQ。<paramref name="configuration"/> 通常是
-        /// <c>Configuration.GetSection("EventBus:RabbitMq")</c>。
-        /// </summary>
+        /// <summary>用 IConfiguration 节点(通常是 <c>EventBus:RabbitMq</c>)配置 RabbitMQ。</summary>
         public static EventBusOptions AddRabbitMq(this EventBusOptions options, IConfiguration configuration)
         {
             if (configuration == null)

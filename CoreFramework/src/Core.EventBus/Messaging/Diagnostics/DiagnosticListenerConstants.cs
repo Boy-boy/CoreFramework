@@ -1,17 +1,16 @@
 namespace Core.EventBus.Diagnostics
 {
     /// <summary>
-    /// <see cref="System.Diagnostics.DiagnosticListener"/> 的事件名常量集合。
-    /// 用于跨进程链路追踪 / APM 集成（如 SkyWalking / OpenTelemetry）按事件名订阅 EventBus 内部信号。
+    /// <see cref="System.Diagnostics.DiagnosticListener"/> 的事件名常量集合;用于 APM / 链路追踪订阅 EventBus 内部信号。
     /// </summary>
     /// <remarks>
-    /// 所有事件名统一以 <c>Core.EventBus.</c> 为前缀，避免与其它库的 listener 命名冲突。
+    /// 统一以 <c>Core.EventBus.</c> 为前缀,避免与其它库的 listener 命名冲突。
     /// </remarks>
     public static class DiagnosticListenerConstants
     {
         private const string CorePrefix = "Core.EventBus.";
 
-        /// <summary>EventBus 总 listener 名，APM 框架按此名订阅整个 EventBus 的信号流。</summary>
+        /// <summary>EventBus 总 listener 名。</summary>
         public const string DiagnosticListenerName = CorePrefix + "DiagnosticListener";
 
         /// <summary>发布前事件名。</summary>
@@ -28,7 +27,7 @@ namespace Core.EventBus.Diagnostics
         /// <summary>消费失败事件名。</summary>
         public const string ErrorConsume = CorePrefix + "ConsumeError";
 
-        /// <summary>收到了未订阅的消息事件名（典型为配置遗漏 / 版本错位）。</summary>
+        /// <summary>收到未订阅消息事件名(典型为配置遗漏 / 版本错位)。</summary>
         public const string NotSubscribed = CorePrefix + "NotSubscribed";
 
     }

@@ -22,23 +22,29 @@ namespace Core.EventBus.Storage.EfCore
     {
         private readonly Action<OutboxOptions> _configureOutbox;
         private readonly Action<InboxOptions> _configureInbox;
+        private readonly Action<DeadLetterCleanupOptions> _configureDeadLetter;
         private readonly IConfiguration _outboxConfiguration;
         private readonly IConfiguration _inboxConfiguration;
+        private readonly IConfiguration _deadLetterConfiguration;
 
         public EventBusOptionsExtensions(
             Action<OutboxOptions> configureOutbox = null,
-            Action<InboxOptions> configureInbox = null)
+            Action<InboxOptions> configureInbox = null,
+            Action<DeadLetterCleanupOptions> configureDeadLetter = null)
         {
             _configureOutbox = configureOutbox;
             _configureInbox = configureInbox;
+            _configureDeadLetter = configureDeadLetter;
         }
 
         public EventBusOptionsExtensions(
             IConfiguration outboxConfiguration,
-            IConfiguration inboxConfiguration = null)
+            IConfiguration inboxConfiguration = null,
+            IConfiguration deadLetterConfiguration = null)
         {
             _outboxConfiguration = outboxConfiguration ?? throw new ArgumentNullException(nameof(outboxConfiguration));
             _inboxConfiguration = inboxConfiguration;
+            _deadLetterConfiguration = deadLetterConfiguration;
         }
 
         /// <summary>绑定 options 并注册 storage / inbox-aware invoker / 后台服务;由 PostConfigureServices 阶段调用。</summary>
@@ -53,6 +59,9 @@ namespace Core.EventBus.Storage.EfCore
             {
                 services.Configure<OutboxOptions>(_outboxConfiguration);
             }
+            // PostConfigure 在所有 Configure 跑完后触发,IOptions 解析时调用一次。
+            // dispatcher 启动时第一次解析 IOptions<OutboxOptions> 即触发,配错立刻 crash 而非运行期静默退化
+            services.PostConfigure<OutboxOptions>(o => o.Validate());
 
             services.AddOptions<InboxOptions>();
             if (_configureInbox != null)
@@ -63,6 +72,18 @@ namespace Core.EventBus.Storage.EfCore
             {
                 services.Configure<InboxOptions>(_inboxConfiguration);
             }
+            services.PostConfigure<InboxOptions>(o => o.Validate());
+
+            services.AddOptions<DeadLetterCleanupOptions>();
+            if (_configureDeadLetter != null)
+            {
+                services.Configure(_configureDeadLetter);
+            }
+            else if (_deadLetterConfiguration != null)
+            {
+                services.Configure<DeadLetterCleanupOptions>(_deadLetterConfiguration);
+            }
+            services.PostConfigure<DeadLetterCleanupOptions>(o => o.Validate());
 
             // Scoped:每个 DI scope 持有自己的 storage 实例,通过 IDbContextProvider 拿到当前 scope 的 DbContext,
             // 保证生产者写入和业务在同一上下文
@@ -92,6 +113,10 @@ namespace Core.EventBus.Storage.EfCore
             if (!services.Any(s => s.ImplementationType == typeof(InboxCleanupService)))
             {
                 services.AddHostedService<InboxCleanupService>();
+            }
+            if (!services.Any(s => s.ImplementationType == typeof(DeadLetterCleanupService)))
+            {
+                services.AddHostedService<DeadLetterCleanupService>();
             }
         }
     }

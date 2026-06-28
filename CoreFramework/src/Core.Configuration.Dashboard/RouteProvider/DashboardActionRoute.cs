@@ -1,6 +1,6 @@
 ﻿using System;
 using Core.Configuration.Storage;
-using Core.Json.Newtonsoft;
+using Core.Json.SystemTextJson;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;

@@ -40,5 +40,25 @@ namespace Core.EventBus.Kafka
 
         /// <summary>同条 offset 连续失败的最大重试次数,达上限后跳过推进 offset。默认 5;0 表示无限重试。</summary>
         public int MaxConsecutiveFailures { get; set; } = 5;
+
+        /// <summary>启动期校验,数值非法立刻抛 <see cref="InvalidOperationException"/>。</summary>
+        public void Validate()
+        {
+            if (Connection == null)
+                throw new InvalidOperationException(
+                    $"{nameof(EventBusKafkaOptions)}.{nameof(Connection)} 不能为 null。");
+            if (DefaultPartitionCount <= 0)
+                throw new InvalidOperationException(
+                    $"{nameof(EventBusKafkaOptions)}.{nameof(DefaultPartitionCount)} 必须 > 0,当前={DefaultPartitionCount}。");
+            if (DefaultReplicationFactor <= 0)
+                throw new InvalidOperationException(
+                    $"{nameof(EventBusKafkaOptions)}.{nameof(DefaultReplicationFactor)} 必须 > 0,当前={DefaultReplicationFactor}。");
+            if (FailureBackoff < TimeSpan.Zero)
+                throw new InvalidOperationException(
+                    $"{nameof(EventBusKafkaOptions)}.{nameof(FailureBackoff)} 不能为负,当前={FailureBackoff}。");
+            if (MaxConsecutiveFailures < 0)
+                throw new InvalidOperationException(
+                    $"{nameof(EventBusKafkaOptions)}.{nameof(MaxConsecutiveFailures)} 不能为负数(0 表示无限重试),当前={MaxConsecutiveFailures}。");
+        }
     }
 }

@@ -28,25 +28,27 @@ namespace Microsoft.Extensions.DependencyInjection
     /// </remarks>
     public static class EfCoreStorageServiceCollectionExtensions
     {
-        /// <summary>用 Action 形式配置 outbox / inbox(两者均可选,不传即默认)。</summary>
+        /// <summary>用 Action 形式配置 outbox / inbox / 死信清理(均可选,不传即默认)。</summary>
         public static EventBusOptions AddEfCoreEventBusStorage<TDbContext>(
             this EventBusOptions options,
             Action<OutboxOptions> configureOutbox = null,
-            Action<InboxOptions> configureInbox = null)
+            Action<InboxOptions> configureInbox = null,
+            Action<DeadLetterCleanupOptions> configureDeadLetter = null)
             where TDbContext : DbContext
         {
             if (options == null)
                 throw new ArgumentNullException(nameof(options));
 
-            options.AddExtensions(new EventBusOptionsExtensions<TDbContext>(configureOutbox, configureInbox));
+            options.AddExtensions(new EventBusOptionsExtensions<TDbContext>(configureOutbox, configureInbox, configureDeadLetter));
             return options;
         }
 
-        /// <summary>用 appsettings.json 节点配置 outbox / inbox;<paramref name="inboxSection"/> 可选。</summary>
+        /// <summary>用 appsettings.json 节点配置 outbox / inbox / 死信清理;后两个节点可选。</summary>
         public static EventBusOptions AddEfCoreEventBusStorage<TDbContext>(
             this EventBusOptions options,
             IConfiguration outboxSection,
-            IConfiguration inboxSection = null)
+            IConfiguration inboxSection = null,
+            IConfiguration deadLetterSection = null)
             where TDbContext : DbContext
         {
             if (options == null)
@@ -54,7 +56,7 @@ namespace Microsoft.Extensions.DependencyInjection
             if (outboxSection == null)
                 throw new ArgumentNullException(nameof(outboxSection));
 
-            options.AddExtensions(new EventBusOptionsExtensions<TDbContext>(outboxSection, inboxSection));
+            options.AddExtensions(new EventBusOptionsExtensions<TDbContext>(outboxSection, inboxSection, deadLetterSection));
             return options;
         }
     }

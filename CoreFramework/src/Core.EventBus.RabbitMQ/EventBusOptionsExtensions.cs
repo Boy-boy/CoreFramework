@@ -46,6 +46,8 @@ namespace Core.EventBus.RabbitMQ
                 var fromConfig = _configuration.Get<EventBusRabbitMqOptions>();
                 if (fromConfig != null) options = fromConfig;
             }
+            // PostConfigure 在所有 Configure 跑完后由 IOptions 解析触发;publisher/subscriber 启动时第一次解析即生效
+            services.PostConfigure<EventBusRabbitMqOptions>(o => o.Validate());
 
             services.AddRabbitMq(rabbitMqOptions =>
             {

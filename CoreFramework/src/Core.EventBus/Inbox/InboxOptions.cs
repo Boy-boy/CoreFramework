@@ -16,5 +16,17 @@ namespace Core.EventBus.Inbox
 
         /// <summary>两次清理之间的间隔(默认 1 小时);窗口以天计,不宜过短或过长。</summary>
         public TimeSpan CleanupInterval { get; set; } = TimeSpan.FromHours(1);
+
+        /// <summary>启动期校验,数值非法立刻抛 <see cref="InvalidOperationException"/>。</summary>
+        /// <remarks>避免 <c>RetentionDays=0</c> 让清理线程秒清 inbox → 去重失效。</remarks>
+        public void Validate()
+        {
+            if (RetentionDays <= 0)
+                throw new InvalidOperationException(
+                    $"{nameof(InboxOptions)}.{nameof(RetentionDays)} 必须 > 0,当前={RetentionDays}(0 会让 inbox 秒清,去重立刻失效)。");
+            if (CleanupInterval <= TimeSpan.Zero)
+                throw new InvalidOperationException(
+                    $"{nameof(InboxOptions)}.{nameof(CleanupInterval)} 必须 > 0,当前={CleanupInterval}。");
+        }
     }
 }

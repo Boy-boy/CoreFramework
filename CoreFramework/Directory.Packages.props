@@ -41,7 +41,6 @@
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
     <PackageVersion Include="MailKit" Version="4.14.1" />
     <PackageVersion Include="Polly" Version="8.6.5" />
-    <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageVersion Include="EPPlus" Version="8.4.2" />
     <PackageVersion Include="RabbitMQ.Client" Version="6.8.1" />
     <PackageVersion Include="Confluent.Kafka" Version="2.6.1" />

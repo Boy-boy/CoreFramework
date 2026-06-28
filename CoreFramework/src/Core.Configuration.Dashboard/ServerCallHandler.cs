@@ -1,4 +1,4 @@
-﻿using Core.Json.Newtonsoft;
+﻿using Core.Json.SystemTextJson;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using System;

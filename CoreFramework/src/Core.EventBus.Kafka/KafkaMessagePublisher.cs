@@ -10,7 +10,7 @@ using Confluent.Kafka;
 using Core.EventBus.Diagnostics;
 using Core.EventBus.Integration;
 using Core.EventBus.Outbox;
-using Core.Json.Newtonsoft;
+using Core.Json.SystemTextJson;
 using Core.Kafka;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;

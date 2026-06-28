@@ -1,7 +1,7 @@
 using Core.EventBus.Diagnostics;
 using Core.EventBus.Integration;
 using Core.EventBus.Outbox;
-using Core.Json.Newtonsoft;
+using Core.Json.SystemTextJson;
 using Core.RabbitMQ;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -113,8 +113,11 @@ namespace Core.EventBus.RabbitMQ
         /// <remarks>
         /// 单条流程:租 channel → BasicPublish(mandatory + DeliveryMode=2) → WaitForConfirms → 归还。
         /// ExchangeDeclare / ConfirmSelect / BasicReturn 挂载在 channel 首次创建时一次性完成。
-        /// <para>Polly 切 async 后退避间隔走 <see cref="Task.Delay(TimeSpan, CancellationToken)"/>,
-        /// 不再阻塞 IO 线程;BasicPublish / WaitForConfirmsOrThrow 底层仍是同步 API,但单条耗时短,可接受。</para>
+        /// <para>底层 RabbitMQ.Client v6 的 <c>BasicPublish</c> / <c>WaitForConfirmsOrThrow</c> / 池里 <c>Acquire</c>
+        /// 都是同步阻塞 API,直接 await 会让调用方线程在网络 I/O 期间被占住。
+        /// 用 <c>Task.Run</c> 把整个同步代码块移到线程池工作线程,业务调用方(controller / outbox dispatcher)
+        /// 的 await 真正非阻塞,不会拖住请求线程或 dispatcher 主循环。</para>
+        /// <para>Polly 的 <c>WaitAndRetryAsync</c> 配合 <c>Task.Delay</c> 让重试间隔同样非阻塞。</para>
         /// </remarks>
         private async Task PublishToBrokerAsync(Guid messageId, string routingKey, string payload, CancellationToken cancellationToken)
         {
@@ -132,7 +135,7 @@ namespace Core.EventBus.RabbitMQ
                             messageId, $"{time.TotalSeconds:n1}", ex.Message);
                     });
 
-            var body = Encoding.UTF8.GetBytes(payload).AsMemory();
+            var body = Encoding.UTF8.GetBytes(payload);
             var exchangeName = _options.Value.ExchangeName;
 
             // 把 cancellationToken 传给 Polly,retry 之间检查取消,避免进程关闭时空等
@@ -140,23 +143,27 @@ namespace Core.EventBus.RabbitMQ
             {
                 ct.ThrowIfCancellationRequested();
 
-                using var rental = _channelPool.Acquire(ct);
-                var channel = rental.Channel;
+                // 关键:Task.Run 把 RabbitMQ.Client 的同步阻塞 API 卸到线程池,
+                // 释放调用方线程(controller 请求线程 / dispatcher 主循环)以处理其他工作
+                return Task.Run(() =>
+                {
+                    using var rental = _channelPool.Acquire(ct);
+                    var channel = rental.Channel;
 
-                var properties = channel.CreateBasicProperties();
-                properties.DeliveryMode = 2;                       // persistent:消息落 broker 磁盘
-                properties.MessageId = messageId.ToString();       // 业务消息 Id,即消费端 inbox 去重键
-                channel.BasicPublish(
-                    exchange: exchangeName,
-                    routingKey: routingKey,
-                    mandatory: true,                               // routing 不到 queue 立刻 return 而非丢弃
-                    basicProperties: properties,
-                    body: body);
+                    var properties = channel.CreateBasicProperties();
+                    properties.DeliveryMode = 2;                       // persistent:消息落 broker 磁盘
+                    properties.MessageId = messageId.ToString();       // 业务消息 Id,即消费端 inbox 去重键
+                    channel.BasicPublish(
+                        exchange: exchangeName,
+                        routingKey: routingKey,
+                        mandatory: true,                               // routing 不到 queue 立刻 return 而非丢弃
+                        basicProperties: properties,
+                        body: body);
 
-                // 等 broker 明确回执;失败(退回/nack/超时)统一抛 RabbitMqPublishFailedException,
-                // 让 outbox dispatcher 据此 MarkFailed 而非误判已成功
-                rental.WaitForConfirmsOrThrow(TimeSpan.FromSeconds(5));
-                return Task.CompletedTask;
+                    // 等 broker 明确回执;失败(退回/nack/超时)统一抛 RabbitMqPublishFailedException,
+                    // 让 outbox dispatcher 据此 MarkFailed 而非误判已成功
+                    rental.WaitForConfirmsOrThrow(TimeSpan.FromSeconds(5));
+                }, ct);
             }, cancellationToken).ConfigureAwait(false);
         }
     }

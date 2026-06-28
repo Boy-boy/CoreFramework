@@ -1,5 +1,5 @@
 ﻿using System;
-using Core.Json.Newtonsoft;
+using Core.Json.SystemTextJson;
 using System.Collections.Generic;
 using System.Linq;
 

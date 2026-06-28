@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Core.Json.Newtonsoft;
+using Core.Json.SystemTextJson;
 
 namespace Core.Permission.PostgreSql
 {

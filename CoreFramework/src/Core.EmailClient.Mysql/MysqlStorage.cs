@@ -1,6 +1,6 @@
 ﻿using Core.EmailClient.Storage;
 using Core.EmailClient.Storage.Model;
-using Core.Json.Newtonsoft;
+using Core.Json.SystemTextJson;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MySqlConnector;

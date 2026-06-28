@@ -27,9 +27,15 @@ namespace Core.EventBus.Storage.EfCore.Configurations
             builder.Property(x => x.RetryCount).IsRequired();
             builder.Property(x => x.NextRetryAt);
             builder.Property(x => x.LastError).HasMaxLength(4000);
+            // 租约字段 — 多 dispatcher HA 互斥用
+            builder.Property(x => x.LeasedBy).HasMaxLength(128);
+            builder.Property(x => x.LeaseUntil);
 
-            // FetchReadyAsync 形如 WHERE NextRetryAt IS NULL OR NextRetryAt <= NOW() ORDER BY UtcTime;
-            // 该复合索引覆盖 WHERE + ORDER BY,避免大表全表扫描
+            // FetchReadyAsync 形如:
+            //   WHERE (NextRetryAt IS NULL OR NextRetryAt <= NOW())
+            //     AND (LeasedBy IS NULL OR LeaseUntil <= NOW())
+            //   ORDER BY UtcTime
+            // 复合索引覆盖 WHERE 主要谓词 + ORDER BY,避免大表全表扫
             builder.HasIndex(x => new { x.NextRetryAt, x.UtcTime })
                 .HasDatabaseName("IX_EventBus_Outbox_Ready");
 

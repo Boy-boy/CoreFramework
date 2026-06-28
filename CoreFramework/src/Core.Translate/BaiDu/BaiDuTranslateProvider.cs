@@ -9,7 +9,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Threading;
 using System.Threading.Tasks;
-using Core.Json.Newtonsoft;
+using Core.Json.SystemTextJson;
 
 namespace Core.Translate.BaiDu
 {

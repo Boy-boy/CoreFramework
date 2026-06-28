@@ -2,6 +2,7 @@ using Core.EventBus.Diagnostics;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -88,6 +89,9 @@ namespace Core.EventBus.Local
                         "Local message processing failure: messageType={MessageType} handlerType={HandlerType}",
                         messageType, wrapper.HandlerType);
                     EventBusDiagnosticListener.TracingConsumeError(message, wrapper.HandlerType, e.Message);
+                    EventBusMetrics.HandlerFailures.Add(1,
+                        new KeyValuePair<string, object>("messageName", MessageNameAttribute.GetNameOrDefault(messageType)),
+                        new KeyValuePair<string, object>("handlerType", wrapper.HandlerType.FullName ?? wrapper.HandlerType.Name));
                     (handlerErrors ??= new List<Exception>()).Add(e);
                 }
             }

@@ -12,7 +12,7 @@ namespace Core.EventBus.RabbitMQ
         public string ExchangeName
         {
             get => _defaultExchangeName;
-            set => _defaultExchangeName = value ?? throw new Exception("exchange is not allowed to be null");
+            set => _defaultExchangeName = value ?? throw new ArgumentNullException(nameof(value), "ExchangeName 不能为 null;若需默认值请使用 EventBusRabbitMqOptions 的默认实例。");
         }
 
         public EventBusRabbitMqOptions()
@@ -40,5 +40,19 @@ namespace Core.EventBus.RabbitMQ
         /// <summary>反序列化失败 / Id 校验失败的"毒消息"处置策略;默认 <see cref="PoisonMessageBehavior.SkipAndAck"/>。</summary>
         /// <remarks>需要 DLX 收集毒消息时改为 <see cref="PoisonMessageBehavior.ThrowAndLetBrokerHandle"/> 并配合 <c>FailureBehavior=NackNoRequeue</c> + <c>DeadLetterExchange</c>。</remarks>
         public PoisonMessageBehavior PoisonMessageBehavior { get; set; } = PoisonMessageBehavior.SkipAndAck;
+
+        /// <summary>启动期校验,数值非法立刻抛 <see cref="InvalidOperationException"/>。</summary>
+        public void Validate()
+        {
+            if (string.IsNullOrWhiteSpace(ExchangeName))
+                throw new InvalidOperationException(
+                    $"{nameof(EventBusRabbitMqOptions)}.{nameof(ExchangeName)} 不能为空。");
+            if (ChannelPoolSize <= 0)
+                throw new InvalidOperationException(
+                    $"{nameof(EventBusRabbitMqOptions)}.{nameof(ChannelPoolSize)} 必须 > 0,当前={ChannelPoolSize}。");
+            if (Connection == null)
+                throw new InvalidOperationException(
+                    $"{nameof(EventBusRabbitMqOptions)}.{nameof(Connection)} 不能为 null。");
+        }
     }
 }

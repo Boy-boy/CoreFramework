@@ -3,8 +3,6 @@ using Core.EventBus.Diagnostics;
 using Core.RabbitMQ;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System;
@@ -12,6 +10,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Core.EventBus.Integration;
@@ -163,7 +162,7 @@ namespace Core.EventBus.RabbitMQ
                 IMessage integrationEvent;
                 try
                 {
-                    integrationEvent = (IMessage)JsonConvert.DeserializeObject(message, messageType);
+                    integrationEvent = (IMessage)JsonSerializer.Deserialize(message, messageType);
                 }
                 catch (JsonException ex)
                 {
@@ -332,11 +331,18 @@ namespace Core.EventBus.RabbitMQ
             if (string.IsNullOrWhiteSpace(rawJson)) return false;
             try
             {
-                var token = JToken.Parse(rawJson);
-                if (token is not JObject jo) return false;
-                if (!jo.TryGetValue("Id", StringComparison.OrdinalIgnoreCase, out var idToken)) return false;
-                return idToken.Type != JTokenType.Null
-                       && !string.IsNullOrWhiteSpace(idToken.ToString());
+                using var document = JsonDocument.Parse(rawJson);
+                if (document.RootElement.ValueKind != JsonValueKind.Object) return false;
+
+                foreach (var property in document.RootElement.EnumerateObject())
+                {
+                    if (!property.Name.Equals("Id", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (property.Value.ValueKind == JsonValueKind.Null) return false;
+                    return property.Value.ValueKind != JsonValueKind.String
+                           || !string.IsNullOrWhiteSpace(property.Value.GetString());
+                }
+
+                return false;
             }
             catch
             {

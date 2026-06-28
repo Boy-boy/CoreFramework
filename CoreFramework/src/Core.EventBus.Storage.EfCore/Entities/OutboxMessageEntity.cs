@@ -46,7 +46,17 @@ namespace Core.EventBus.Storage.EfCore.Entities
         /// <summary>上次投递失败的异常摘要(配置限长 4000 字符)。</summary>
         public string LastError { get; set; }
 
-        /// <summary>由载体 DTO 构造实体(生产端写入)。</summary>
+        /// <summary>
+        /// 应用层租约持有者标识(通常是 dispatcher 实例 Id);
+        /// <c>null</c> 表示行未被任何 dispatcher 租用。
+        /// </summary>
+        /// <remarks>HA 多实例 dispatcher 通过"先 UPDATE 租用 → 再处理"获得行级互斥,避免 provider 方言差异。</remarks>
+        public string LeasedBy { get; set; }
+
+        /// <summary>租约到期时刻(UTC);超过该时刻其他 dispatcher 可以抢占重新租用,防止持有者崩溃后行被永久锁住。</summary>
+        public DateTime? LeaseUntil { get; set; }
+
+        /// <summary>由载体 DTO 构造实体(生产端写入);新行尚无租约,LeasedBy/LeaseUntil 留空。</summary>
         public static OutboxMessageEntity FromEnvelope(MessageEnvelope m) => new()
         {
             Id = m.Id,

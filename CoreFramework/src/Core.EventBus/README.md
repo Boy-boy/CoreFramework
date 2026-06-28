@@ -857,7 +857,7 @@ EventBus 同一时刻仅支持一个 integration broker,请只调用 AddRabbitMq
 - **没有内置事件 schema 版本管理。** payload 是 JSON，靠 `[MessageName]` 稳定路由 + 业务侧契约管理。
 - **没有内置 dead letter 自动重投 UI。** 死信表暴露给运维，重投策略业务自决（写脚本 / 写后台任务）。
 - **没有内置 RabbitMQ DLX → DLQ 绑定。** 框架只在 queue 声明里写 `x-dead-letter-exchange`；把死信路由到具体 DLQ（归档 / 人工介入 / 转其它系统）是运维侧的事，因为这部分语义跟业务强相关。
-- **Kafka 没用 Schema Registry。** 默认 Newtonsoft.Json + UTF-8 字节流。需要 Avro / Protobuf 请在业务层自己包一层。
+- **Kafka 没用 Schema Registry。** 默认 System.Text.Json + UTF-8 字节流。需要 Avro / Protobuf 请在业务层自己包一层。
 - **Kafka 没做 dead-letter topic。** Kafka 不支持单条 nack，业务上要丢可观测的失败消息请在 handler 内显式 `IKafkaPersistentProducer.ProduceAsync` 到 dead-letter topic。
 
 ---

@@ -1,4 +1,4 @@
-using Core.Json.Newtonsoft;
+using Core.Json.SystemTextJson;
 using System;
 
 namespace Core.EventBus.Outbox
@@ -6,7 +6,7 @@ namespace Core.EventBus.Outbox
     /// <summary>Outbox / 死信表的行级载体(消息信封);承载业务 payload + 元数据。</summary>
     /// <remarks>
     /// 不直接序列化 <see cref="IMessage"/>:storage 层需要的元数据(类型名/程序集名/重试信息/失败原因)不属于业务事件。
-    /// 序列化用 Newtonsoft;dispatcher 端通过 AssemblyName + MessageName 重建 CLR 类型。
+    /// 序列化用 System.Text.Json;dispatcher 端通过 AssemblyName + MessageName 重建 CLR 类型。
     /// </remarks>
     public class MessageEnvelope
     {
@@ -49,7 +49,7 @@ namespace Core.EventBus.Outbox
         /// <summary>消息 CLR 类型全名(<c>type.FullName</c>)。</summary>
         public string MessageName { get; set; }
 
-        /// <summary>序列化后的 payload(Newtonsoft JSON);dispatcher 原样作为 broker 消息体写出。</summary>
+        /// <summary>序列化后的 payload(System.Text.Json);dispatcher 原样作为 broker 消息体写出。</summary>
         public string MessageData { get; set; }
 
         /// <summary>写入 outbox 的本地时间;仅供日志,不参与排序。</summary>

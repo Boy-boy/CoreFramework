@@ -46,6 +46,8 @@ namespace Core.EventBus.Kafka
                 var fromConfig = _configuration.Get<EventBusKafkaOptions>();
                 if (fromConfig != null) options = fromConfig;
             }
+            // PostConfigure 在所有 Configure 跑完后由 IOptions 解析触发;publisher/subscriber 启动时第一次解析即生效
+            services.PostConfigure<EventBusKafkaOptions>(o => o.Validate());
 
             services.AddKafka(kafkaOptions =>
             {

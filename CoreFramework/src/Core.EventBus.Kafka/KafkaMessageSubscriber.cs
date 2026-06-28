@@ -10,8 +10,7 @@ using Core.EventBus.Messaging;
 using Core.Kafka;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using System.Text.Json;
 
 namespace Core.EventBus.Kafka
 {
@@ -174,7 +173,7 @@ namespace Core.EventBus.Kafka
                 IMessage integrationEvent;
                 try
                 {
-                    integrationEvent = (IMessage)JsonConvert.DeserializeObject(message, messageType);
+                    integrationEvent = (IMessage)JsonSerializer.Deserialize(message, messageType);
                 }
                 catch (JsonException ex)
                 {
@@ -315,11 +314,18 @@ namespace Core.EventBus.Kafka
             if (string.IsNullOrWhiteSpace(rawJson)) return false;
             try
             {
-                var token = JToken.Parse(rawJson);
-                if (token is not JObject jo) return false;
-                if (!jo.TryGetValue("Id", StringComparison.OrdinalIgnoreCase, out var idToken)) return false;
-                return idToken.Type != JTokenType.Null
-                       && !string.IsNullOrWhiteSpace(idToken.ToString());
+                using var document = JsonDocument.Parse(rawJson);
+                if (document.RootElement.ValueKind != JsonValueKind.Object) return false;
+
+                foreach (var property in document.RootElement.EnumerateObject())
+                {
+                    if (!property.Name.Equals("Id", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (property.Value.ValueKind == JsonValueKind.Null) return false;
+                    return property.Value.ValueKind != JsonValueKind.String
+                           || !string.IsNullOrWhiteSpace(property.Value.GetString());
+                }
+
+                return false;
             }
             catch
             {

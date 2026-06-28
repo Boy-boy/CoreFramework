@@ -1,4 +1,5 @@
 using Core.EventBus;
+using Core.EventBus.Diagnostics;
 using Core.EventBus.Inbox;
 using Core.EventBus.Storage.EfCore.Entities;
 using Core.Uow;
@@ -6,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
@@ -71,13 +73,17 @@ namespace Core.EventBus.Storage.EfCore
             {
                 if (inbox != null)
                 {
-                    var consumerGroup = handlerType.FullName ?? handlerType.Name;
+                    // 优先用 [InboxConsumerGroup] 显式声明的标识,避免 handler 重命名导致 inbox 失效
+                    var consumerGroup = InboxConsumerGroupAttribute.GetGroupOrDefault(handlerType);
                     var acquired = await inbox.TryAcquireAsync(message.Id, consumerGroup, cancellationToken);
                     if (!acquired)
                     {
                         _logger.LogDebug(
                             "跳过重复消费 messageId={MessageId} handler={Handler}",
                             message.Id, consumerGroup);
+                        EventBusMetrics.InboxDuplicate.Add(1,
+                            new KeyValuePair<string, object>("messageName", MessageNameAttribute.GetNameOrDefault(messageType)),
+                            new KeyValuePair<string, object>("handlerType", handlerType.FullName ?? handlerType.Name));
                         // 仍要 commit,否则上游不 ack → 不停重投
                         await uow.CommitAsync(cancellationToken);
                         return;
@@ -119,6 +125,10 @@ namespace Core.EventBus.Storage.EfCore
                 _logger.LogError(ex,
                     "Handler {Handler} 处理 {MessageId} 失败，回滚事务",
                     handlerType.FullName, message.Id);
+
+                EventBusMetrics.HandlerFailures.Add(1,
+                    new KeyValuePair<string, object>("messageName", MessageNameAttribute.GetNameOrDefault(messageType)),
+                    new KeyValuePair<string, object>("handlerType", handlerType.FullName ?? handlerType.Name));
 
                 // rollback 用 CancellationToken.None:即使上游 ct 已 cancel 也必须跑完
                 try { await uow.RollbackAsync(CancellationToken.None); }

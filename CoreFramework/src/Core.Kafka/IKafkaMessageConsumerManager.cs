@@ -1,8 +1,7 @@
 namespace Core.Kafka
 {
     /// <summary>
-    /// 按 consumer group 复用 <see cref="IKafkaMessageConsumer"/>。
-    /// 类比 <see cref="IRabbitMqMessageConsumerManager"/>，但 key 只用 group.id —— Kafka 没有 exchange 概念。
+    /// 按 consumer group(group.id)复用 <see cref="IKafkaMessageConsumer"/> 的工厂/注册表。
     /// </summary>
     public interface IKafkaMessageConsumerManager
     {
@@ -12,8 +11,10 @@ namespace Core.Kafka
         /// </summary>
         IKafkaMessageConsumer TryCreate(string groupId, KafkaTopicDeclareConfigure topicDeclare = null);
 
+        /// <summary>按 group 查询已注册的 consumer;不存在返回 false。</summary>
         bool TryGet(string groupId, out IKafkaMessageConsumer consumer);
 
+        /// <summary>按 group 移除已注册的 consumer 引用(不会主动 Dispose,由调用方负责)。</summary>
         bool TryRemove(string groupId);
     }
 }

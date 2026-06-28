@@ -3,8 +3,8 @@ using System;
 namespace Core.Kafka
 {
     /// <summary>
-    /// Kafka 基础设施层的根配置，对应 <see cref="RabbitMqOptions"/>。
-    /// 由 <see cref="Microsoft.Extensions.DependencyInjection.KafkaServiceCollectionExtensions"/> 绑到 IOptions 系统。
+    /// Kafka 基础设施层的根配置;由
+    /// <see cref="Microsoft.Extensions.DependencyInjection.KafkaServiceCollectionExtensions"/> 绑到 IOptions 系统。
     /// </summary>
     public class KafkaOptions
     {

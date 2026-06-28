@@ -15,17 +15,35 @@ namespace Core.EventBus.Storage.EfCore.Entities
     {
         /// <summary>outbox 表行主键;dispatcher 内部寻址使用。</summary>
         public Guid Id { get; set; }
+
         /// <summary>业务消息 Id;broker header MessageId + inbox 去重键。</summary>
         public Guid MessageId { get; set; }
+
+        /// <summary>载体格式版本号(当前固定为 1);未来调整字段语义时可借此分流。</summary>
         public int Version { get; set; }
+
+        /// <summary>消息 CLR 类型所在程序集短名;dispatcher 端按此 <c>Assembly.Load</c> 反射重建类型。</summary>
         public string AssemblyName { get; set; }
+
+        /// <summary>消息 CLR 类型全名(<c>Type.FullName</c>)。</summary>
         public string MessageName { get; set; }
+
+        /// <summary>序列化后的 payload(JSON);dispatcher 原样作为 broker 消息体写出。</summary>
         public string MessageData { get; set; }
+
+        /// <summary>写入 outbox 的本地时间;仅供日志,不参与排序。</summary>
         public DateTime CreateTime { get; set; }
+
+        /// <summary>写入 outbox 的 UTC 时间;dispatcher 按此排序保证大致 FIFO。</summary>
         public DateTime UtcTime { get; set; }
 
+        /// <summary>已尝试投递的次数;每次失败由 <c>MarkFailedAsync</c> 递增。</summary>
         public int RetryCount { get; set; }
+
+        /// <summary>下次允许投递时刻(UTC);<c>null</c> 表示立即可投递。</summary>
         public DateTime? NextRetryAt { get; set; }
+
+        /// <summary>上次投递失败的异常摘要(配置限长 4000 字符)。</summary>
         public string LastError { get; set; }
 
         /// <summary>由载体 DTO 构造实体(生产端写入)。</summary>

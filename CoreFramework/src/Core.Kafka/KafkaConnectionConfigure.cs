@@ -8,7 +8,6 @@ namespace Core.Kafka
     /// <remarks>
     /// 单 broker 与 cluster 模式皆通过 <see cref="BootstrapServers"/> 表达：
     /// 多 broker 用逗号分隔，例如 <c>"kafka-1:9092,kafka-2:9092,kafka-3:9092"</c>。
-    /// 类比 <c>RabbitMqConnectionConfigure.HostName</c> 的 ";" 分隔形式。
     /// </remarks>
     public class KafkaConnectionConfigure
     {

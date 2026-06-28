@@ -2,7 +2,6 @@
 using System.Threading.Tasks;
 using Core.EventBus.Integration;
 using Core.EventBus.Local;
-using Core.Uow;
 using Microsoft.AspNetCore.Mvc;
 using PublishApi.Event;
 
@@ -14,16 +13,13 @@ namespace PublishApi.Controllers
     {
         private readonly IIntegrationPublisher _publisher;
         private readonly ILocalPublisher _localPublisher;
-        private readonly IUnitOfWorkManager _unitOfWorkManager;
 
         public WeatherForecastController(
             IIntegrationPublisher publisher,
-            ILocalPublisher localPublisher,
-            IUnitOfWorkManager unitOfWorkManager)
+            ILocalPublisher localPublisher)
         {
             _publisher = publisher;
             _localPublisher = localPublisher;
-            _unitOfWorkManager = unitOfWorkManager;
         }
 
         [HttpPost]
@@ -32,14 +28,14 @@ namespace PublishApi.Controllers
             var sw = new Stopwatch();
             sw.Start();
 
-            // 用 UoW 开启业务事务；publisher 检测到 outbox 上下文自动走 outbox 路径
-            await using var uow = _unitOfWorkManager.Begin(new UnitOfWorkOptions(isTransactional: true));
+            // 直发场景:不开 UoW,publisher 检测不到 ambient outbox 上下文,直接打 broker。
+            // 如需 outbox 模式,请在 StartupModule 中追加 CoreEventBusEfCoreStorageModule 并配置 DbContext,
+            // 然后再用 IUnitOfWorkManager 包住 publish 循环。
             for (var i = 0; i < 500; i++)
             {
                 await _publisher.PublishAsync(new CustomerEvent());
                 await _localPublisher.PublishAsync(new CustomerEvent());
             }
-            await uow.CommitAsync();
 
             sw.Stop();
             return $"500个事件，耗时：{sw.ElapsedMilliseconds}";

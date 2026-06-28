@@ -5,9 +5,7 @@ using Confluent.Kafka;
 namespace Core.Kafka
 {
     /// <summary>
-    /// 单一 consumer group 的 Kafka 消费者抽象。类比 <see cref="IRabbitMqMessageConsumer"/>，
-    /// 但语义略有差异：RabbitMQ 维护一个 queue 上的多个 routing key 绑定；
-    /// Kafka 维护一个 consumer group 订阅的多个 topic。
+    /// 单一 consumer group 的 Kafka 消费者抽象;一个实例维护一个 group.id 下订阅的多个 topic 集合。
     /// </summary>
     /// <remarks>
     /// <para><b>Subscribe 语义</b></para>
@@ -29,9 +27,8 @@ namespace Core.Kafka
         bool HasAnyTopic();
 
         /// <summary>
-        /// 注册消息处理回调。回调签名与 RabbitMQ 实现保持一致风格：
-        /// 入参第二个参数是原始消息（<see cref="ConsumeResult{TKey, TValue}"/>），
-        /// 处理失败抛异常即可，由 consumer 决定是否 commit。
+        /// 注册消息处理回调。入参为 <see cref="IConsumer{TKey,TValue}"/> 与原始 <see cref="ConsumeResult{TKey, TValue}"/>;
+        /// 处理失败抛异常即可,consumer 内部按失败策略 Seek 回 offset 让 broker 重投同条。
         /// </summary>
         void OnMessageReceived(Func<IConsumer<string, byte[]>, ConsumeResult<string, byte[]>, Task> processEvent);
     }

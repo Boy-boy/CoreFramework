@@ -36,5 +36,9 @@ namespace Core.EventBus.RabbitMQ
         /// <summary>publisher channel 池上限,即同时刻最多并发 publish 数;默认 8。</summary>
         /// <remarks>channel 首次创建时一次性完成 ExchangeDeclare + ConfirmSelect + BasicReturn 挂载,后续 publish 复用走纯 BasicPublish + WaitForConfirms;超出本值的并发请求由 SemaphoreSlim 排队。</remarks>
         public int ChannelPoolSize { get; set; } = 8;
+
+        /// <summary>反序列化失败 / Id 校验失败的"毒消息"处置策略;默认 <see cref="PoisonMessageBehavior.SkipAndAck"/>。</summary>
+        /// <remarks>需要 DLX 收集毒消息时改为 <see cref="PoisonMessageBehavior.ThrowAndLetBrokerHandle"/> 并配合 <c>FailureBehavior=NackNoRequeue</c> + <c>DeadLetterExchange</c>。</remarks>
+        public PoisonMessageBehavior PoisonMessageBehavior { get; set; } = PoisonMessageBehavior.SkipAndAck;
     }
 }

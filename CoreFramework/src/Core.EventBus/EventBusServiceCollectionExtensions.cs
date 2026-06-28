@@ -1,6 +1,5 @@
 using Core.EventBus;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Options;
 using System;
 
 namespace Microsoft.Extensions.DependencyInjection
@@ -27,11 +26,9 @@ namespace Microsoft.Extensions.DependencyInjection
 
             services.Configure(configureOptions);
 
-            // 通过 IOptions 拿到聚合后的 options 再 Configure:
-            // 用户回调只被 OptionsManager 调一次,且其他模块预先写入的 Configure 也能被应用,不再被默默丢失
-            using var sp = services.BuildServiceProvider();
-            var aggregated = sp.GetRequiredService<IOptions<EventBusOptions>>().Value;
-            aggregated.Configure(services);
+            // 不 BuildServiceProvider:直接走描述符聚合所有 IConfigureOptions<EventBusOptions> 即可。
+            // 详见 EventBusOptionsExtensions.ResolveAndConfigureEventBus。
+            services.ResolveAndConfigureEventBus();
             return services;
         }
     }

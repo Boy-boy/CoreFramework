@@ -1,5 +1,8 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -79,26 +82,32 @@ namespace Core.EventBus.Kafka
             EventBusDiagnosticListener.TracingPublishAfter(null);
         }
 
+        // outbox dispatcher 热路径上 ResolveMessageName 每条消息都跑;缓存按 (assembly, type) 维度,
+        // 命中后省掉 Assembly.Load + GetType + Attributes 反射开销
+        private static readonly ConcurrentDictionary<(string Asm, string Type), string> MessageNameCache = new();
+
         /// <summary>
         /// 用 outbox 表里的 AssemblyName+MessageName 重建 CLR 类型,取 <c>[MessageName]</c> 对外名;
         /// 重建失败回退到 outbox 存储的原值。
         /// </summary>
+        /// <remarks>仅捕获程序集/类型重建相关的具体异常,其他异常透传便于排查。</remarks>
         private string ResolveMessageName(MessageEnvelope message)
         {
-            try
+            var key = (message.AssemblyName ?? string.Empty, message.MessageName ?? string.Empty);
+            return MessageNameCache.GetOrAdd(key, static k =>
             {
-                var asm = System.Reflection.Assembly.Load(message.AssemblyName);
-                var type = asm.GetType(message.MessageName);
-                if (type != null)
+                try
                 {
-                    return MessageNameAttribute.GetNameOrDefault(type);
+                    var asm = Assembly.Load(k.Item1);
+                    var type = asm.GetType(k.Item2);
+                    if (type != null) return MessageNameAttribute.GetNameOrDefault(type);
                 }
-            }
-            catch
-            {
-                // 程序集找不到/类型已删除:按存储原名走,消费端按 topic 名自行处理
-            }
-            return message.MessageName;
+                catch (FileNotFoundException) { /* 程序集已删除 */ }
+                catch (FileLoadException) { /* 程序集加载失败 */ }
+                catch (BadImageFormatException) { /* 程序集格式损坏 */ }
+                catch (TypeLoadException) { /* 类型已删除/改名 */ }
+                return k.Item2;
+            });
         }
 
         private string ResolveTopic(string messageName)

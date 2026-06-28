@@ -24,6 +24,7 @@
 - [appsettings.json 完整模板](#appsettingsjson-完整模板)
 - [常见坑 / FAQ](#常见坑--faq)
 - [架构内幕](#架构内幕)
+- [性能与可观测性内幕](#性能与可观测性内幕)
 
 ---
 
@@ -277,6 +278,15 @@ options.AddRabbitMq(Configuration.GetSection("EventBus:RabbitMq"));
 
 **单 handler 失败处理：** 同一 routing key 下的多个 handler 仍然按优先级依次执行；某个 handler 抛异常**不阻断**后续 handler，但循环结束会聚合上抛 `AggregateException` —— 让 broker 层按 `FailureBehavior` 决定 ack/nack。与本地事件的"静默 catch"不一样：本地 publisher 不可能丢失消息，broker 路径才需要把失败信号还原回去。
 
+**毒消息（`PoisonMessageBehavior`）：** 反序列化失败 / payload 没显式 `Id` 字段 / Id 解析为空等"同一 payload 重投永远会再次失败"的情况，由 `PoisonMessageBehavior` 决定：
+
+| 值 | 行为 |
+|---|---|
+| `SkipAndAck`（默认） | LogError + return，底层 Consumer 视作 processed → 自动 ACK 推进。**不会进入 DLX**（ACK 不算 dead-letter），可观测性靠 LogError + ConsumeError 诊断 |
+| `ThrowAndLetBrokerHandle` | LogError + 抛 `InvalidDataException` → 底层 Consumer 按 `FailureBehavior` 决定 nack/requeue。配合 `FailureBehavior=NackNoRequeue` + 配置 `DeadLetterExchange` 即可让毒消息进入 DLX 集中排查 |
+
+> 选 `ThrowAndLetBrokerHandle` 配 `RequeueOnce` 时同一条毒消息会被 broker 重投一次后才进 DLX/丢弃，期间 queue 头部消费会被推迟 — 想要严格 DLX 收集请改 `NackNoRequeue`。
+
 ### Kafka
 
 **注册：**
@@ -518,6 +528,7 @@ public class SendEmailHandler : IMessageHandler<OrderCreatedEvent> { ... }    //
 | `ExchangeName` | `event_bus_default_routing` | 共享 direct exchange 名 |
 | `ChannelPoolSize` | 8 | publisher channel 池上限，即同时持有 channel 的线程数；池外并发请求排队等待 |
 | `FailureBehavior` | `RequeueOnce` | handler 失败时的 ack/nack 策略：`AlwaysAck` / `NackNoRequeue` / `RequeueOnce`（见上文）|
+| `PoisonMessageBehavior` | `SkipAndAck` | 反序列化 / Id 校验失败时的处置：`SkipAndAck`（默认 ACK 跳过，依赖日志可观测）或 `ThrowAndLetBrokerHandle`（让 `FailureBehavior` 决策 nack/DLX） |
 | `DeadLetterExchange` | 空 | 设置后 queue 声明会带上 `x-dead-letter-exchange`；启用 DLX 但未设此项 + 失败策略会丢消息 → 订阅器启动时一次性 LogWarning |
 | `DeadLetterRoutingKey` | 空 | 仅 `DeadLetterExchange` 设置时生效；留空复用原 routing key（适用 direct DLX） |
 | `Connection.HostName` | — | 单机或 `host1;host2;host3` 集群 |
@@ -551,6 +562,7 @@ public class SendEmailHandler : IMessageHandler<OrderCreatedEvent> { ... }    //
       "ExchangeName": "myapp.events",
       "ChannelPoolSize": 8,
       "FailureBehavior": "RequeueOnce",
+      "PoisonMessageBehavior": "SkipAndAck",
       "DeadLetterExchange": "myapp.events.dlx",
       "Connection": {
         "HostName": "rabbit:5672",
@@ -703,6 +715,35 @@ public MyController(ILocalPublisher local, IIntegrationPublisher integration) { 
 
 `ILocalPublisher` / `IIntegrationPublisher` 都是简单接口，直接 mock 即可。生产代码统一注入接口（不要注入具体实现类），是为了让这一步零摩擦。
 
+### Q: dev 环境忘启 broker，host 启动会卡死吗？
+
+**不会**。`EventBusBackgroundService.StartAsync` 把订阅初始化（包括 broker 的 `ExchangeDeclare` / `QueueBind` 等 I/O 操作）放在后台 `Task.Run` 中执行，自身立刻返回。`StartAsync` 中的失败由 `_logger.LogError` 报出，host 启动流程不阻塞。
+
+**代价**：broker 上线前到达的消息会因订阅尚未就绪暂时无人消费 — 但 broker 不可达时本来也收不到消息，语义无损。`StopAsync` 触发 CTS 让后台初始化任务及时退出，避免 host 已停 init 还在跑。
+
+### Q: 反序列化失败的消息怎么排查？怎么进 DLX？
+
+默认（`PoisonMessageBehavior=SkipAndAck`）下，框架 LogError + ACK 推进 offset。ACK **不会**触发 DLX 路由，所以即便配了 `DeadLetterExchange` 也收不到反序列化失败的消息。可观测性靠：
+
+1. **日志监控**：grep `RabbitMQ payload 反序列化失败` / `RabbitMQ payload 没有显式 Id 字段` / `RabbitMQ payload Id 字段值为 Guid.Empty`
+2. **DiagnosticListener**：订阅 `Core.EventBus.ConsumeError`（详见架构内幕「诊断信号」一节）
+
+如果要 DLX 集中收集毒消息：
+
+```json
+{
+  "EventBus": {
+    "RabbitMq": {
+      "PoisonMessageBehavior": "ThrowAndLetBrokerHandle",
+      "FailureBehavior": "NackNoRequeue",
+      "DeadLetterExchange": "myapp.events.dlx"
+    }
+  }
+}
+```
+
+注意：`FailureBehavior=RequeueOnce` 会让毒消息先 requeue 一次浪费一轮重投；要严格立刻进 DLX 请用 `NackNoRequeue`。
+
 ---
 
 ## 架构内幕
@@ -818,3 +859,58 @@ EventBus 同一时刻仅支持一个 integration broker,请只调用 AddRabbitMq
 - **没有内置 RabbitMQ DLX → DLQ 绑定。** 框架只在 queue 声明里写 `x-dead-letter-exchange`；把死信路由到具体 DLQ（归档 / 人工介入 / 转其它系统）是运维侧的事，因为这部分语义跟业务强相关。
 - **Kafka 没用 Schema Registry。** 默认 Newtonsoft.Json + UTF-8 字节流。需要 Avro / Protobuf 请在业务层自己包一层。
 - **Kafka 没做 dead-letter topic。** Kafka 不支持单条 nack，业务上要丢可观测的失败消息请在 handler 内显式 `IKafkaPersistentProducer.ProduceAsync` 到 dead-letter topic。
+
+---
+
+## 性能与可观测性内幕
+
+### 启动期非阻塞
+
+`EventBusBackgroundService.StartAsync` 立刻返回，broker subscriber 的初始化（`ExchangeDeclare` / `QueueBind` / Kafka subscribe）放在 `Task.Run` 中后台执行。`StopAsync` 触发链接到 host stoppingToken 的 CTS 让初始化任务及时退出，避免：
+
+- broker 不可达时 host 启动被一直卡住；
+- host 已收到关停信号、init 还在做无意义的 broker 重试。
+
+### 反射结果缓存（outbox dispatcher 热路径）
+
+`RabbitMqMessagePublisher.ResolveRoutingKey` 与 `KafkaMessagePublisher.ResolveMessageName` 在 outbox dispatcher 每条消息都会调用一次，需要根据 `(AssemblyName, MessageName)` 反射重建 CLR 类型再读 `[MessageName]` 特性。两个方法都用 `ConcurrentDictionary<(string, string), string>` 缓存结果，命中后省掉 `Assembly.Load` + `GetType` + `GetCustomAttributes` 全套反射开销。
+
+异常处理收窄到具体类型 — 仅捕获 `FileNotFoundException` / `FileLoadException` / `BadImageFormatException` / `TypeLoadException`（程序集/类型不可用的合法情形），其他异常（OOM、内部错误）原样冒出便于排查。
+
+### Polly 异步退避（RabbitMQ publisher）
+
+`RabbitMqMessagePublisher.PublishToBrokerAsync` 用 Polly 的 `WaitAndRetryAsync`，退避之间走 `Task.Delay`（不阻塞调用线程）。BasicPublish / `WaitForConfirmsOrThrow` 底层仍是同步 API，但单条耗时短，不构成瓶颈。
+
+### 配置注册不 BuildServiceProvider
+
+`CoreEventBusModule.PostConfigureServices` 与 `AddEventBus` 都通过 `EventBusOptionsExtensions.ResolveAndConfigureEventBus` 直接遍历 `IServiceCollection` 中的 `IConfigureOptions<EventBusOptions>` 描述符聚合配置 — 不再调用 `BuildServiceProvider`，避免：
+
+1. `Building service provider during configuration` 警告；
+2. 在配置阶段实例化所有 Singleton 然后 Dispose 引发副作用（连 broker、起线程等）。
+
+代价：只识别 `Action<EventBusOptions>` 形态的 configure 回调（即 `services.Configure<EventBusOptions>(...)`）。其他形态（工厂、类型注册）不支持 — EventBus 体系内部全部用 Action 形态，无影响。
+
+### 诊断信号（DiagnosticListener）
+
+框架内置 `DiagnosticListener`（名 `"Core.EventBus.DiagnosticListener"`），APM / 自定义诊断可订阅以下事件：
+
+| 事件名 | 触发时机 | payload |
+|---|---|---|
+| `Core.EventBus.PublishBefore` | 发布前 | `{MessageType, MessageData, ExecutionTime}` |
+| `Core.EventBus.PublishAfter` | 发布成功后 | 同上 |
+| `Core.EventBus.PublishError` | 发布失败 | 同上 + `ErrorMessage` |
+| `Core.EventBus.ConsumeBefore` | 消费前 | `{MessageType, MessageData, ExecutionTime}` |
+| `Core.EventBus.ConsumeAfter` | 消费成功后 | 同上 |
+| `Core.EventBus.ConsumeError` | handler 抛错 / 反序列化失败 / Id 校验失败 | 同上 + `HandlerType` + `ErrorMessage` |
+| `Core.EventBus.NotSubscribed` | 收到无订阅 routing key / topic 的消息 | 同上 |
+
+每个事件名都有双层 `IsEnabled` 短路：无监听者时零分配、不调 `Write`，对热路径无开销。`ConsumeError` + `NotSubscribed` 是把"静默失败"暴露成可观测信号的关键 — 推荐 APM 至少订阅这两个。
+
+> **失败路径不发 `AfterConsume`**：循环内有 handler 失败时，订阅器只发 `ConsumeError` 不发 `AfterConsume`，监控不会把"部分失败"误判为"消费成功"。
+
+### Channel pool 注册分层
+
+`IRabbitMqPublishChannelPool` 的构造细节封装在 `Core.RabbitMQ` 的 `AddRabbitMqPublishChannelPool(exchangeNameAccessor, poolSizeAccessor)` 扩展里。`Core.EventBus.RabbitMQ` 只提供 accessor（指向 `EventBusRabbitMqOptions.ExchangeName` / `ChannelPoolSize`），不再直接 `new RabbitMqPublishChannelPool(...)`。
+
+- ctor 改动只动 `Core.RabbitMQ`；
+- 想直接用 `Core.RabbitMQ`（不走 EventBus）发消息的项目可以直接调 `AddRabbitMqPublishChannelPool`，传自己的 accessor。

@@ -3,8 +3,7 @@ using System.Collections.Generic;
 namespace Core.Kafka
 {
     /// <summary>
-    /// Topic 声明配置。类比 <see cref="RabbitMqExchangeDeclareConfigure"/>，
-    /// 但 Kafka 的 topic 与 broker 配置（partition 数 / replication factor / 留存策略）耦合更紧。
+    /// Topic 声明配置;承载 topic 名 + partition 数 + 副本因子 + topic 级 broker 配置。
     /// </summary>
     /// <remarks>
     /// <para><b>使用场景</b></para>

@@ -9,6 +9,7 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -48,6 +49,11 @@ namespace Core.EventBus.RabbitMQ
         }
 
         /// <summary>某 message type 已无 handler 订阅时,解绑对应 routing key;queue 已无任何 binding 时连 consumer 一并释放。</summary>
+        /// <remarks>
+        /// <see cref="IMessageHandlerManager.OnEventRemoved"/> 是 .NET 事件,签名必须同步;
+        /// <c>UnbindAsync</c> 实现实际是同步完成后返回 <c>Task.CompletedTask</c>,<c>GetResult()</c> 不会阻塞 IO 线程,
+        /// 但显式 await 同步获取结果可让 channel 创建 / QueueUnbind 抛出的异常正常上抛,而不是被 Task 句柄吞掉。
+        /// </remarks>
         private void SubsManager_OnEventRemoved(object sender, Type messageType)
         {
             lock (_lock)
@@ -57,8 +63,8 @@ namespace Core.EventBus.RabbitMQ
                 if (!_rabbitMqMessageConsumerManager.TryGet(exchangeName, queueName, out var rabbitMqMessageConsumer))
                     return;
                 var eventName = MessageNameAttribute.GetNameOrDefault(messageType);
-                rabbitMqMessageConsumer.UnbindAsync(eventName);
-                if (rabbitMqMessageConsumer.HasRoutingKeyBindingQueue())
+                rabbitMqMessageConsumer.UnbindAsync(eventName).GetAwaiter().GetResult();
+                if (rabbitMqMessageConsumer.HasAnyRoutingKey())
                     return;
                 rabbitMqMessageConsumer.Dispose();
                 _rabbitMqMessageConsumerManager.TryRemove(exchangeName, queueName);
@@ -129,7 +135,7 @@ namespace Core.EventBus.RabbitMQ
         }
 
         /// <summary>消息抵达入口;handler 异常上抛由底层 Consumer 按 <see cref="EventBusRabbitMqOptions.FailureBehavior"/> 决定 ack/nack。</summary>
-        /// <remarks>反序列化失败 / Id 校验失败 路径直接 return,底层 Consumer 视作 processed → ACK,与 Kafka 跳过 poison 一致。</remarks>
+        /// <remarks>反序列化失败 / Id 校验失败 路径按 <see cref="EventBusRabbitMqOptions.PoisonMessageBehavior"/> 决策:SkipAndAck 直接 return(底层 Consumer 视作 processed → ACK);ThrowAndLetBrokerHandle 抛 <see cref="System.IO.InvalidDataException"/> 让 Consumer 走 nack/DLX。</remarks>
         private async Task Consumer_Received(IModel model, BasicDeliverEventArgs eventArgs)
         {
             var eventName = eventArgs.RoutingKey;
@@ -162,20 +168,18 @@ namespace Core.EventBus.RabbitMQ
                 catch (JsonException ex)
                 {
                     // payload 损坏/schema 不兼容:同一 payload 重投永远同 JsonException。
-                    // 直接 log + return → 底层 Consumer 视作 processed=true 自动 ACK,
-                    // 跳过 FailureBehavior(requeue/nack 对反序列化失败都没意义)。
-                    // 重要:ACK 不会触发 RabbitMQ 的 dead-letter 路由,所以即使配了 DeadLetterExchange
-                    // 也收不到反序列化失败的消息。可观测性只能依赖此处的 LogError + ConsumeError 诊断。
-                    // 如需 DLX 收集 poison message,需自行改为抛异常 + FailureBehavior=NackNoRequeue,
-                    // 但要承担 ack/nack 失败重投导致的 broker 阻塞风险。
+                    // 由 PoisonMessageBehavior 决定:SkipAndAck → log + return(底层 ACK 推进);
+                    //                          ThrowAndLetBrokerHandle → log + 抛 InvalidDataException
+                    //                          让底层按 FailureBehavior(nack/requeue/DLX)处置。
                     _logger.LogError(ex,
-                        "RabbitMQ payload 反序列化失败,跳过该条 routingKey={RoutingKey} messageType={MessageType} payload={Payload}",
-                        eventName, messageType, TrimForLog(message));
+                        "RabbitMQ payload 反序列化失败,routingKey={RoutingKey} messageType={MessageType} payload={Payload} behavior={Behavior}",
+                        eventName, messageType, TrimForLog(message), _options.Value.PoisonMessageBehavior);
                     EventBusDiagnosticListener.TracingConsumeError(null, null, ex.Message);
+                    HandlePoisonMessage(ex, "deserialization failed");
                     return;
                 }
 
-                // 反序列化产物身份校验:null / 缺 Id 都跳过(同样 ACK 推进,与 JsonException 路径语义一致)
+                // 反序列化产物身份校验:null / 缺 Id 走 PoisonMessageBehavior 同一路径
                 if (!ValidateIdentity(integrationEvent, brokerMessageId, eventName, messageType, message))
                 {
                     return;
@@ -236,6 +240,19 @@ namespace Core.EventBus.RabbitMQ
             return payload.Substring(0, MaxLogPayload) + "...(truncated)";
         }
 
+        /// <summary>按 <see cref="EventBusRabbitMqOptions.PoisonMessageBehavior"/> 处置毒消息:抛/吞。</summary>
+        /// <remarks>抛出时统一包装为 <see cref="InvalidDataException"/>,底层 Consumer 按 FailureBehavior nack/requeue/DLX。</remarks>
+        private void HandlePoisonMessage(Exception cause, string reason)
+        {
+            if (_options.Value.PoisonMessageBehavior == PoisonMessageBehavior.ThrowAndLetBrokerHandle)
+            {
+                throw new InvalidDataException(
+                    $"Poison message detected ({reason}); rethrowing per PoisonMessageBehavior=ThrowAndLetBrokerHandle.",
+                    cause);
+            }
+            // SkipAndAck: do nothing, caller returns and底层 ACK 推进 offset
+        }
+
         /// <summary>校验并对齐消息身份:优先以 brokerMessageId 为权威 Id;否则用 raw JSON 验证 payload 显式带 Id 字段。</summary>
         /// <remarks>
         /// <para>关键风险:<see cref="Message"/> 基类构造里 <c>Id = Guid.NewGuid()</c>。
@@ -253,9 +270,10 @@ namespace Core.EventBus.RabbitMQ
             if (integrationEvent == null)
             {
                 _logger.LogError(
-                    "RabbitMQ payload 反序列化为 null,跳过该条 routingKey={RoutingKey} messageType={MessageType} payload={Payload}",
-                    eventName, messageType, TrimForLog(rawPayload));
+                    "RabbitMQ payload 反序列化为 null,routingKey={RoutingKey} messageType={MessageType} payload={Payload} behavior={Behavior}",
+                    eventName, messageType, TrimForLog(rawPayload), _options.Value.PoisonMessageBehavior);
                 EventBusDiagnosticListener.TracingConsumeError(null, null, "deserialized payload is null");
+                HandlePoisonMessage(null, "deserialized payload is null");
                 return false;
             }
 
@@ -265,9 +283,10 @@ namespace Core.EventBus.RabbitMQ
                 if (brokerId == Guid.Empty)
                 {
                     _logger.LogError(
-                        "RabbitMQ brokerMessageId 为 Guid.Empty,跳过该条 routingKey={RoutingKey} messageType={MessageType}",
-                        eventName, messageType);
+                        "RabbitMQ brokerMessageId 为 Guid.Empty,routingKey={RoutingKey} messageType={MessageType} behavior={Behavior}",
+                        eventName, messageType, _options.Value.PoisonMessageBehavior);
                     EventBusDiagnosticListener.TracingConsumeError(integrationEvent, null, "brokerMessageId is Guid.Empty");
+                    HandlePoisonMessage(null, "brokerMessageId is Guid.Empty");
                     return false;
                 }
                 if (integrationEvent.Id != brokerId)
@@ -286,18 +305,20 @@ namespace Core.EventBus.RabbitMQ
             if (!HasExplicitIdField(rawPayload))
             {
                 _logger.LogError(
-                    "RabbitMQ payload 没有显式 Id 字段且 brokerMessageId 不可用,inbox 去重会失效,跳过 routingKey={RoutingKey} messageType={MessageType} payload={Payload}",
-                    eventName, messageType, TrimForLog(rawPayload));
+                    "RabbitMQ payload 没有显式 Id 字段且 brokerMessageId 不可用,inbox 去重会失效,routingKey={RoutingKey} messageType={MessageType} payload={Payload} behavior={Behavior}",
+                    eventName, messageType, TrimForLog(rawPayload), _options.Value.PoisonMessageBehavior);
                 EventBusDiagnosticListener.TracingConsumeError(integrationEvent, null, "payload missing explicit Id field");
+                HandlePoisonMessage(null, "payload missing explicit Id field");
                 return false;
             }
 
             if (integrationEvent.Id == Guid.Empty)
             {
                 _logger.LogError(
-                    "RabbitMQ payload Id 字段值为 Guid.Empty,inbox 去重会失效,跳过 routingKey={RoutingKey} messageType={MessageType}",
-                    eventName, messageType);
+                    "RabbitMQ payload Id 字段值为 Guid.Empty,inbox 去重会失效,routingKey={RoutingKey} messageType={MessageType} behavior={Behavior}",
+                    eventName, messageType, _options.Value.PoisonMessageBehavior);
                 EventBusDiagnosticListener.TracingConsumeError(integrationEvent, null, "payload Id is Guid.Empty");
+                HandlePoisonMessage(null, "payload Id is Guid.Empty");
                 return false;
             }
 

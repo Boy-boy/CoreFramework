@@ -4,7 +4,6 @@ using Core.RabbitMQ;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System;
 using System.Linq;
@@ -57,16 +56,11 @@ namespace Core.EventBus.RabbitMQ
                 rabbitMqOptions.DeadLetterRoutingKey = options.DeadLetterRoutingKey;
             });
 
-            // 用 EventBus 维度的 exchange / pool 大小实例化通用 channel 池
-            services.TryAddSingleton<IRabbitMqPublishChannelPool>(sp =>
-            {
-                var ebOptions = sp.GetRequiredService<IOptions<EventBusRabbitMqOptions>>().Value;
-                return new RabbitMqPublishChannelPool(
-                    sp.GetRequiredService<IRabbitMqPersistentConnection>(),
-                    ebOptions.ExchangeName,
-                    ebOptions.ChannelPoolSize,
-                    sp.GetRequiredService<ILogger<RabbitMqPublishChannelPool>>());
-            });
+            // 用 EventBus 维度的 exchange / pool 大小实例化通用 channel 池。
+            // 构造细节封装在 Core.RabbitMQ.AddRabbitMqPublishChannelPool 内,本层只提供 accessor。
+            services.AddRabbitMqPublishChannelPool(
+                sp => sp.GetRequiredService<IOptions<EventBusRabbitMqOptions>>().Value.ExchangeName,
+                sp => sp.GetRequiredService<IOptions<EventBusRabbitMqOptions>>().Value.ChannelPoolSize);
 
             // publisher / IOutboxRawSender 用 Scoped:与 UoW 所在 scope 对齐,避免 outbox 写入后 DbContext 提前释放
             // subscriber 保留 Singleton:管理 broker 长连接

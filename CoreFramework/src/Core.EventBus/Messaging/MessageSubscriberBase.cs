@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,7 +12,7 @@ namespace Core.EventBus.Messaging
     public abstract class MessageSubscriberBase : IMessageSubscriber
     {
         /// <summary>扫描程序集中所有 handler 类型,按它实现的每个 <see cref="IMessageHandler{TMessage}"/> 展开成订阅对。</summary>
-        public async Task InitializeAsync(Assembly[] assemblies, CancellationToken cancellationToken = default)
+        public async Task InitializeAsync(IReadOnlyList<Assembly> assemblies, CancellationToken cancellationToken = default)
         {
             var handlerTypes = MessageHandlerExtensions.GetHandlerTypes(assemblies);
             foreach (var handlerType in handlerTypes)

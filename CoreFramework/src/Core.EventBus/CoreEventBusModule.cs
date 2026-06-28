@@ -1,7 +1,6 @@
 using Core.Modularity;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Options;
 
 namespace Core.EventBus
 {
@@ -26,10 +25,10 @@ namespace Core.EventBus
         /// <summary>所有模块 ConfigureServices 已跑完,此时 options 已聚合,一次性把所有 extension 安装到 IoC。</summary>
         public override void PostConfigureServices(ServiceCollectionContext context)
         {
-            // using 显式 Dispose,避免容器及内部 singleton 泄漏
-            using var serviceProvider = context.Services.BuildServiceProvider();
-            var options = serviceProvider.GetRequiredService<IOptions<EventBusOptions>>().Value;
-            options.Configure(context.Services);
+            // 直接走 IServiceCollection 上的 IConfigureOptions 描述符,不再 BuildServiceProvider():
+            // - 避免 "Building service provider during configuration" 反模式与对应警告
+            // - 避免在配置阶段实例化 Singleton 再 Dispose 引发副作用
+            context.Services.ResolveAndConfigureEventBus();
         }
     }
 }

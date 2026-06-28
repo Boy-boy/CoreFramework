@@ -805,7 +805,7 @@ channel.QueueUnbind(
     routingKey: routingKey);
 ```
 
-`HasRoutingKeyBindingQueue()` 用于判断当前 consumer 是否还记录着任何 routing key 绑定。
+`HasAnyRoutingKey()` 用于判断当前 consumer 是否还记录着任何 routing key 绑定。
 
 ---
 

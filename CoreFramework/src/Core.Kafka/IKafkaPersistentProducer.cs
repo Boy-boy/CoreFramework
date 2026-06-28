@@ -7,8 +7,8 @@ using Confluent.Kafka;
 namespace Core.Kafka
 {
     /// <summary>
-    /// Kafka 持久化生产者抽象。类比 <see cref="IRabbitMqPersistentConnection"/> 的角色：
-    /// 在整个进程内维护一个长生命周期的 <see cref="IProducer{TKey,TValue}"/> 实例并复用。
+    /// Kafka 持久化生产者抽象;在整个进程内维护一个长生命周期的
+    /// <see cref="IProducer{TKey,TValue}"/> 实例并复用。
     /// </summary>
     /// <remarks>
     /// <para><b>为什么是 Singleton</b></para>

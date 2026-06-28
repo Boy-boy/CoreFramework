@@ -285,7 +285,7 @@ namespace Core.RabbitMQ
             }
         }
 
-        public bool HasRoutingKeyBindingQueue()
+        public bool HasAnyRoutingKey()
         {
             return BindingQueueRoutingKeys.Any();
         }

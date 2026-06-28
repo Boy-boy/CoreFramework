@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,7 +11,7 @@ namespace Core.EventBus
     public interface IMessageSubscriber
     {
         /// <summary>扫描入参程序集,反射出所有 <see cref="IMessageHandler{TMessage}"/> 实现并完成订阅;启动时调用一次。</summary>
-        Task InitializeAsync(Assembly[] assemblies, CancellationToken cancellationToken = default);
+        Task InitializeAsync(IReadOnlyList<Assembly> assemblies, CancellationToken cancellationToken = default);
 
         /// <summary>单条订阅入口;运行时动态添加订阅时调用。</summary>
         Task SubscribeAsync<T, TH>(CancellationToken cancellationToken = default)

@@ -20,7 +20,7 @@ namespace Core.Kafka
     ///   <item><description><c>AutoOffsetReset = Earliest</c>：首次 join group 时从最早 offset 读，避免上线前事件被静默吞掉。</description></item>
     /// </list>
     ///
-    /// <para><b>失败处理策略（与 RabbitMQ 实现对齐:让 broker 在下一轮重投同条消息）</b></para>
+    /// <para><b>失败处理策略(让 broker 在下一轮重投同条消息)</b></para>
     /// <para>
     /// <see cref="PollLoop"/> 对每条消息都先调 handler 集合,只要任一 handler 抛异常,
     /// 就跳过 commit 并 <see cref="Confluent.Kafka.IConsumer{TKey,TValue}.Seek"/> 回当前 <see cref="ConsumeResult{TKey, TValue}.TopicPartitionOffset"/>,

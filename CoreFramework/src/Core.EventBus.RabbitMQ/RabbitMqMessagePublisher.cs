@@ -6,12 +6,9 @@ using Core.RabbitMQ;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Polly;
-using RabbitMQ.Client.Exceptions;
 using System;
 using System.Collections.Concurrent;
 using System.IO;
-using System.Net.Sockets;
 using System.Reflection;
 using System.Text;
 using System.Threading;
@@ -19,16 +16,14 @@ using System.Threading.Tasks;
 
 namespace Core.EventBus.RabbitMQ
 {
-    /// <summary>RabbitMQ 集成事件 publisher;同时实现 <see cref="IIntegrationPublisher"/>(业务直发)与 <see cref="IOutboxRawSender"/>(outbox dispatcher 直发),两个入口都汇合到 <see cref="PublishToBroker"/>。</summary>
+    /// <summary>RabbitMQ 集成事件 publisher;同时实现 <see cref="IIntegrationPublisher"/>(业务直发)与 <see cref="IOutboxRawSender"/>(outbox dispatcher 直发),两个入口都汇合到 <see cref="PublishToBrokerAsync"/>。</summary>
     /// <remarks>
-    /// 容错:Polly 对 <see cref="BrokerUnreachableException"/> / <see cref="SocketException"/> 做 3 次线性退避(1s/2s/3s),持续故障冒给调用方(业务层或 dispatcher 的 MarkFailed 退避循环)。
+    /// 容错分层:连接级瞬时错误由 <see cref="IRabbitMqPersistentConnection"/> 内置 Polly 6 次指数退避兜底;channel 级失效由 <see cref="RabbitMqPublishChannelPool"/> Acquire 时重建;发布层不再加重试,失败原样冒给调用方(业务层捕获或 outbox dispatcher 进入 MarkFailed 指数退避循环 + 死信表兜底)。
     /// 持久化:<c>DeliveryMode=2</c> + exchange durable 抗 broker 重启,<c>mandatory=true</c> 让无 routing 立即 return 而非静默丢弃。
     /// channel 池化:Singleton publisher 共享 <see cref="RabbitMqPublishChannelPool"/>,channel 首次创建时一次性完成 ExchangeDeclare + ConfirmSelect + BasicReturn 挂载,后续复用走纯 BasicPublish + WaitForConfirms。
     /// </remarks>
     public class RabbitMqMessagePublisher : IntegrationMessagePublisherBase, IIntegrationPublisher, IOutboxRawSender
     {
-        /// <summary>Polly 重试次数,线性退避 1s/2s/3s 共约 6s,超时抛给上游。</summary>
-        private readonly int _retryCount = 3;
         private readonly IRabbitMqPublishChannelPool _channelPool;
         private readonly IOptions<EventBusRabbitMqOptions> _options;
         private readonly ILogger<RabbitMqMessagePublisher> _logger;
@@ -117,53 +112,39 @@ namespace Core.EventBus.RabbitMQ
         /// 都是同步阻塞 API,直接 await 会让调用方线程在网络 I/O 期间被占住。
         /// 用 <c>Task.Run</c> 把整个同步代码块移到线程池工作线程,业务调用方(controller / outbox dispatcher)
         /// 的 await 真正非阻塞,不会拖住请求线程或 dispatcher 主循环。</para>
-        /// <para>Polly 的 <c>WaitAndRetryAsync</c> 配合 <c>Task.Delay</c> 让重试间隔同样非阻塞。</para>
+        /// <para>不在本层做重试:连接级瞬时错误由 <see cref="IRabbitMqPersistentConnection"/> 的 6 次指数退避负责;
+        /// 业务级失败(routing 失败 / nack / 超时)直接抛给上游 —— outbox dispatcher 的 MarkFailed
+        /// 循环或业务调用方按自己的策略处理。</para>
         /// </remarks>
         private async Task PublishToBrokerAsync(Guid messageId, string routingKey, string payload, CancellationToken cancellationToken)
         {
             _logger.LogTrace("RabbitMQ publish messageId={MessageId} routingKey={RoutingKey}", messageId, routingKey);
 
-            // 仅对连接级瞬时错误重试;业务错误(如 routing 失败)不重试,避免放大故障
-            var policy = Policy.Handle<BrokerUnreachableException>()
-                .Or<SocketException>()
-                .WaitAndRetryAsync(_retryCount,
-                    retryAttempt => TimeSpan.FromSeconds(retryAttempt),
-                    (ex, time) =>
-                    {
-                        _logger.LogWarning(ex,
-                            "Could not publish event: {EventId} after {Timeout}s ({ExceptionMessage})",
-                            messageId, $"{time.TotalSeconds:n1}", ex.Message);
-                    });
+            cancellationToken.ThrowIfCancellationRequested();
 
             var body = Encoding.UTF8.GetBytes(payload);
             var exchangeName = _options.Value.ExchangeName;
 
-            // 把 cancellationToken 传给 Polly,retry 之间检查取消,避免进程关闭时空等
-            await policy.ExecuteAsync(ct =>
+            // 关键:Task.Run 把 RabbitMQ.Client 的同步阻塞 API 卸到线程池,
+            // 释放调用方线程(controller 请求线程 / dispatcher 主循环)以处理其他工作
+            await Task.Run(() =>
             {
-                ct.ThrowIfCancellationRequested();
+                using var rental = _channelPool.Acquire(cancellationToken);
+                var channel = rental.Channel;
 
-                // 关键:Task.Run 把 RabbitMQ.Client 的同步阻塞 API 卸到线程池,
-                // 释放调用方线程(controller 请求线程 / dispatcher 主循环)以处理其他工作
-                return Task.Run(() =>
-                {
-                    using var rental = _channelPool.Acquire(ct);
-                    var channel = rental.Channel;
+                var properties = channel.CreateBasicProperties();
+                properties.DeliveryMode = 2;                       // persistent:消息落 broker 磁盘
+                properties.MessageId = messageId.ToString();       // 业务消息 Id,即消费端 inbox 去重键
+                channel.BasicPublish(
+                    exchange: exchangeName,
+                    routingKey: routingKey,
+                    mandatory: true,                               // routing 不到 queue 立刻 return 而非丢弃
+                    basicProperties: properties,
+                    body: body);
 
-                    var properties = channel.CreateBasicProperties();
-                    properties.DeliveryMode = 2;                       // persistent:消息落 broker 磁盘
-                    properties.MessageId = messageId.ToString();       // 业务消息 Id,即消费端 inbox 去重键
-                    channel.BasicPublish(
-                        exchange: exchangeName,
-                        routingKey: routingKey,
-                        mandatory: true,                               // routing 不到 queue 立刻 return 而非丢弃
-                        basicProperties: properties,
-                        body: body);
-
-                    // 等 broker 明确回执;失败(退回/nack/超时)统一抛 RabbitMqPublishFailedException,
-                    // 让 outbox dispatcher 据此 MarkFailed 而非误判已成功
-                    rental.WaitForConfirmsOrThrow(TimeSpan.FromSeconds(5));
-                }, ct);
+                // 等 broker 明确回执;失败(退回/nack/超时)统一抛 RabbitMqPublishFailedException,
+                // 让 outbox dispatcher 据此 MarkFailed 而非误判已成功
+                rental.WaitForConfirmsOrThrow(TimeSpan.FromSeconds(5));
             }, cancellationToken).ConfigureAwait(false);
         }
     }

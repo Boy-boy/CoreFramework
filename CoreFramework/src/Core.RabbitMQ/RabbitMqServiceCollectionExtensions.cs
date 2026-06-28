@@ -8,30 +8,34 @@ namespace Microsoft.Extensions.DependencyInjection
 {
     public static class RabbitMqServiceCollectionExtensions
     {
-        public static IServiceCollection AddRabbitMq(this IServiceCollection services, Action<RabbitMqOptions> configureOptions)
+        /// <summary>只注册 RabbitMQ infrastructure singleton,不绑定任何 <see cref="RabbitMqOptions"/> 来源。</summary>
+        /// <remarks>给上层模块用:它自己用 <c>AddOptions&lt;RabbitMqOptions&gt;().Configure&lt;IOptions&lt;XxxOptions&gt;&gt;(...)</c> 把配置联动过来,避免在 appsettings 里写两遍。</remarks>
+        public static IServiceCollection AddRabbitMq(this IServiceCollection services)
         {
             if (services == null)
                 throw new ArgumentNullException(nameof(services));
 
+            services.TryAddSingleton<IRabbitMqPersistentConnection, DefaultRabbitMqPersistentConnection>();
+            services.TryAddSingleton<IRabbitMqMessageConsumerManager, DefaultRabbitMqMessageConsumerManager>();
+            return services;
+        }
+
+        public static IServiceCollection AddRabbitMq(this IServiceCollection services, Action<RabbitMqOptions> configureOptions)
+        {
             if (configureOptions == null)
                 throw new ArgumentNullException(nameof(configureOptions));
 
-            services.TryAddSingleton<IRabbitMqPersistentConnection, DefaultRabbitMqPersistentConnection>();
-            services.TryAddSingleton<IRabbitMqMessageConsumerManager, DefaultRabbitMqMessageConsumerManager>();
+            services.AddRabbitMq();
             services.Configure(configureOptions);
             return services;
         }
 
         public static IServiceCollection AddRabbitMq(this IServiceCollection services, IConfiguration configuration)
         {
-            if (services == null)
-                throw new ArgumentNullException(nameof(services));
-
             if (configuration == null)
                 throw new ArgumentNullException(nameof(configuration));
 
-            services.TryAddSingleton<IRabbitMqPersistentConnection, DefaultRabbitMqPersistentConnection>();
-            services.TryAddSingleton<IRabbitMqMessageConsumerManager, DefaultRabbitMqMessageConsumerManager>();
+            services.AddRabbitMq();
             services.Configure<RabbitMqOptions>(configuration);
             return services;
         }

@@ -202,6 +202,16 @@ IOptions<RabbitMqOptions>
 
 注册使用 `TryAddSingleton`，如果你在调用前已经注册自定义实现，本库不会覆盖已有实现。
 
+### 方式一·补：只挂 infrastructure，不绑配置
+
+如果上层模块要自己接管 `RabbitMqOptions` 的来源（典型如 `Core.EventBus.RabbitMQ` 用 `AddOptions<RabbitMqOptions>().Configure<IOptions<EventBusRabbitMqOptions>>(...)` 把 EventBus 自家 options 的 `Broker` 字段联动过来），可以调无参重载：
+
+```csharp
+services.AddRabbitMq();   // 只 TryAddSingleton 两个 infrastructure 服务
+```
+
+此时本库不向容器注入任何 `Configure<RabbitMqOptions>(...)`；调用方需要自己提供至少一个 Options 配置源（`Configure` / `AddOptions...Configure<IOptions<...>>` / `PostConfigure` 等），否则 `IOptions<RabbitMqOptions>.Value` 解析出的实例 `Connection.HostName` 为空，首次 `TryConnect()` 会抛 `InvalidOperationException`。
+
 ### 方式二：通过 Core.Modularity 模块注册
 
 `CoreRabbitMqModule` 会在 `ConfigureServices` 中执行：

@@ -161,6 +161,16 @@ IOptions<KafkaOptions>
 
 使用 `TryAddSingleton`，如果你在调用前已经注册自定义实现，本库不会覆盖。
 
+### 方式一·补：只挂 infrastructure，不绑配置
+
+如果上层模块要自己接管 `KafkaOptions` 的来源（典型如 `Core.EventBus.Kafka` 用 `AddOptions<KafkaOptions>().Configure<IOptions<EventBusKafkaOptions>>(...)` 把 EventBus 自家 options 的 `Broker` 字段联动过来），可以调无参重载：
+
+```csharp
+services.AddKafka();   // 只 TryAddSingleton 两个 infrastructure 服务
+```
+
+此时本库不向容器注入任何 `Configure<KafkaOptions>(...)`；调用方需要自己提供至少一个 Options 配置源（`Configure` / `AddOptions...Configure<IOptions<...>>` / `PostConfigure` 等），否则首次解析 `IOptions<KafkaOptions>.Value` 时 `BuildClientConfig()` 会因 `BootstrapServers` 为空抛 `InvalidOperationException`。
+
 ### 方式二：通过 Core.Modularity 模块注册
 
 `CoreKafkaModule` 会在 `ConfigureServices` 中执行 `services.AddKafka(Configuration.GetSection("Kafka"))`。

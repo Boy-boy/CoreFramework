@@ -21,7 +21,7 @@ namespace Core.EventBus.RabbitMQ
     /// <remarks>
     /// 流程:Subscribe 注册 handler 并准备 consumer → broker 推消息 → <see cref="Consumer_Received"/> → <see cref="ProcessEvent"/> 按 routingKey 查 wrapper、反序列化、逐个 invoke。
     /// 幂等与事务一致由注入的 <see cref="IMessageHandlerInvoker"/> 决定(启用 <c>AddEfCoreEventBusStorage</c> 后自带 UoW + inbox)。
-    /// ack/nack 由底层 Core.RabbitMQ 按 <see cref="EventBusRabbitMqOptions.FailureBehavior"/> 决策,handler 异常会上抛而非静默吞。
+    /// ack/nack 由底层 Core.RabbitMQ 按 <c>EventBusRabbitMqOptions.Broker.FailureBehavior</c> 决策,handler 异常会上抛而非静默吞。
     /// </remarks>
     public class RabbitMqMessageSubscriber : MessageSubscriberBase, IIntegrationSubscriber
     {
@@ -98,12 +98,13 @@ namespace Core.EventBus.RabbitMQ
             var queueDeclare = new RabbitMqQueueDeclareConfigure(queueName);
 
             // 配置了 DLX 时写入 queue arguments;同名 queue 属性不一致会被 broker 拒绝(预期行为,让用户感知 schema 变化)
-            if (!string.IsNullOrEmpty(_options.Value.DeadLetterExchange))
+            var broker = _options.Value.Broker;
+            if (broker != null && !string.IsNullOrEmpty(broker.DeadLetterExchange))
             {
-                queueDeclare.Arguments["x-dead-letter-exchange"] = _options.Value.DeadLetterExchange;
-                if (!string.IsNullOrEmpty(_options.Value.DeadLetterRoutingKey))
+                queueDeclare.Arguments["x-dead-letter-exchange"] = broker.DeadLetterExchange;
+                if (!string.IsNullOrEmpty(broker.DeadLetterRoutingKey))
                 {
-                    queueDeclare.Arguments["x-dead-letter-routing-key"] = _options.Value.DeadLetterRoutingKey;
+                    queueDeclare.Arguments["x-dead-letter-routing-key"] = broker.DeadLetterRoutingKey;
                 }
             }
 
@@ -122,18 +123,20 @@ namespace Core.EventBus.RabbitMQ
         {
             if (Interlocked.Exchange(ref _failureBehaviorWarned, 1) != 0) return;
 
-            var fb = _options.Value.FailureBehavior;
+            var broker = _options.Value.Broker;
+            if (broker == null) return;
+            var fb = broker.FailureBehavior;
             var dropOnFailure = fb == RabbitMqFailureBehavior.NackNoRequeue || fb == RabbitMqFailureBehavior.RequeueOnce;
-            if (dropOnFailure && string.IsNullOrEmpty(_options.Value.DeadLetterExchange))
+            if (dropOnFailure && string.IsNullOrEmpty(broker.DeadLetterExchange))
             {
                 _logger.LogWarning(
-                    "FailureBehavior={Behavior} 在非重投路径会丢消息,但未配置 EventBus:RabbitMq:DeadLetterExchange," +
+                    "FailureBehavior={Behavior} 在非重投路径会丢消息,但未配置 EventBus:RabbitMq:Broker:DeadLetterExchange," +
                     "二次失败/不重投的消息将被直接丢弃。建议配置 DLX 或改用 AlwaysAck。",
                     fb);
             }
         }
 
-        /// <summary>消息抵达入口;handler 异常上抛由底层 Consumer 按 <see cref="EventBusRabbitMqOptions.FailureBehavior"/> 决定 ack/nack。</summary>
+        /// <summary>消息抵达入口;handler 异常上抛由底层 Consumer 按 <c>EventBusRabbitMqOptions.Broker.FailureBehavior</c> 决定 ack/nack。</summary>
         /// <remarks>反序列化失败 / Id 校验失败 路径按 <see cref="EventBusRabbitMqOptions.PoisonMessageBehavior"/> 决策:SkipAndAck 直接 return(底层 Consumer 视作 processed → ACK);ThrowAndLetBrokerHandle 抛 <see cref="System.IO.InvalidDataException"/> 让 Consumer 走 nack/DLX。</remarks>
         private async Task Consumer_Received(IModel model, BasicDeliverEventArgs eventArgs)
         {

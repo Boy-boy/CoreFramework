@@ -2,16 +2,18 @@ using System;
 using System.Linq;
 using Core.EventBus.Integration;
 using Core.EventBus.Outbox;
+using Core.Kafka;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 
 namespace Core.EventBus.Kafka
 {
     /// <summary>
     /// Kafka broker 的 <see cref="IEventBusOptionsExtensions"/> 实现:绑定
-    /// <see cref="EventBusKafkaOptions"/>,桥接 connection 到 <c>CoreKafkaModule</c>,
-    /// 并注册 publisher / subscriber / <see cref="IOutboxRawSender"/>。
+    /// <see cref="EventBusKafkaOptions"/>,用 IOptions 联动把 <see cref="EventBusKafkaOptions.Broker"/>
+    /// 字段透传给底层 <see cref="KafkaOptions"/>,并注册 publisher / subscriber / <see cref="IOutboxRawSender"/>。
     /// </summary>
     public class EventBusOptionsExtensions : IEventBusOptionsExtensions
     {
@@ -33,29 +35,30 @@ namespace Core.EventBus.Kafka
             // 同一进程仅允许一个 integration broker;检测到其他实现则抛错
             GuardSingleIntegrationBroker(services);
 
-            var options = new EventBusKafkaOptions();
             if (_options != null)
             {
                 services.Configure(_options);
-                _options.Invoke(options);
             }
             else if (_configuration != null)
             {
                 services.Configure<EventBusKafkaOptions>(_configuration);
-                // 配置节点缺失/为空时 Get<T>() 返回 null,沿用默认实例
-                var fromConfig = _configuration.Get<EventBusKafkaOptions>();
-                if (fromConfig != null) options = fromConfig;
             }
             // PostConfigure 在所有 Configure 跑完后由 IOptions 解析触发;publisher/subscriber 启动时第一次解析即生效
             services.PostConfigure<EventBusKafkaOptions>(o => o.Validate());
 
-            services.AddKafka(kafkaOptions =>
+            // 只注册 infrastructure singleton,Configure<KafkaOptions> 由下面的 IOptions 联动接管
+            services.AddKafka();
+
+            // 用 IOptions 联动取代之前的快照式手写桥接:解析 KafkaOptions 时拉一份 EventBusKafkaOptions.Broker 字段
+            // 1) 后续对 EventBusKafkaOptions 的 PostConfigure 同样能传递到 KafkaOptions
+            // 2) Broker 是 KafkaOptions 原型,底层新增字段无需 EventBus 层跟改 —— 这里不做字段映射,直接整对象复制
+            services.AddOptions<KafkaOptions>().Configure<IOptions<EventBusKafkaOptions>>((kfk, eb) =>
             {
-                kafkaOptions.Connection = options.Connection;
-                // 桥接到底层 consumer 的 Seek-retry 间隔
-                kafkaOptions.FailureBackoff = options.FailureBackoff;
-                // poison message 触顶 commit-skip 的最大重试次数
-                kafkaOptions.MaxConsecutiveFailures = options.MaxConsecutiveFailures;
+                var src = eb.Value.Broker;
+                if (src == null) return;
+                kfk.Connection = src.Connection;
+                kfk.FailureBackoff = src.FailureBackoff;
+                kfk.MaxConsecutiveFailures = src.MaxConsecutiveFailures;
             });
 
             // publisher / IOutboxRawSender 用 Scoped:与 UoW 所在 scope 对齐,避免 outbox 写入后 DbContext 提前释放

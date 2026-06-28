@@ -10,7 +10,7 @@ using System.Linq;
 
 namespace Core.EventBus.RabbitMQ
 {
-    /// <summary>RabbitMQ broker 的 <see cref="IEventBusOptionsExtensions"/> 实现;把 options 绑到 IOptions、桥接 connection 到底层模块,并完成 publisher/subscriber/池等 DI 注册。</summary>
+    /// <summary>RabbitMQ broker 的 <see cref="IEventBusOptionsExtensions"/> 实现;把 options 绑到 IOptions、用 IOptions 联动把 <see cref="EventBusRabbitMqOptions.Broker"/> 字段透传给底层 <see cref="RabbitMqOptions"/>,并完成 publisher/subscriber/池等 DI 注册。</summary>
     /// <remarks>支持 Action&lt;EventBusRabbitMqOptions&gt; 与 <see cref="IConfiguration"/> 两种来源,构造函数二选一。</remarks>
     public class EventBusOptionsExtensions : IEventBusOptionsExtensions
     {
@@ -27,35 +27,37 @@ namespace Core.EventBus.RabbitMQ
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         }
 
-        /// <summary>绑定 options 到 IOptions、把 connection / 失败策略 / DLX 桥接到底层 RabbitMQ 模块,并注册 publisher / subscriber / 池 / IOutboxRawSender。</summary>
+        /// <summary>绑定 EventBus 侧 options,用 IOptions 联动把 <see cref="EventBusRabbitMqOptions.Broker"/> 透传给底层 <see cref="RabbitMqOptions"/>,并注册 publisher / subscriber / 池 / IOutboxRawSender。</summary>
         public void AddServices(IServiceCollection services)
         {
             // 同一进程仅允许一个 integration broker;检测到其他实现则抛错
             GuardSingleIntegrationBroker(services);
 
-            var options = new EventBusRabbitMqOptions();
             if (_options != null)
             {
                 services.Configure(_options);
-                _options.Invoke(options);
             }
             else if (_configuration != null)
             {
                 services.Configure<EventBusRabbitMqOptions>(_configuration);
-                // 配置节点缺失/为空时 Get<T>() 返回 null,沿用默认实例避免下方 NRE
-                var fromConfig = _configuration.Get<EventBusRabbitMqOptions>();
-                if (fromConfig != null) options = fromConfig;
             }
             // PostConfigure 在所有 Configure 跑完后由 IOptions 解析触发;publisher/subscriber 启动时第一次解析即生效
             services.PostConfigure<EventBusRabbitMqOptions>(o => o.Validate());
 
-            services.AddRabbitMq(rabbitMqOptions =>
+            // 只注册 infrastructure singleton,Configure<RabbitMqOptions> 由下面的 IOptions 联动接管
+            services.AddRabbitMq();
+
+            // 用 IOptions 联动取代之前的快照式手写桥接:解析 RabbitMqOptions 时拉一份 EventBusRabbitMqOptions.Broker 字段
+            // 1) 后续对 EventBusRabbitMqOptions 的 PostConfigure 同样能传递到 RabbitMqOptions
+            // 2) Broker 是 RabbitMqOptions 原型,底层新增字段无需 EventBus 层跟改 —— 这里不做字段映射,直接整对象复制
+            services.AddOptions<RabbitMqOptions>().Configure<IOptions<EventBusRabbitMqOptions>>((rmq, eb) =>
             {
-                rabbitMqOptions.Connection = options.Connection;
-                // 失败策略桥接到底层 consumer 的 ack/nack 决策
-                rabbitMqOptions.FailureBehavior = options.FailureBehavior;
-                rabbitMqOptions.DeadLetterExchange = options.DeadLetterExchange;
-                rabbitMqOptions.DeadLetterRoutingKey = options.DeadLetterRoutingKey;
+                var src = eb.Value.Broker;
+                if (src == null) return;
+                rmq.Connection = src.Connection;
+                rmq.FailureBehavior = src.FailureBehavior;
+                rmq.DeadLetterExchange = src.DeadLetterExchange;
+                rmq.DeadLetterRoutingKey = src.DeadLetterRoutingKey;
             });
 
             // 用 EventBus 维度的 exchange / pool 大小实例化通用 channel 池。

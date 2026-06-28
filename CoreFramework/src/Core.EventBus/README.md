@@ -240,20 +240,24 @@ options.AddRabbitMq(Configuration.GetSection("EventBus:RabbitMq"));
     "RabbitMq": {
       "ExchangeName": "event_bus_default_routing",
       "ChannelPoolSize": 8,
-      "FailureBehavior": "RequeueOnce",
-      "DeadLetterExchange": "event_bus_dlx",
-      "DeadLetterRoutingKey": null,
-      "Connection": {
-        "HostName": "rabbit-1;rabbit-2;rabbit-3",
-        "Port": 5672,
-        "UserName": "guest",
-        "Password": "guest",
-        "VirtualHost": "/"
+      "Broker": {
+        "FailureBehavior": "RequeueOnce",
+        "DeadLetterExchange": "event_bus_dlx",
+        "DeadLetterRoutingKey": null,
+        "Connection": {
+          "HostName": "rabbit-1;rabbit-2;rabbit-3",
+          "Port": 5672,
+          "UserName": "guest",
+          "Password": "guest",
+          "VirtualHost": "/"
+        }
       }
     }
   }
 }
 ```
+
+> `Broker` 子节直接对应 `Core.RabbitMQ.RabbitMqOptions` —— 底层新增字段无需 EventBus 层跟改,appsettings 里也不需要写两遍。
 
 **路由模型：**
 - 所有事件共享一个 **direct exchange**（`ExchangeName`）。
@@ -264,9 +268,9 @@ options.AddRabbitMq(Configuration.GetSection("EventBus:RabbitMq"));
 - publisher 注册为 **Scoped**（详见架构内幕一节）；所有 scope 共享同一个 Singleton `RabbitMqPublishChannelPool`（大小由 `ChannelPoolSize` 控制，默认 8）。每条 channel 在首次创建时一次性完成 `ExchangeDeclare` + `ConfirmSelect` + `BasicReturn` 监听挂载，后续 publish 复用同一 channel 只走纯 `BasicPublish` + `WaitForConfirms`。
 - 每条消息都标 `mandatory: true` + `DeliveryMode: 2`，落 broker 磁盘且无路由时立即 return。
 - `WaitForConfirmsOrThrow(5s)` 把"被退回 / nack / 等待超时"统一转成 `RabbitMqPublishFailedException`（派生类：`RabbitMqPublishReturnedException` / `RabbitMqPublishUnconfirmedException`），不会再被错误地当作"发布成功"。
-- 仅对**连接级**瞬时错误（`BrokerUnreachableException` / `SocketException`）做 Polly 3 次线性退避（1s/2s/3s）；其他失败原样冒到上游（业务侧捕获或被 outbox dispatcher 进入 MarkFailed 退避循环）。
+- **publisher 层不做重试**：连接级瞬时错误由 `IRabbitMqPersistentConnection` 内置的 Polly 6 次指数退避（2/4/8/16/32/64s）兜底；channel 级失效由 channel pool 在 `Acquire` 时自动重建。发布失败原样冒给调用方 —— 业务侧按自己的策略处理，outbox 路径走 `OutboxDispatcher.MarkFailed` 指数退避（默认 5s → 10min，8 次，超额转 DLQ）。
 
-**消费端失败行为（`FailureBehavior`）：**
+**消费端失败行为（`Broker.FailureBehavior`）：**
 
 | 值 | 语义 | 适用 |
 |---|---|---|
@@ -274,16 +278,16 @@ options.AddRabbitMq(Configuration.GetSection("EventBus:RabbitMq"));
 | `NackNoRequeue` | 失败立即 `nack(requeue=false)`；进 DLX 或丢弃 | 可观测但接受丢失 |
 | `AlwaysAck` | 失败也 ack —— **完全依赖**上层 inbox 兜底，否则消息静默丢失 | 与旧版本兼容 |
 
-> **DLX 提醒：** `RequeueOnce`/`NackNoRequeue` 在非重投路径会丢消息。若没配 `DeadLetterExchange`，订阅器启动时会一次性 `LogWarning` 提醒；二次失败的消息会被 broker 直接丢弃，运维无法回溯。配 DLX 时框架在 queue 声明时自动写入 `x-dead-letter-exchange`（以及可选 `x-dead-letter-routing-key`），但 DLX → DLQ 的绑定需要运维自行完成（业务语义太多样，框架不代办）。
+> **DLX 提醒：** `RequeueOnce`/`NackNoRequeue` 在非重投路径会丢消息。若没配 `Broker.DeadLetterExchange`，订阅器启动时会一次性 `LogWarning` 提醒；二次失败的消息会被 broker 直接丢弃，运维无法回溯。配 DLX 时框架在 queue 声明时自动写入 `x-dead-letter-exchange`（以及可选 `x-dead-letter-routing-key`），但 DLX → DLQ 的绑定需要运维自行完成（业务语义太多样，框架不代办）。
 
-**单 handler 失败处理：** 同一 routing key 下的多个 handler 仍然按优先级依次执行；某个 handler 抛异常**不阻断**后续 handler，但循环结束会聚合上抛 `AggregateException` —— 让 broker 层按 `FailureBehavior` 决定 ack/nack。与本地事件的"静默 catch"不一样：本地 publisher 不可能丢失消息，broker 路径才需要把失败信号还原回去。
+**单 handler 失败处理：** 同一 routing key 下的多个 handler 仍然按优先级依次执行；某个 handler 抛异常**不阻断**后续 handler，但循环结束会聚合上抛 `AggregateException` —— 让 broker 层按 `Broker.FailureBehavior` 决定 ack/nack。与本地事件的"静默 catch"不一样：本地 publisher 不可能丢失消息，broker 路径才需要把失败信号还原回去。
 
 **毒消息（`PoisonMessageBehavior`）：** 反序列化失败 / payload 没显式 `Id` 字段 / Id 解析为空等"同一 payload 重投永远会再次失败"的情况，由 `PoisonMessageBehavior` 决定：
 
 | 值 | 行为 |
 |---|---|
 | `SkipAndAck`（默认） | LogError + return，底层 Consumer 视作 processed → 自动 ACK 推进。**不会进入 DLX**（ACK 不算 dead-letter），可观测性靠 LogError + ConsumeError 诊断 |
-| `ThrowAndLetBrokerHandle` | LogError + 抛 `InvalidDataException` → 底层 Consumer 按 `FailureBehavior` 决定 nack/requeue。配合 `FailureBehavior=NackNoRequeue` + 配置 `DeadLetterExchange` 即可让毒消息进入 DLX 集中排查 |
+| `ThrowAndLetBrokerHandle` | LogError + 抛 `InvalidDataException` → 底层 Consumer 按 `Broker.FailureBehavior` 决定 nack/requeue。配合 `Broker.FailureBehavior=NackNoRequeue` + 配置 `Broker.DeadLetterExchange` 即可让毒消息进入 DLX 集中排查 |
 
 > 选 `ThrowAndLetBrokerHandle` 配 `RequeueOnce` 时同一条毒消息会被 broker 重投一次后才进 DLX/丢弃，期间 queue 头部消费会被推迟 — 想要严格 DLX 收集请改 `NackNoRequeue`。
 
@@ -305,19 +309,23 @@ options.AddKafka(Configuration.GetSection("EventBus:Kafka"));
       "DeclareTopicsOnSubscribe": false,
       "DefaultPartitionCount": 3,
       "DefaultReplicationFactor": 2,
-      "FailureBackoff": "00:00:05",
-      "MaxConsecutiveFailures": 5,
-      "Connection": {
-        "BootstrapServers": "kafka-1:9092,kafka-2:9092,kafka-3:9092",
-        "SecurityProtocol": "SaslSsl",
-        "SaslMechanism": "ScramSha512",
-        "SaslUsername": "app",
-        "SaslPassword": "***"
+      "Broker": {
+        "FailureBackoff": "00:00:05",
+        "MaxConsecutiveFailures": 5,
+        "Connection": {
+          "BootstrapServers": "kafka-1:9092,kafka-2:9092,kafka-3:9092",
+          "SecurityProtocol": "SaslSsl",
+          "SaslMechanism": "ScramSha512",
+          "SaslUsername": "app",
+          "SaslPassword": "***"
+        }
       }
     }
   }
 }
 ```
+
+> `Broker` 子节直接对应 `Core.Kafka.KafkaOptions` —— 底层新增字段无需 EventBus 层跟改,appsettings 里也不需要写两遍。
 
 **路由模型：**
 - `[MessageName]` → topic 名（可选 `TopicPrefix` 前缀，例如多环境共享 broker 时区分）。
@@ -328,9 +336,9 @@ options.AddKafka(Configuration.GetSection("EventBus:Kafka"));
 
 | 维度 | RabbitMQ 实现 | Kafka 实现 | 为什么不同 |
 |---|---|---|---|
-| Producer 重试 | Polly 3 次线性退避（连接级异常）+ publisher confirms | 客户端 `MessageSendMaxRetries=5` + `EnableIdempotence=true` + `Acks=All` | Kafka 客户端原生重试 + broker 侧 producer id 去重；RabbitMQ 用 confirms + mandatory 把"未达成路由"变成可观测异常 |
+| Producer 重试 | 连接级异常由 `IRabbitMqPersistentConnection` 6 次指数退避兜底 + publisher confirms；publish 层本身不重试 | 客户端 `MessageSendMaxRetries=5` + `EnableIdempotence=true` + `Acks=All` | Kafka 客户端原生重试 + broker 侧 producer id 去重；RabbitMQ 把重试推给连接层（一处兜底）+ confirms/mandatory 把"未达成路由"变成可观测异常,失败由调用方 / outbox dispatcher 决定退避策略 |
 | 发布失败信号 | `RabbitMqPublishFailedException`（返回 / nack / 超时三种派生异常） | `ProduceAsync` 报错或 `PersistenceStatus.NotPersisted` 直接抛 | 让 outbox dispatcher 能准确 `MarkFailed`，不会被错误地标"已成功" |
-| 单条失败处理 | `FailureBehavior` 控制（`RequeueOnce` 默认：首次重投，二次进 DLX/丢弃；可选 `NackNoRequeue` / `AlwaysAck`） | `JsonException` → 立即 commit 跳过；handler 异常 → `Seek` 重投 + `FailureBackoff` 退避，达 `MaxConsecutiveFailures`（默认 5）后 commit 跳过 | 与 RabbitMQ 对偶："失败 → broker 重投，有上限"。Kafka 端 broker 不变，由 consumer 自己拨回 cursor + 计数；deserialization 算永久错误立即跳过；handler 异常给瞬时故障留 N 次重试余地 |
+| 单条失败处理 | `Broker.FailureBehavior` 控制（`RequeueOnce` 默认：首次重投，二次进 DLX/丢弃；可选 `NackNoRequeue` / `AlwaysAck`） | `JsonException` → 立即 commit 跳过；handler 异常 → `Seek` 重投 + `Broker.FailureBackoff` 退避，达 `Broker.MaxConsecutiveFailures`（默认 5）后 commit 跳过 | 与 RabbitMQ 对偶："失败 → broker 重投，有上限"。Kafka 端 broker 不变，由 consumer 自己拨回 cursor + 计数；deserialization 算永久错误立即跳过；handler 异常给瞬时故障留 N 次重试余地 |
 | 消费线程 | broker 推 + `AsyncEventingBasicConsumer` | `Consume()` poll 循环（`LongRunning` Task） | Confluent.Kafka 是 poll-based；订阅变更挂 `_subscriptionDirty` 位由 poll 线程同源应用，避免跨线程操作 librdkafka |
 | 投递保证 | `mandatory=true` + `DeliveryMode=2` + ConfirmSelect | `Acks=All` + `EnableIdempotence=true` + ISR | 等价语义，但 Kafka 要求 topic 复制因子 ≥ 2 |
 
@@ -523,18 +531,27 @@ public class SendEmailHandler : IMessageHandler<OrderCreatedEvent> { ... }    //
 
 ### RabbitMQ（`EventBusRabbitMqOptions`）
 
+EventBus 维度字段：
+
 | 属性 | 默认 | 说明 |
 |---|---|---|
 | `ExchangeName` | `event_bus_default_routing` | 共享 direct exchange 名 |
 | `ChannelPoolSize` | 8 | publisher channel 池上限，即同时持有 channel 的线程数；池外并发请求排队等待 |
-| `FailureBehavior` | `RequeueOnce` | handler 失败时的 ack/nack 策略：`AlwaysAck` / `NackNoRequeue` / `RequeueOnce`（见上文）|
-| `PoisonMessageBehavior` | `SkipAndAck` | 反序列化 / Id 校验失败时的处置：`SkipAndAck`（默认 ACK 跳过，依赖日志可观测）或 `ThrowAndLetBrokerHandle`（让 `FailureBehavior` 决策 nack/DLX） |
-| `DeadLetterExchange` | 空 | 设置后 queue 声明会带上 `x-dead-letter-exchange`；启用 DLX 但未设此项 + 失败策略会丢消息 → 订阅器启动时一次性 LogWarning |
-| `DeadLetterRoutingKey` | 空 | 仅 `DeadLetterExchange` 设置时生效；留空复用原 routing key（适用 direct DLX） |
-| `Connection.HostName` | — | 单机或 `host1;host2;host3` 集群 |
-| `Connection.Port` / `UserName` / `Password` / `VirtualHost` | — | AMQP 标准参数 |
+| `PoisonMessageBehavior` | `SkipAndAck` | 反序列化 / Id 校验失败时的处置：`SkipAndAck`（默认 ACK 跳过，依赖日志可观测）或 `ThrowAndLetBrokerHandle`（让 `Broker.FailureBehavior` 决策 nack/DLX） |
+
+`Broker` 子节直接对应 `Core.RabbitMQ.RabbitMqOptions`，字段会被透传到 `IOptions<RabbitMqOptions>`（无须在 appsettings 里写两遍）：
+
+| 属性 | 默认 | 说明 |
+|---|---|---|
+| `Broker.FailureBehavior` | `RequeueOnce` | handler 失败时的 ack/nack 策略：`AlwaysAck` / `NackNoRequeue` / `RequeueOnce`（见上文）|
+| `Broker.DeadLetterExchange` | 空 | 设置后 queue 声明会带上 `x-dead-letter-exchange`；启用 DLX 但未设此项 + 失败策略会丢消息 → 订阅器启动时一次性 LogWarning |
+| `Broker.DeadLetterRoutingKey` | 空 | 仅 `Broker.DeadLetterExchange` 设置时生效；留空复用原 routing key（适用 direct DLX） |
+| `Broker.Connection.HostName` | — | 单机或 `host1;host2;host3` 集群 |
+| `Broker.Connection.Port` / `UserName` / `Password` / `VirtualHost` | — | AMQP 标准参数 |
 
 ### Kafka（`EventBusKafkaOptions`）
+
+EventBus 维度字段：
 
 | 属性 | 默认 | 说明 |
 |---|---|---|
@@ -542,12 +559,17 @@ public class SendEmailHandler : IMessageHandler<OrderCreatedEvent> { ... }    //
 | `DeclareTopicsOnSubscribe` | false | 订阅时用 AdminClient 显式建 topic；false 即信任 broker 的 auto-create |
 | `DefaultPartitionCount` | 3 | 显式建 topic 时的 partition 数 |
 | `DefaultReplicationFactor` | 1 | 显式建 topic 时的副本数（生产建议 ≥ 2） |
-| `FailureBackoff` | 5 秒 | handler 抛异常时 PollLoop Seek 回 offset 重投前的退避，避免热循环。桥接到底层 `Core.Kafka.KafkaOptions.FailureBackoff` |
-| `MaxConsecutiveFailures` | 5 | 同条 offset 连续失败上限；命中后 commit 跳过该消息，避免 poison message 永久阻塞 partition。设 `0` 关闭。桥接到 `Core.Kafka.KafkaOptions.MaxConsecutiveFailures` |
-| `Connection.BootstrapServers` | — | `host1:9092,host2:9092` 逗号分隔 |
-| `Connection.SecurityProtocol` | — | `Plaintext` / `Ssl` / `SaslPlaintext` / `SaslSsl` |
-| `Connection.SaslMechanism` | — | `Plain` / `ScramSha256` / `ScramSha512` |
-| `Connection.SaslUsername` / `SaslPassword` | — | SASL 凭据 |
+
+`Broker` 子节直接对应 `Core.Kafka.KafkaOptions`，字段会被透传到 `IOptions<KafkaOptions>`（无须在 appsettings 里写两遍）：
+
+| 属性 | 默认 | 说明 |
+|---|---|---|
+| `Broker.FailureBackoff` | 5 秒 | handler 抛异常时 PollLoop Seek 回 offset 重投前的退避，避免热循环 |
+| `Broker.MaxConsecutiveFailures` | 5 | 同条 offset 连续失败上限；命中后 commit 跳过该消息，避免 poison message 永久阻塞 partition。设 `0` 关闭 |
+| `Broker.Connection.BootstrapServers` | — | `host1:9092,host2:9092` 逗号分隔 |
+| `Broker.Connection.SecurityProtocol` | — | `Plaintext` / `Ssl` / `SaslPlaintext` / `SaslSsl` |
+| `Broker.Connection.SaslMechanism` | — | `Plain` / `ScramSha256` / `ScramSha512` |
+| `Broker.Connection.SaslUsername` / `SaslPassword` | — | SASL 凭据 |
 
 ---
 
@@ -561,15 +583,17 @@ public class SendEmailHandler : IMessageHandler<OrderCreatedEvent> { ... }    //
     "RabbitMq": {
       "ExchangeName": "myapp.events",
       "ChannelPoolSize": 8,
-      "FailureBehavior": "RequeueOnce",
       "PoisonMessageBehavior": "SkipAndAck",
-      "DeadLetterExchange": "myapp.events.dlx",
-      "Connection": {
-        "HostName": "rabbit:5672",
-        "Port": 5672,
-        "UserName": "app",
-        "Password": "***",
-        "VirtualHost": "/"
+      "Broker": {
+        "FailureBehavior": "RequeueOnce",
+        "DeadLetterExchange": "myapp.events.dlx",
+        "Connection": {
+          "HostName": "rabbit:5672",
+          "Port": 5672,
+          "UserName": "app",
+          "Password": "***",
+          "VirtualHost": "/"
+        }
       }
     },
     "Outbox": {
@@ -604,12 +628,14 @@ services.AddEventBus(opts =>
     "Kafka": {
       "TopicPrefix": "prod.",
       "DefaultReplicationFactor": 3,
-      "Connection": {
-        "BootstrapServers": "kafka-1:9092,kafka-2:9092,kafka-3:9092",
-        "SecurityProtocol": "SaslSsl",
-        "SaslMechanism": "ScramSha512",
-        "SaslUsername": "app",
-        "SaslPassword": "***"
+      "Broker": {
+        "Connection": {
+          "BootstrapServers": "kafka-1:9092,kafka-2:9092,kafka-3:9092",
+          "SecurityProtocol": "SaslSsl",
+          "SaslMechanism": "ScramSha512",
+          "SaslUsername": "app",
+          "SaslPassword": "***"
+        }
       }
     },
     "Outbox": { "BatchSize": 200 },
@@ -681,20 +707,20 @@ public MyController(ILocalPublisher local, IIntegrationPublisher integration) { 
 
 ### Q: Kafka 一个 handler 失败，相同 partition 的所有后续消息都卡住？
 
-**会卡，但有上限**。`KafkaMessageSubscriber` 把失败聚合 `AggregateException` 上抛 → `DefaultKafkaMessageConsumer.PollLoop` 跳过 commit + `Seek(TopicPartitionOffset)` + 按 `FailureBackoff`（默认 5 秒）退避 → 下一轮 `Consume()` 重投同条消息。
+**会卡，但有上限**。`KafkaMessageSubscriber` 把失败聚合 `AggregateException` 上抛 → `DefaultKafkaMessageConsumer.PollLoop` 跳过 commit + `Seek(TopicPartitionOffset)` + 按 `Broker.FailureBackoff`（默认 5 秒）退避 → 下一轮 `Consume()` 重投同条消息。
 
 **两层 poison message 自动截断**：
 
 1. **反序列化失败**（`JsonException`：schema 不兼容、payload 损坏）：subscriber 立即 LogError + commit 跳过（消息字节固定，重试也是同样异常）。
-2. **handler 持续失败**：同 offset 失败次数达 `MaxConsecutiveFailures`（默认 5）后，框架 LogWarning + commit 跳过。设 `0` 关闭层 2（无限重试）。
+2. **handler 持续失败**：同 offset 失败次数达 `Broker.MaxConsecutiveFailures`（默认 5）后，框架 LogWarning + commit 跳过。设 `0` 关闭层 2（无限重试）。
 
-配合 inbox：**已成功处理的 handler 在 inbox 命中后会被跳过**，重投只重跑失败那个 handler。Inbox + `MaxConsecutiveFailures` 组合让"瞬时故障可恢复 + poison 不卡死 partition"两个目标都达成。
+配合 inbox：**已成功处理的 handler 在 inbox 命中后会被跳过**，重投只重跑失败那个 handler。Inbox + `Broker.MaxConsecutiveFailures` 组合让"瞬时故障可恢复 + poison 不卡死 partition"两个目标都达成。
 
 **再精细的"丢失可观测"**：靠日志监控两条 warning（`Kafka 消息连续失败 N 次,放弃重试 commit 跳过` 与 `Kafka payload 反序列化失败,跳过该条 offset`），或在 handler 内显式落 dead-letter topic 后吞掉异常让 PollLoop 视作成功。
 
 ### Q: RabbitMQ 一个 handler 失败，整条消息都重投？
 
-会按 `FailureBehavior` 决定：
+会按 `Broker.FailureBehavior` 决定：
 - `RequeueOnce`（默认）：首次失败时 broker 重投一次；二次失败 `nack(requeue=false)` 进 DLX 或丢弃。配合 inbox：**已成功的 handler 在 inbox 命中后跳过**，二次只跑失败那个 handler。
 - `NackNoRequeue`：失败立即 `nack(requeue=false)`。
 - `AlwaysAck`：完全依赖 inbox 兜底，不重投。
@@ -723,7 +749,7 @@ public MyController(ILocalPublisher local, IIntegrationPublisher integration) { 
 
 ### Q: 反序列化失败的消息怎么排查？怎么进 DLX？
 
-默认（`PoisonMessageBehavior=SkipAndAck`）下，框架 LogError + ACK 推进 offset。ACK **不会**触发 DLX 路由，所以即便配了 `DeadLetterExchange` 也收不到反序列化失败的消息。可观测性靠：
+默认（`PoisonMessageBehavior=SkipAndAck`）下，框架 LogError + ACK 推进 offset。ACK **不会**触发 DLX 路由，所以即便配了 `Broker.DeadLetterExchange` 也收不到反序列化失败的消息。可观测性靠：
 
 1. **日志监控**：grep `RabbitMQ payload 反序列化失败` / `RabbitMQ payload 没有显式 Id 字段` / `RabbitMQ payload Id 字段值为 Guid.Empty`
 2. **DiagnosticListener**：订阅 `Core.EventBus.ConsumeError`（详见架构内幕「诊断信号」一节）
@@ -735,14 +761,16 @@ public MyController(ILocalPublisher local, IIntegrationPublisher integration) { 
   "EventBus": {
     "RabbitMq": {
       "PoisonMessageBehavior": "ThrowAndLetBrokerHandle",
-      "FailureBehavior": "NackNoRequeue",
-      "DeadLetterExchange": "myapp.events.dlx"
+      "Broker": {
+        "FailureBehavior": "NackNoRequeue",
+        "DeadLetterExchange": "myapp.events.dlx"
+      }
     }
   }
 }
 ```
 
-注意：`FailureBehavior=RequeueOnce` 会让毒消息先 requeue 一次浪费一轮重投；要严格立刻进 DLX 请用 `NackNoRequeue`。
+注意：`Broker.FailureBehavior=RequeueOnce` 会让毒消息先 requeue 一次浪费一轮重投；要严格立刻进 DLX 请用 `NackNoRequeue`。
 
 ---
 
@@ -877,9 +905,16 @@ EventBus 同一时刻仅支持一个 integration broker,请只调用 AddRabbitMq
 
 异常处理收窄到具体类型 — 仅捕获 `FileNotFoundException` / `FileLoadException` / `BadImageFormatException` / `TypeLoadException`（程序集/类型不可用的合法情形），其他异常（OOM、内部错误）原样冒出便于排查。
 
-### Polly 异步退避（RabbitMQ publisher）
+### RabbitMQ publisher 不加重试（分层职责）
 
-`RabbitMqMessagePublisher.PublishToBrokerAsync` 用 Polly 的 `WaitAndRetryAsync`，退避之间走 `Task.Delay`（不阻塞调用线程）。BasicPublish / `WaitForConfirmsOrThrow` 底层仍是同步 API，但单条耗时短，不构成瓶颈。
+`RabbitMqMessagePublisher.PublishToBrokerAsync` 不做任何 publisher 级重试 —— 单次失败直接抛给调用方。重试分层在底下两处:
+
+- **连接级瞬时错误**:`DefaultRabbitMqPersistentConnection.TryConnect()` 内置 Polly 6 次指数退避（2/4/8/16/32/64s，约 126s）。`BrokerUnreachableException` / `SocketException` 都在这里挡住，不会冒到 publisher 层。
+- **channel 级失效**:`RabbitMqPublishChannelPool.Acquire` 检查到 channel 已关闭直接丢弃并新建，调用方无感。
+
+剩下的失败(`RabbitMqPublishReturnedException` / `RabbitMqPublishUnconfirmedException`)是"broker 主动告诉你这条不行" —— 重试反而放大故障。outbox 路径走 `OutboxDispatcher` 的指数退避（默认 5s 起步 → 10min 上限 → 8 次后转 DLQ）；直发路径由业务调用方按自己的策略处理。
+
+> 这与 Kafka 侧 `KafkaMessagePublisher` 思路一致 —— 那侧靠 librdkafka 的 `MessageSendMaxRetries=5` + `EnableIdempotence=true` 让客户端自己重试,publisher 层同样不加 Polly。
 
 ### 配置注册不 BuildServiceProvider
 

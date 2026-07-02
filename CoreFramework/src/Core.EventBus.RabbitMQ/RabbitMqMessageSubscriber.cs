@@ -257,8 +257,8 @@ namespace Core.EventBus.RabbitMQ
 
         /// <summary>校验并对齐消息身份:优先以 brokerMessageId 为权威 Id;否则用 raw JSON 验证 payload 显式带 Id 字段。</summary>
         /// <remarks>
-        /// <para>关键风险:<see cref="Message"/> 基类构造里 <c>Id = Guid.NewGuid()</c>。
-        /// 若外部消息 payload 没有 Id 字段,Newtonsoft 用基类构造生成的新 Guid 填充 → 看起来"非 Empty"但其实
+        /// <para>关键风险:<see cref="Message"/> 基类构造里 <c>Id = Guid.CreateVersion7()</c>。
+        /// 若外部消息 payload 没有 Id 字段,System.Text.Json 用基类构造生成的新 Guid 填充 → 看起来"非 Empty"但其实
         /// 每次反序列化都是不同值 → inbox 按 Id 去重彻底失效 → 重投会全部当新消息处理。</para>
         /// <para>处理策略(按优先级):</para>
         /// <list type="number">

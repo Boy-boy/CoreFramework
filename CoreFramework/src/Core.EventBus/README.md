@@ -314,10 +314,12 @@ options.AddKafka(Configuration.GetSection("EventBus:Kafka"));
         "MaxConsecutiveFailures": 5,
         "Connection": {
           "BootstrapServers": "kafka-1:9092,kafka-2:9092,kafka-3:9092",
-          "SecurityProtocol": "SaslSsl",
-          "SaslMechanism": "ScramSha512",
-          "SaslUsername": "app",
-          "SaslPassword": "***"
+          "MainConfig": {
+            "security.protocol": "SASL_SSL",
+            "sasl.mechanism": "SCRAM-SHA-512",
+            "sasl.username": "app",
+            "sasl.password": "***"
+          }
         }
       }
     }
@@ -567,9 +569,7 @@ EventBus 维度字段：
 | `Broker.FailureBackoff` | 5 秒 | handler 抛异常时 PollLoop Seek 回 offset 重投前的退避，避免热循环 |
 | `Broker.MaxConsecutiveFailures` | 5 | 同条 offset 连续失败上限；命中后 commit 跳过该消息，避免 poison message 永久阻塞 partition。设 `0` 关闭 |
 | `Broker.Connection.BootstrapServers` | — | `host1:9092,host2:9092` 逗号分隔 |
-| `Broker.Connection.SecurityProtocol` | — | `Plaintext` / `Ssl` / `SaslPlaintext` / `SaslSsl` |
-| `Broker.Connection.SaslMechanism` | — | `Plain` / `ScramSha256` / `ScramSha512` |
-| `Broker.Connection.SaslUsername` / `SaslPassword` | — | SASL 凭据 |
+| `Broker.Connection.MainConfig` | 空字典 | librdkafka 原生 client 配置，key 使用原生配置名，如 `security.protocol`、`sasl.mechanism`、`ssl.ca.location` |
 
 ---
 
@@ -631,10 +631,12 @@ services.AddEventBus(opts =>
       "Broker": {
         "Connection": {
           "BootstrapServers": "kafka-1:9092,kafka-2:9092,kafka-3:9092",
-          "SecurityProtocol": "SaslSsl",
-          "SaslMechanism": "ScramSha512",
-          "SaslUsername": "app",
-          "SaslPassword": "***"
+          "MainConfig": {
+            "security.protocol": "SASL_SSL",
+            "sasl.mechanism": "SCRAM-SHA-512",
+            "sasl.username": "app",
+            "sasl.password": "***"
+          }
         }
       }
     },

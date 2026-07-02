@@ -20,7 +20,13 @@ namespace Core.Kafka
     /// </remarks>
     public interface IKafkaPersistentProducer : IDisposable
     {
-        /// <summary>同步投递一条消息（fire-and-forget），由内部缓冲异步落 broker。</summary>
+        /// <summary>
+        /// 同步投递一条消息(fire-and-forget),由内部缓冲异步落 broker。
+        /// </summary>
+        /// <remarks>
+        /// 本方法在本地 producer queue 满 / 序列化失败等本地失败时会同步抛 <see cref="ProduceException{TKey, TValue}"/>;
+        /// broker 侧投递失败只走内部 delivery report 记 log,调用方感知不到。要拿到 broker 端 ack/异常请用 <see cref="ProduceAsync"/>。
+        /// </remarks>
         void Produce(string topic, Message<string, byte[]> message);
 
         /// <summary>异步投递一条消息，await 之后保证 broker 已 ack（按 <c>Acks</c> 配置）。</summary>

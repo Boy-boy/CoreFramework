@@ -37,11 +37,20 @@ namespace Core.Kafka
     /// (如转 dead-letter topic) 由业务层在 inbox 跟踪 <c>(messageId, handlerType)</c> 失败计数后自行实现。
     /// </para>
     /// </remarks>
-    internal class DefaultKafkaMessageConsumer : IKafkaMessageConsumer
+    internal sealed class DefaultKafkaMessageConsumer : IKafkaMessageConsumer
     {
         private readonly KafkaOptions _options;
         private readonly ILogger<DefaultKafkaMessageConsumer> _logger;
-        private readonly ConcurrentBag<Func<IConsumer<string, byte[]>, ConsumeResult<string, byte[]>, Task>> _processEvents;
+
+        /// <summary>
+        /// 消息处理回调集合;注册期在 <see cref="_handlersLock"/> 保护下 copy-on-write 到新数组,
+        /// PollLoop 侧读取字段引用直接 foreach,避免每条消息都对 ConcurrentBag 做 snapshot 枚举。
+        /// 也顺带修掉了原来 Any+Add 的 TOCTOU 去重漏洞。
+        /// </summary>
+        private Func<IConsumer<string, byte[]>, ConsumeResult<string, byte[]>, Task>[] _processEvents
+            = Array.Empty<Func<IConsumer<string, byte[]>, ConsumeResult<string, byte[]>, Task>>();
+        private readonly object _handlersLock = new();
+
         private readonly ConcurrentDictionary<string, byte> _subscribedTopics;
         private readonly object _pollStartLock = new();
         private readonly CancellationTokenSource _cts = new();
@@ -82,7 +91,6 @@ namespace Core.Kafka
         {
             _options = options.Value;
             _logger = logger;
-            _processEvents = new ConcurrentBag<Func<IConsumer<string, byte[]>, ConsumeResult<string, byte[]>, Task>>();
             _subscribedTopics = new ConcurrentDictionary<string, byte>();
         }
 
@@ -138,10 +146,22 @@ namespace Core.Kafka
 
         public void OnMessageReceived(Func<IConsumer<string, byte[]>, ConsumeResult<string, byte[]>, Task> processEvent)
         {
-            // 用 Delegate.Equals 同时比对 Target + Method，避免不同实例的同一方法被误判为重复后被静默丢弃。
-            if (_processEvents.Any(p => p.Equals(processEvent)))
-                return;
-            _processEvents.Add(processEvent);
+            if (processEvent == null) throw new ArgumentNullException(nameof(processEvent));
+
+            // 注册期加锁,PollLoop 侧无锁读取:copy-on-write。Delegate.Equals 同时比对 Target + Method,
+            // 避免不同实例的同一方法被误判为重复后静默丢弃。
+            lock (_handlersLock)
+            {
+                var current = _processEvents;
+                for (int i = 0; i < current.Length; i++)
+                {
+                    if (current[i].Equals(processEvent)) return;
+                }
+                var next = new Func<IConsumer<string, byte[]>, ConsumeResult<string, byte[]>, Task>[current.Length + 1];
+                Array.Copy(current, next, current.Length);
+                next[current.Length] = processEvent;
+                Volatile.Write(ref _processEvents, next);
+            }
         }
 
         /// <summary>
@@ -241,8 +261,11 @@ namespace Core.Kafka
                         // 由 broker 在下一轮重投同条消息;配合上层 inbox 去重达成"业务最终一致"。
                         // 仅"不 commit"不够:librdkafka 内部 cursor 已经因为本次 Consume 前进,
                         // broker 端 offset 未变也不会让 consumer 自己倒回。必须 Seek 才能强制重投。
+                        //
+                        // Volatile.Read 让本线程看到最近一次 OnMessageReceived 发布的快照(注册期加锁 copy-on-write)。
+                        var handlers = Volatile.Read(ref _processEvents);
                         bool anyFailed = false;
-                        foreach (var processEvent in _processEvents)
+                        foreach (var processEvent in handlers)
                         {
                             try
                             {
@@ -281,7 +304,8 @@ namespace Core.Kafka
                                 _consecutiveFailures = 0;
                                 try
                                 {
-                                    _consumer.StoreOffset(result);
+                                    // EnableAutoOffsetStore=false 下,Commit(result) 直接提交该 offset,
+                                    // 无需先 StoreOffset —— 后者是给无参 Commit() 用的路径。
                                     _consumer.Commit(result);
                                 }
                                 catch (KafkaException ex)
@@ -320,7 +344,6 @@ namespace Core.Kafka
 
                         try
                         {
-                            _consumer.StoreOffset(result);
                             _consumer.Commit(result);
                         }
                         catch (KafkaException ex)

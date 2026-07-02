@@ -14,7 +14,10 @@ namespace Core.Kafka
         /// <summary>按 group 查询已注册的 consumer;不存在返回 false。</summary>
         bool TryGet(string groupId, out IKafkaMessageConsumer consumer);
 
-        /// <summary>按 group 移除已注册的 consumer 引用(不会主动 Dispose,由调用方负责)。</summary>
+        /// <summary>
+        /// 按 group 移除已注册的 consumer 并 Dispose 释放底层 poll loop / IConsumer 连接。
+        /// Dispose 幂等,即使调用方之前手动 Dispose 过也安全。
+        /// </summary>
         bool TryRemove(string groupId);
     }
 }

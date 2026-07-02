@@ -19,7 +19,8 @@ namespace Core.EventBus.Outbox
         /// <param name="aggregateRootEvent">实现了 <see cref="IMessage"/> 的领域/集成事件。</param>
         public MessageEnvelope(IMessage aggregateRootEvent)
         {
-            Id = Guid.NewGuid();
+            // UUIDv7:行主键带时间序,outbox 高频写入下避免 B-tree 索引页随机分裂
+            Id = Guid.CreateVersion7();
             MessageId = aggregateRootEvent.Id;
             Version = 1;
             AssemblyName = aggregateRootEvent.GetType().Assembly.GetName().Name;

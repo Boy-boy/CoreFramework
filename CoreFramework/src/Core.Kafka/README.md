@@ -74,7 +74,7 @@
 | 类型 | 生命周期 | 职责 |
 |---|---:|---|
 | `KafkaOptions` | Options | 根配置对象。承载 `Connection`、`FailureBackoff`（失败 Seek 重投前的退避，默认 5s）、`MaxConsecutiveFailures`（同 offset 连续失败上限，默认 5；命中后 commit 跳过） |
-| `KafkaConnectionConfigure` | Options 子对象 | bootstrap servers + SASL / TLS，`BuildClientConfig()` 产出基础 `ClientConfig` |
+| `KafkaConnectionConfigure` | Options 子对象 | bootstrap servers + `MainConfig` 原生 client 配置，`BuildClientConfig()` 产出基础 `ClientConfig` |
 | `IKafkaPersistentProducer` | Singleton | 进程内长生命周期 producer，复用同一个 `IProducer<string, byte[]>` |
 | `DefaultKafkaPersistentProducer` | Singleton | 默认 producer 实现：lazy build + `EnableIdempotence` + `Acks=All` + 内置 5 次重试 |
 | `IKafkaMessageConsumerManager` | Singleton | 按 `groupId` 复用 consumer 实例 |
@@ -100,10 +100,12 @@
     "MaxConsecutiveFailures": 5,
     "Connection": {
       "BootstrapServers": "kafka-1:9092,kafka-2:9092,kafka-3:9092",
-      "SecurityProtocol": "SaslSsl",
-      "SaslMechanism": "ScramSha512",
-      "SaslUsername": "app",
-      "SaslPassword": "***"
+      "MainConfig": {
+        "security.protocol": "SASL_SSL",
+        "sasl.mechanism": "SCRAM-SHA-512",
+        "sasl.username": "app",
+        "sasl.password": "***"
+      }
     }
   }
 }
@@ -118,15 +120,13 @@
 | `FailureBackoff` | 否 | `00:00:05` | handler 抛异常时 PollLoop Seek 回 offset 重投前的退避，避免热循环 |
 | `MaxConsecutiveFailures` | 否 | `5` | 同条 offset 连续失败上限。达到后 commit + LogWarning 跳过，避免 poison message 永久阻塞 partition。设 `0` 关闭（无限重试） |
 | `Connection.BootstrapServers` | 是 | — | broker 列表，逗号分隔，例：`kafka-1:9092,kafka-2:9092`。等价于 RabbitMQ 那边 `HostName` 的 `;` 分隔形式 |
-| `Connection.SecurityProtocol` | 否 | — | `Plaintext` / `Ssl` / `SaslPlaintext` / `SaslSsl` |
-| `Connection.SaslMechanism` | 否 | — | `Plain` / `ScramSha256` / `ScramSha512` 等 |
-| `Connection.SaslUsername` / `SaslPassword` | 否 | — | SASL 凭据 |
+| `Connection.MainConfig` | 否 | 空字典 | librdkafka 原生 client 配置，key 使用原生配置名，如 `security.protocol`、`sasl.mechanism`、`ssl.ca.location`、`socket.keepalive.enable` |
 
 > `BootstrapServers` 留空时 `BuildClientConfig()` 会立即抛 `InvalidOperationException` 并给出可读提示（"请在 appsettings.json 的 Kafka:Connection:BootstrapServers 节点设置 broker 地址"），而不是把用户扔到 librdkafka 的 `ConfigException` 里猜配错了哪里。
 
 ### 共享 `ClientConfig`
 
-`KafkaConnectionConfigure.BuildClientConfig()` 产出一个基础 `ClientConfig`，Producer 和 Consumer 各自在它之上叠加自己的专属配置（如 `Acks`、`EnableIdempotence`、`GroupId` 等）。需要更细的 librdkafka 调整（`linger.ms`、`batch.size`、`compression.type`、`socket.timeout.ms` 等）时，可派生 `KafkaConnectionConfigure` 重写 `BuildClientConfig()`。
+`KafkaConnectionConfigure.BuildClientConfig()` 产出一个基础 `ClientConfig`：先复制 `Connection.MainConfig`，再强制写入 `BootstrapServers`。Producer 和 Consumer 各自在它之上叠加自己的专属配置（如 `Acks`、`EnableIdempotence`、`GroupId` 等）。需要更细的 librdkafka client 级调整（`security.protocol`、`ssl.ca.location`、`socket.timeout.ms` 等）时，直接写入 `MainConfig`。
 
 ---
 
@@ -144,10 +144,10 @@ builder.Services.AddKafka(builder.Configuration.GetSection("Kafka"));
 builder.Services.AddKafka(options =>
 {
     options.Connection.BootstrapServers = "kafka:9092";
-    options.Connection.SecurityProtocol = SecurityProtocol.SaslSsl;
-    options.Connection.SaslMechanism = SaslMechanism.ScramSha512;
-    options.Connection.SaslUsername = "app";
-    options.Connection.SaslPassword = "***";
+    options.Connection.MainConfig["security.protocol"] = "SASL_SSL";
+    options.Connection.MainConfig["sasl.mechanism"] = "SCRAM-SHA-512";
+    options.Connection.MainConfig["sasl.username"] = "app";
+    options.Connection.MainConfig["sasl.password"] = "***";
 });
 ```
 
@@ -277,7 +277,7 @@ public sealed class OrderMessageConsumerHostedService : IHostedService
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
-        // manager.TryRemove 后 consumer 被 Dispose;Dispose 内部会 Cancel poll、等 5s、Close、Dispose
+        // TryRemove 内部会 Dispose:Cancel poll、等 5s、Close、Dispose 底层 IConsumer
         _manager.TryRemove("order-service");
         return Task.CompletedTask;
     }
@@ -363,7 +363,7 @@ var consumer = _manager.TryCreate("order-service", topicDeclare);
 | `Acks` | `All` | 等所有 ISR 副本确认才返回。前提是 topic 复制因子 ≥ 2 |
 | `MessageSendMaxRetries` | `5` | 内置重试 + idempotence 不会重复 |
 
-其他 librdkafka 默认值（`linger`、`batch.size`、`compression.type`）保留为默认，调优让给用户在 broker 侧或自定义 `KafkaConnectionConfigure` 时调整。
+其他 librdkafka 默认值（`linger`、`batch.size`、`compression.type`）保留为默认，调优可通过 `Connection.MainConfig` 或业务自定义封装调整。
 
 ### 懒构造
 
@@ -485,10 +485,11 @@ DI 注册为 Singleton，由容器释放。`Dispose` 内部先 `Flush(5s)` 再�
 
 ### IKafkaMessageConsumer
 
-由 `IKafkaMessageConsumerManager` 创建。释放方式：
+由 `IKafkaMessageConsumerManager` 创建。释放方式:
 
 ```csharp
-manager.TryRemove(groupId);   // 内部会 Dispose
+// TryRemove 内部会 Dispose(幂等);无需先手动 Dispose
+manager.TryRemove(groupId);
 ```
 
 `Dispose` 流程：
@@ -534,7 +535,7 @@ _consumer.OnMessageReceived(async (consumer, result) =>
 
 ### 连接配置
 
-- 生产环境一律 `SaslSsl` + SCRAM-SHA-512；明文只在本地开发用。
+- 生产环境一律配置 `security.protocol=SASL_SSL` + `sasl.mechanism=SCRAM-SHA-512`；明文只在本地开发用。
 - `BootstrapServers` 多个 broker 都写进去，客户端自己做 metadata 发现。
 - topic 复制因子 ≥ 2，否则 `Acks=All` 等于 `Acks=1`。
 
@@ -563,7 +564,7 @@ _consumer.OnMessageReceived(async (consumer, result) =>
 1. broker 上对应 topic 真的有消息？
 2. consumer group 的 offset 已经追上头？`AutoOffsetReset=Earliest` 只对**首次加入 group** 生效，之前已经 join 过的 group 会从已存 offset 继续。
 3. 订阅是否成功？看日志里有没有 `Kafka consumer poll loop started`。`SubscribeTopicAsync` 后**下一轮 poll** 才会真正 Subscribe，启动后等 1~2 秒。
-4. 是否有 partition 分配？SaslSsl 配置错时 broker 会拒绝 join group，看 `Kafka consumer error` 日志的 `IsFatal=true`。
+4. 是否有 partition 分配？`security.protocol` / `sasl.*` 配置错时 broker 会拒绝 join group，看 `Kafka consumer error` 日志的 `IsFatal=true`。
 
 ### 3. handler 异常后消息会被重投吗？卡多久？
 
@@ -613,10 +614,12 @@ await admin.CreateTopicsAsync(new[] { new TopicSpecification { ... } });
   "Kafka": {
     "Connection": {
       "BootstrapServers": "kafka-1:9092,kafka-2:9092,kafka-3:9092",
-      "SecurityProtocol": "SaslSsl",
-      "SaslMechanism": "ScramSha512",
-      "SaslUsername": "app",
-      "SaslPassword": "***"
+      "MainConfig": {
+        "security.protocol": "SASL_SSL",
+        "sasl.mechanism": "SCRAM-SHA-512",
+        "sasl.username": "app",
+        "sasl.password": "***"
+      }
     }
   }
 }
@@ -729,6 +732,7 @@ public sealed class OrderMessageConsumerHostedService : IHostedService
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
+        // TryRemove 内部会 Dispose 底层 poll loop / IConsumer
         _manager.TryRemove("order-service");
         return Task.CompletedTask;
     }

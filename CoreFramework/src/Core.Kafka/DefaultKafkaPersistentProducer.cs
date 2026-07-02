@@ -24,7 +24,11 @@ namespace Core.Kafka
         private readonly KafkaOptions _options;
         private readonly ILogger<DefaultKafkaPersistentProducer> _logger;
         private readonly object _syncRoot = new();
-        private IProducer<string, byte[]> _producer;
+
+        /// <summary>
+        /// 用 volatile 让 DCLP 里"先读后进锁再检查"的第一次读拿到最新值,不依赖 CLR 强内存模型的隐式保证。
+        /// </summary>
+        private volatile IProducer<string, byte[]> _producer;
         private bool _disposed;
 
         public DefaultKafkaPersistentProducer(
@@ -49,7 +53,6 @@ namespace Core.Kafka
                         EnableIdempotence = true,
                         Acks = Acks.All,
                         MessageSendMaxRetries = 5,
-                        // librdkafka 默认即可：linger / batch.size / compression.type 等留给用户在 broker 侧或扩展时调整
                     };
 
                     _producer = new ProducerBuilder<string, byte[]>(producerConfig)

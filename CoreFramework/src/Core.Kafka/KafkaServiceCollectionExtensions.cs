@@ -2,6 +2,7 @@ using System;
 using Core.Kafka;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -19,6 +20,8 @@ namespace Microsoft.Extensions.DependencyInjection
 
             services.TryAddSingleton<IKafkaPersistentProducer, DefaultKafkaPersistentProducer>();
             services.TryAddSingleton<IKafkaMessageConsumerManager, DefaultKafkaMessageConsumerManager>();
+            // TryAddEnumerable 避免重复注册:允许调用方多次调用 AddKafka(...) 时校验器只被注册一次。
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<KafkaOptions>, KafkaOptionsValidator>());
             return services;
         }
 

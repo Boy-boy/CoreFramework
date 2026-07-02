@@ -9,8 +9,9 @@ namespace Core.EventBus.Kafka
     /// </summary>
     /// <remarks>
     /// 连接 / 失败 backoff / 重试上限一组字段嵌套在 <see cref="Broker"/> 子对象里(<see cref="KafkaOptions"/> 原样复用),
-    /// 启动时 EventBus 层把 <see cref="Broker"/> 字段透传给 <c>IOptions&lt;KafkaOptions&gt;</c>;
-    /// 这样底层 <see cref="KafkaOptions"/> 新增字段无需 EventBus 层跟改、appsettings 也无须写两遍。
+    /// 启动时 EventBus 层把 <see cref="Broker"/> 通过 <see cref="KafkaOptions.CopyFrom"/> 反射拷贝到
+    /// <c>IOptions&lt;KafkaOptions&gt;</c>;这样底层 <see cref="KafkaOptions"/> 新增可写属性会自动透传,
+    /// EventBus 层无需跟改、appsettings 也无须写两遍。
     /// </remarks>
     public class EventBusKafkaOptions
     {

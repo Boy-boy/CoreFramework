@@ -19,6 +19,12 @@ namespace Core.Kafka
         private readonly KafkaOptions _options;
         private readonly ILogger<DefaultKafkaMessageConsumerManager> _logger;
         private readonly ConcurrentDictionary<string, IKafkaMessageConsumer> _consumers;
+
+        /// <summary>
+        /// 已经"尝试声明过"的 topic 集合;不再重复构造 AdminClient。声明失败也算已尝试,
+        /// 因为最终兜底靠 broker 的 auto.create.topics.enable,反复重试 AdminClient 只是重复浪费启动时间。
+        /// </summary>
+        private readonly ConcurrentDictionary<string, byte> _declaredTopics;
         private readonly object _lock = new();
 
         /// <summary>AdminClient.CreateTopicsAsync 的等待上限。broker 不可达时避免启动期被卡到默认 60 秒。</summary>
@@ -38,6 +44,7 @@ namespace Core.Kafka
             _options = options.Value;
             _logger = logger;
             _consumers = new ConcurrentDictionary<string, IKafkaMessageConsumer>();
+            _declaredTopics = new ConcurrentDictionary<string, byte>();
         }
 
         public IKafkaMessageConsumer TryCreate(string groupId, KafkaTopicDeclareConfigure topicDeclare = null)
@@ -45,8 +52,10 @@ namespace Core.Kafka
             if (string.IsNullOrWhiteSpace(groupId))
                 throw new ArgumentException("groupId is required", nameof(groupId));
 
-            // topic 显式声明对 consumer 实例的 key 没有影响：相同 groupId 只建一次 consumer
-            if (topicDeclare != null)
+            // topic 显式声明对 consumer 实例的 key 没有影响:相同 groupId 只建一次 consumer。
+            // TryAdd 首次成功者才真正跑 AdminClient,后续相同 topic 直接跳过 —— 避免同一
+            // topic 在多个 groupId 下被反复构造 AdminClient + 5s 超时。
+            if (topicDeclare != null && _declaredTopics.TryAdd(topicDeclare.TopicName, 0))
                 TryDeclareTopic(topicDeclare);
 
             lock (_lock)
@@ -72,7 +81,14 @@ namespace Core.Kafka
         {
             lock (_lock)
             {
-                return _consumers.TryRemove(groupId, out _);
+                if (!_consumers.TryRemove(groupId, out var consumer))
+                    return false;
+
+                // manager 是 consumer 引用的持有者,应同时负责释放:公共 API 不能把
+                // "调用方必须先 Dispose"这种隐式契约压给使用者。Dispose 自身幂等,
+                // 即使调用方已经手动 Dispose 过,这里再调一次也是空操作。
+                consumer.Dispose();
+                return true;
             }
         }
 

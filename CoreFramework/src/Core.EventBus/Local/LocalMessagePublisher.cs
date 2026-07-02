@@ -52,7 +52,7 @@ namespace Core.EventBus.Local
             where T : class, IMessage
         {
             if (message.Id == Guid.Empty)
-                throw new ArgumentException("IMessage.Id 不能为空 Guid;Message 基类构造已分配 Guid.NewGuid(),自定义实现请确保 Id 唯一。", nameof(message));
+                throw new ArgumentException("IMessage.Id 不能为空 Guid;Message 基类构造已分配 Guid.CreateVersion7(),自定义实现请确保 Id 唯一。", nameof(message));
 
             var messageType = message.GetType();
 

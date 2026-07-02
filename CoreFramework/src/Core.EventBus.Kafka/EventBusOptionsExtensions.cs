@@ -51,14 +51,11 @@ namespace Core.EventBus.Kafka
 
             // 用 IOptions 联动取代之前的快照式手写桥接:解析 KafkaOptions 时拉一份 EventBusKafkaOptions.Broker 字段
             // 1) 后续对 EventBusKafkaOptions 的 PostConfigure 同样能传递到 KafkaOptions
-            // 2) Broker 是 KafkaOptions 原型,底层新增字段无需 EventBus 层跟改 —— 这里不做字段映射,直接整对象复制
+            // 2) Broker 是 KafkaOptions 原型,通过 KafkaOptions.CopyFrom 反射拷贝所有可写属性 ——
+            //    底层新增字段自动透传,不用回来同步改这里(之前手写 kfk.X = src.X 的方式,加字段就漏)。
             services.AddOptions<KafkaOptions>().Configure<IOptions<EventBusKafkaOptions>>((kfk, eb) =>
             {
-                var src = eb.Value.Broker;
-                if (src == null) return;
-                kfk.Connection = src.Connection;
-                kfk.FailureBackoff = src.FailureBackoff;
-                kfk.MaxConsecutiveFailures = src.MaxConsecutiveFailures;
+                kfk.CopyFrom(eb.Value?.Broker);
             });
 
             // publisher / IOutboxRawSender 用 Scoped:与 UoW 所在 scope 对齐,避免 outbox 写入后 DbContext 提前释放

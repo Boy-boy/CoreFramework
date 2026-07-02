@@ -1,8 +1,10 @@
-﻿using Core.RabbitMQ;
+using Core.RabbitMQ;
 using System;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -17,6 +19,10 @@ namespace Microsoft.Extensions.DependencyInjection
 
             services.TryAddSingleton<IRabbitMqPersistentConnection, DefaultRabbitMqPersistentConnection>();
             services.TryAddSingleton<IRabbitMqMessageConsumerManager, DefaultRabbitMqMessageConsumerManager>();
+            // Metrics 一律 singleton,Meter 内部按名字聚合,不需要多实例。TryAdd 让上层可以自替换。
+            services.TryAddSingleton<RabbitMqMetrics>();
+            // 启动期数值合法性校验;非法配置立刻抛
+            services.PostConfigure<RabbitMqOptions>(o => o.ValidateNumericLimits());
             return services;
         }
 
@@ -73,6 +79,28 @@ namespace Microsoft.Extensions.DependencyInjection
                     poolSizeAccessor(sp),
                     sp.GetRequiredService<ILogger<RabbitMqPublishChannelPool>>()));
             return services;
+        }
+
+        /// <summary>
+        /// 把 <see cref="RabbitMqHealthCheck"/> 挂进 <see cref="IHealthChecksBuilder"/>。
+        /// 需要先 <c>services.AddHealthChecks()</c>。
+        /// </summary>
+        /// <param name="builder">HealthChecks builder。</param>
+        /// <param name="name">健康检查名,默认 "rabbitmq"。</param>
+        /// <param name="failureStatus">失败时上报的状态,默认 <see cref="HealthStatus.Unhealthy"/>。</param>
+        /// <param name="tags">tag 列表,便于 UI 按标签分组过滤。</param>
+        public static IHealthChecksBuilder AddRabbitMqHealthCheck(
+            this IHealthChecksBuilder builder,
+            string name = "rabbitmq",
+            HealthStatus? failureStatus = null,
+            System.Collections.Generic.IEnumerable<string> tags = null)
+        {
+            if (builder == null) throw new ArgumentNullException(nameof(builder));
+            return builder.Add(new HealthCheckRegistration(
+                name,
+                sp => new RabbitMqHealthCheck(sp.GetRequiredService<IRabbitMqPersistentConnection>()),
+                failureStatus,
+                tags));
         }
     }
 }

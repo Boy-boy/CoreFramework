@@ -17,9 +17,11 @@ namespace Core.RabbitMQ
     {
         private readonly RabbitMqOptions _option;
         private readonly ILogger<DefaultRabbitMqPersistentConnection> _logger;
-        private readonly int _retryCount = 6;
+        private readonly int _retryCount;
         IConnection _connection;
         volatile bool _disposed;
+        volatile bool _blocked;
+        long _reconnectCount;
 
 
         readonly object _syncRoot = new();
@@ -29,9 +31,17 @@ namespace Core.RabbitMQ
         {
             _option = option.Value;
             _logger = logger;
+            // 由 options 决定 Polly 退避次数;负数在 ValidateNumericLimits 已经拒绝,这里再做一次 max(0) 兜底防裸调。
+            _retryCount = Math.Max(0, _option?.ConnectionRetryCount ?? 6);
         }
 
         public bool IsConnected => _connection != null && _connection.IsOpen && !_disposed;
+
+        /// <summary>broker 触发 flow-control 后是否还在 blocked 状态;HealthCheck / Metrics 消费。</summary>
+        public bool IsBlocked => _blocked;
+
+        /// <summary>累计后台重连次数(含成功与失败尝试),供 metrics 采样。</summary>
+        public long ReconnectAttempts => Interlocked.Read(ref _reconnectCount);
 
         public IModel CreateModel()
         {
@@ -141,8 +151,21 @@ namespace Core.RabbitMQ
         {
             if (_disposed) return;
 
+            _blocked = true;
             // 仅记录，不重连。调用 TryConnect 在此处是 no-op（IsConnected 已经是 true）且语义误导。
             _logger.LogWarning("RabbitMQ connection blocked by broker (flow-control): {Reason}", e.Reason);
+
+            if (sender is IConnection c)
+            {
+                c.ConnectionUnblocked -= OnConnectionUnblocked;
+                c.ConnectionUnblocked += OnConnectionUnblocked;
+            }
+        }
+
+        private void OnConnectionUnblocked(object sender, EventArgs e)
+        {
+            _blocked = false;
+            _logger.LogInformation("RabbitMQ connection unblocked, broker resumed accepting publishes");
         }
 
         private void OnCallbackException(object sender, CallbackExceptionEventArgs e)
@@ -169,6 +192,7 @@ namespace Core.RabbitMQ
         /// </summary>
         private void ReconnectInBackground()
         {
+            Interlocked.Increment(ref _reconnectCount);
             _ = Task.Run(() =>
             {
                 try

@@ -27,17 +27,20 @@ namespace Core.EventBus.RabbitMQ
         private readonly IRabbitMqPublishChannelPool _channelPool;
         private readonly IOptions<EventBusRabbitMqOptions> _options;
         private readonly ILogger<RabbitMqMessagePublisher> _logger;
+        private readonly Core.RabbitMQ.RabbitMqMetrics _metrics;
 
         public RabbitMqMessagePublisher(
             IServiceProvider serviceProvider,
             IRabbitMqPublishChannelPool channelPool,
             IOptions<EventBusRabbitMqOptions> options,
-            ILogger<RabbitMqMessagePublisher> logger)
+            ILogger<RabbitMqMessagePublisher> logger,
+            Core.RabbitMQ.RabbitMqMetrics metrics = null)
         : base(serviceProvider)
         {
             _channelPool = channelPool;
             _options = options;
             _logger = logger;
+            _metrics = metrics;
         }
 
         /// <summary>直发路径入口:把强类型消息序列化为 JSON 后投递。</summary>
@@ -123,28 +126,45 @@ namespace Core.EventBus.RabbitMQ
             cancellationToken.ThrowIfCancellationRequested();
 
             var body = Encoding.UTF8.GetBytes(payload);
-            var exchangeName = _options.Value.ExchangeName;
+            var opts = _options.Value;
+            var exchangeName = opts.ExchangeName;
+            var confirmTimeout = opts.PublishConfirmTimeout;
 
             // 关键:Task.Run 把 RabbitMQ.Client 的同步阻塞 API 卸到线程池,
             // 释放调用方线程(controller 请求线程 / dispatcher 主循环)以处理其他工作
             await Task.Run(() =>
             {
-                using var rental = _channelPool.Acquire(cancellationToken);
-                var channel = rental.Channel;
+                var startedAt = System.Diagnostics.Stopwatch.GetTimestamp();
+                var success = false;
+                string errorKind = null;
+                try
+                {
+                    using var rental = _channelPool.Acquire(cancellationToken);
+                    var channel = rental.Channel;
 
-                var properties = channel.CreateBasicProperties();
-                properties.DeliveryMode = 2;                       // persistent:消息落 broker 磁盘
-                properties.MessageId = messageId.ToString();       // 业务消息 Id,即消费端 inbox 去重键
-                channel.BasicPublish(
-                    exchange: exchangeName,
-                    routingKey: routingKey,
-                    mandatory: true,                               // routing 不到 queue 立刻 return 而非丢弃
-                    basicProperties: properties,
-                    body: body);
+                    var properties = channel.CreateBasicProperties();
+                    properties.DeliveryMode = 2;                       // persistent:消息落 broker 磁盘
+                    properties.MessageId = messageId.ToString();       // 业务消息 Id,即消费端 inbox 去重键
+                    channel.BasicPublish(
+                        exchange: exchangeName,
+                        routingKey: routingKey,
+                        mandatory: true,                               // routing 不到 queue 立刻 return 而非丢弃
+                        basicProperties: properties,
+                        body: body);
 
-                // 等 broker 明确回执;失败(退回/nack/超时)统一抛 RabbitMqPublishFailedException,
-                // 让 outbox dispatcher 据此 MarkFailed 而非误判已成功
-                rental.WaitForConfirmsOrThrow(TimeSpan.FromSeconds(5));
+                    // 等 broker 明确回执;失败(退回/nack/超时)统一抛 RabbitMqPublishFailedException,
+                    // 让 outbox dispatcher 据此 MarkFailed 而非误判已成功。timeout 由 options 决定。
+                    rental.WaitForConfirmsOrThrow(confirmTimeout);
+                    success = true;
+                }
+                catch (Core.RabbitMQ.RabbitMqPublishReturnedException) { errorKind = "returned"; throw; }
+                catch (Core.RabbitMQ.RabbitMqPublishUnconfirmedException ex) { errorKind = ex.TimedOut ? "confirm_timeout" : "nack"; throw; }
+                catch (Exception) { errorKind = "other"; throw; }
+                finally
+                {
+                    var elapsedMs = (System.Diagnostics.Stopwatch.GetTimestamp() - startedAt) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+                    _metrics?.RecordPublish(exchangeName, routingKey, success, errorKind, elapsedMs);
+                }
             }, cancellationToken).ConfigureAwait(false);
         }
     }

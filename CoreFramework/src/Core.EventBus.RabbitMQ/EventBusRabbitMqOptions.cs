@@ -29,6 +29,13 @@ namespace Core.EventBus.RabbitMQ
         /// <remarks>channel 首次创建时一次性完成 ExchangeDeclare + ConfirmSelect + BasicReturn 挂载,后续 publish 复用走纯 BasicPublish + WaitForConfirms;超出本值的并发请求由 SemaphoreSlim 排队。</remarks>
         public int ChannelPoolSize { get; set; } = 8;
 
+        /// <summary>
+        /// publisher confirms 等待 broker ack/nack/return 的超时;默认 5s。<br/>
+        /// 跨云 / 跨机房链路应放宽到 10~30s;单机 broker 可缩到 2s。超时后统一抛
+        /// <see cref="RabbitMqPublishUnconfirmedException"/>(TimedOut=true),outbox dispatcher 会 MarkFailed。
+        /// </summary>
+        public TimeSpan PublishConfirmTimeout { get; set; } = TimeSpan.FromSeconds(5);
+
         /// <summary>反序列化失败 / Id 校验失败的"毒消息"处置策略;默认 <see cref="PoisonMessageBehavior.SkipAndAck"/>。</summary>
         /// <remarks>需要 DLX 收集毒消息时改为 <see cref="PoisonMessageBehavior.ThrowAndLetBrokerHandle"/> 并配合 <c>Broker.FailureBehavior=NackNoRequeue</c> + <c>Broker.DeadLetterExchange</c>。</remarks>
         public PoisonMessageBehavior PoisonMessageBehavior { get; set; } = PoisonMessageBehavior.SkipAndAck;
@@ -46,12 +53,16 @@ namespace Core.EventBus.RabbitMQ
             if (ChannelPoolSize <= 0)
                 throw new InvalidOperationException(
                     $"{nameof(EventBusRabbitMqOptions)}.{nameof(ChannelPoolSize)} 必须 > 0,当前={ChannelPoolSize}。");
+            if (PublishConfirmTimeout <= TimeSpan.Zero)
+                throw new InvalidOperationException(
+                    $"{nameof(EventBusRabbitMqOptions)}.{nameof(PublishConfirmTimeout)} 必须 > 0,当前={PublishConfirmTimeout}。");
             if (Broker == null)
                 throw new InvalidOperationException(
                     $"{nameof(EventBusRabbitMqOptions)}.{nameof(Broker)} 不能为 null。");
             if (Broker.Connection == null)
                 throw new InvalidOperationException(
                     $"{nameof(EventBusRabbitMqOptions)}.{nameof(Broker)}.{nameof(RabbitMqOptions.Connection)} 不能为 null。");
+            Broker.ValidateNumericLimits();
         }
     }
 }

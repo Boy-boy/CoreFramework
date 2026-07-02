@@ -4,6 +4,7 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,11 +16,12 @@ namespace Core.RabbitMQ
         private readonly ILogger<DefaultRabbitMqMessageConsumer> _logger;
         private readonly IRabbitMqPersistentConnection _persistentConnection;
         private readonly IOptions<RabbitMqOptions> _options;
+        private readonly RabbitMqMetrics _metrics;
         private Timer _timer;
 
         /// <summary>
         /// 仅串行化 channel 创建 / 销毁这段"快"操作。
-        /// TryConnect 的 Polly 退避（最坏 ~126s）刻意放在锁外，避免 Dispose 卡在锁上。
+        /// TryConnect 的 Polly 退避(最坏取决于 <see cref="RabbitMqOptions.ConnectionRetryCount"/>)刻意放在锁外,避免 Dispose 卡在锁上。
         /// </summary>
         private readonly object _timerLock = new();
         private volatile bool _disposed;
@@ -34,11 +36,13 @@ namespace Core.RabbitMQ
         public DefaultRabbitMqMessageConsumer(
             IRabbitMqPersistentConnection connection,
             IOptions<RabbitMqOptions> options,
-            ILogger<DefaultRabbitMqMessageConsumer> logger)
+            ILogger<DefaultRabbitMqMessageConsumer> logger,
+            RabbitMqMetrics metrics = null)
         {
             _logger = logger;
             _persistentConnection = connection;
             _options = options;
+            _metrics = metrics;
             ProcessEvents = new ConcurrentBag<Func<IModel, BasicDeliverEventArgs, Task>>();
             BindingQueueRoutingKeys = new ConcurrentDictionary<string, string>();
         }
@@ -55,10 +59,13 @@ namespace Core.RabbitMQ
 
         private void InitializeTimer()
         {
+            var opts = _options?.Value;
+            var initialDelay = TimeSpan.FromSeconds(Math.Max(0, opts?.ConsumerInitialDelaySeconds ?? 2));
+            var period = TimeSpan.FromSeconds(Math.Max(1, opts?.ConsumerRebuildIntervalSeconds ?? 30));
             _timer = new Timer(sender =>
             {
                 TimerCallback();
-            }, this, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(30));
+            }, this, initialDelay, period);
         }
 
         private void TryCreateExchangeAndQueue()
@@ -192,8 +199,10 @@ namespace Core.RabbitMQ
                         }
 
                         StartBasicConsume(newChannel);
+                        var previous = ConsumerChannel;
                         ConsumerChannel = newChannel;
                         newChannel = null; // ownership 转移给 ConsumerChannel
+                        _metrics?.RecordConsumerChannelRebuild(QueueDeclare?.QueueName, previous != null);
                     }
                 }
                 finally
@@ -216,34 +225,55 @@ namespace Core.RabbitMQ
         {
             var consumer = new AsyncEventingBasicConsumer(channel);
             consumer.Received += Consumer_Received;
-            channel.BasicQos(0, 30, false);
+            var prefetch = _options?.Value?.ConsumerPrefetchCount ?? 30;
+            if (prefetch == 0) prefetch = 30; // 0 = unlimited,禁止;显式兜底给一个合理默认
+            channel.BasicQos(0, prefetch, false);
             channel.BasicConsume(
                 queue: QueueDeclare.QueueName,
                 autoAck: false,
                 consumer: consumer);
         }
 
+        /// <summary>
+        /// 消费一条消息:每个 handler 独立 try/catch,聚合结果后再决定 ack/nack。
+        /// <br/>
+        /// 与旧实现的差异:旧实现 foreach 里任一 handler 抛异常都会跳出循环,后续订阅者被静默跳过。
+        /// 现在每个 handler 都会跑到,失败被聚合成 <see cref="AggregateException"/> 上抛决策层,
+        /// 保证同 routing key 的其他订阅者不被前一个失败者拖累。
+        /// </summary>
         private async Task Consumer_Received(object sender, BasicDeliverEventArgs eventArgs)
         {
             var asyncEventingBasicConsumer = sender as AsyncEventingBasicConsumer;
             var model = asyncEventingBasicConsumer?.Model;
-            bool processed = false;
-            Exception failure = null;
-            try
+            var handlerFailures = new List<Exception>();
+            var startedAt = System.Diagnostics.Stopwatch.GetTimestamp();
+
+            foreach (var processEvent in ProcessEvents)
             {
-                foreach (var processEvent in ProcessEvents)
+                try
                 {
                     await processEvent(model, eventArgs);
                 }
-                processed = true;
+                catch (Exception ex)
+                {
+                    handlerFailures.Add(ex);
+                    _logger.LogError(ex,
+                        "RabbitMQ handler 异常 deliveryTag={DeliveryTag} routingKey={RoutingKey} redelivered={Redelivered} handler={Handler}",
+                        eventArgs.DeliveryTag, eventArgs.RoutingKey, eventArgs.Redelivered,
+                        processEvent.Method?.DeclaringType?.FullName + "." + processEvent.Method?.Name);
+                }
             }
-            catch (Exception ex)
+
+            var elapsedMs = (System.Diagnostics.Stopwatch.GetTimestamp() - startedAt) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+            var processed = handlerFailures.Count == 0;
+            Exception aggregatedFailure = handlerFailures.Count switch
             {
-                failure = ex;
-                _logger.LogError(ex,
-                    "RabbitMQ handler 异常 deliveryTag={DeliveryTag} routingKey={RoutingKey} redelivered={Redelivered}",
-                    eventArgs.DeliveryTag, eventArgs.RoutingKey, eventArgs.Redelivered);
-            }
+                0 => null,
+                1 => handlerFailures[0],
+                _ => new AggregateException("RabbitMQ 多个 handler 同时失败", handlerFailures),
+            };
+
+            _metrics?.RecordConsumerHandled(QueueDeclare?.QueueName, eventArgs.RoutingKey, processed, elapsedMs);
 
             try
             {
@@ -272,7 +302,7 @@ namespace Core.RabbitMQ
                         model?.BasicNack(eventArgs.DeliveryTag, multiple: false, requeue: requeue);
                         if (!requeue)
                         {
-                            _logger.LogWarning(failure,
+                            _logger.LogWarning(aggregatedFailure,
                                 "RabbitMQ message 二次失败,放弃重投(可能丢失) deliveryTag={DeliveryTag} routingKey={RoutingKey}",
                                 eventArgs.DeliveryTag, eventArgs.RoutingKey);
                         }

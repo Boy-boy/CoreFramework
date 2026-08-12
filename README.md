@@ -1,413 +1,226 @@
-# 核心框架使用手册
+# CoreFramework（核心框架）
 
-- [核心框架使用手册](#核心框架使用手册)
-  - [框架描述](#框架描述)
-  - [框架使用描述](#框架使用描述)
-  - [使用方式](#使用方式)
-    - [模块化](#模块化)
-      - [模块化](#模块化-1)
-      - [elasticSearch](#elasticsearch)
-      - [eventbus](#eventbus)
-        - [RabbitMq](#rabbitmq)
-      - [entityFraworkCore](#entityfraworkcore)
-      - [dbConfiguration](#dbConfiguration)
-    - [直接依赖](#直接依赖)
-      - [elasticSearch](#elasticsearch-1)
-      - [eventbus](#eventbus-1)
-        - [RabbitMq](#rabbitmq-1)
-      - [entityFraworkCore](#entityfraworkcore-1)
-      - [dbConfiguration](#dbConfiguration-1)
+> 面向 .NET 10 的模块化应用开发框架：用模块声明依赖，组合 DDD、持久化、事件总线、调度、权限、配置中心等基础设施，让你**组装应用**而不是手写样板代码。
 
-## 框架描述
+- [特性亮点](#特性亮点)
+- [快速上手](#快速上手)
+- [使用方式](#使用方式)
+- [能力索引](#能力索引)
+- [模块参考表](#模块参考表)
+- [配置约定](#配置约定)
+- [示例项目](#示例项目)
+- [技术规格](#技术规格)
 
-该框架提供了一些基础功能的实现，比如ElasticSearch，Eventbus等。
+---
 
-## 框架使用描述
+## 特性亮点
 
-该框架提供了两种使用方式，一种直接依赖，另外一种则是模块化，接下来，我将介绍两种方式的使用
+- **模块化应用组装**：一切能力都是 `CoreModuleBase` 模块，用 `[DependsOn]` 声明依赖，框架按依赖拓扑自动装配、编排生命周期。
+- **DDD 底座**：实体 / 聚合根 / 值对象 / 仓储 / 领域服务，聚合根上的**领域事件**随工作单元提交自动进入事件总线。
+- **统一事件总线**：进程内 / RabbitMQ / Kafka 三种传输，出箱(Outbox) + 入箱(Inbox) 保证可靠投递与消费幂等。
+- **一键持久化**：EF Core + 仓储自动注册 + 工作单元(UoW) 原子提交 + 分表支持。
+- **配置中心**：数据库托管的配置源 + 可视化 Dashboard，配置改动热生效。
+- **调度**：Quartz / Hangfire / BackgroundService 三种宿主 + Redis 分布式锁，统一 `IScheduledHandler` 契约。
+- **周边能力一应俱全**：Redis 缓存、RBAC 权限、第三方 SSO、告警升级、邮件、Excel、S3、翻译、请求管道、CQRS、持久化日志。
+
+---
+
+## 快速上手
+
+### 方式一：从模板创建
+
+本仓库已配置为 `dotnet new` 模板（shortName `CoreTemplate`）：
+
+```bash
+dotnet new install <本仓库路径>
+dotnet new CoreTemplate -n MyApp
+cd MyApp
+dotnet run
+```
+
+### 方式二：在现有项目接入
+
+添加对所需模块的 `ProjectReference`（如 `Core.Modularity`、`Core.EventBus`），然后写启动模块 + 两行引导：
+
+```csharp
+// using Core.Modularity;
+// using Core.Modularity.Attribute;
+// using Core.EventBus;
+
+[DependsOn(typeof(CoreEventBusModule))]
+public class StartupModule : CoreModuleBase
+{
+    public override void ConfigureServices(ServiceCollectionContext context) { }
+    public override void Configure(ApplicationBuilderContext context) { }
+}
+
+// Startup.ConfigureServices → services.ConfigureServiceCollection<StartupModule>();
+// Startup.Configure          → app.BuildApplicationBuilder();
+```
+
+完整引导说明见 [模块化使用指南](docs/guides/modular.md)。
+
+---
 
 ## 使用方式
 
-### 模块化
+框架提供两种使用方式，底层是同一套能力，区别只在装配方式：
 
-#### 模块化
+- **模块化使用（推荐）**：用 `CoreModuleBase` + `[DependsOn]` 声明模块依赖，框架按拓扑自动装配并编排生命周期。适合组合多个能力的完整应用。 → [docs/guides/modular.md](docs/guides/modular.md)
+- **直接依赖**：跳过模块系统，直接在 `IServiceCollection` 上调用各能力的 `AddXxx` 扩展方法。适合只想用某一项能力的轻量场景。 → [docs/guides/direct-dependency.md](docs/guides/direct-dependency.md)
 
-```c#
-    public class Startup
-    {
-        public void ConfigureServices(IServiceCollection services)
-        {
-            services.ConfigureServiceCollection<StartupModule>();
-        }
+---
 
-        public void Configure(IApplicationBuilder app)
-        {
-            app.BuildApplicationBuilder();
-        }
-    }
-```
+## 能力索引
 
-```c#
-    public class StartupModule : CoreModuleBase
-    {
-        public StartupModule(IConfiguration configuration)
-        {
-            Configuration = configuration;
-        }
+### 核心
 
-        public IConfiguration Configuration { get; }
+| 指南 | 内容 |
+|---|---|
+| [modular.md](docs/guides/modular.md) | 模块系统、生命周期、引导启动 —— **入门必读** |
+| [eventbus.md](docs/guides/eventbus.md) | 事件总线：发布 / 订阅、RabbitMQ / Kafka、出箱入箱 |
+| [efcore.md](docs/guides/efcore.md) | EF Core + 仓储自动注册 + 工作单元 + 领域事件 |
+| [dbconfiguration.md](docs/guides/dbconfiguration.md) | 数据库配置中心 + 可视化 Dashboard |
+| [redis.md](docs/guides/redis.md) | Redis 缓存：`IRedisCache` + JSON 扩展 + 分布式锁 |
+| [scheduling.md](docs/guides/scheduling.md) | 调度：Quartz / Hangfire / BackgroundService 三种宿主 |
+| [elasticsearch.md](docs/guides/elasticsearch.md) | Elasticsearch 客户端工厂与仓储 |
 
-        public override void ConfigureServices(ServiceCollectionContext context)
-        {    
-        }
+### 业务周边
 
-        public override void Configure(ApplicationBuilderContext context)
-        {   
-        }
-    }
-```
+| 指南 | 内容 |
+|---|---|
+| [permission.md](docs/guides/permission.md) | 权限：RBAC 接口权限控制（`[Permission]` + 中间件） |
+| [application.md](docs/guides/application.md) | CQRS 应用层：MediatR + FluentValidation 自动装配 |
+| [pipeline.md](docs/guides/pipeline.md) | 请求管道：前置 / 后置处理器 |
+| [sso.md](docs/guides/sso.md) | 第三方 OAuth / OIDC 单点登录 |
+| [emailclient.md](docs/guides/emailclient.md) | 邮件发送（MailKit + 出箱式存储） |
+| [excel.md](docs/guides/excel.md) | Excel 导入导出（EPPlus） |
+| [httpclient.md](docs/guides/httpclient.md) | 类型化 HTTP 客户端 + Kerberos 认证 |
 
-#### elasticSearch
+### 装配方式
 
-```c#
- [DependsOn(      
-        typeof(CoreElasticSearchModule))]
-    public class StartupModule : CoreModuleBase
-    {
-        public StartupModule(IConfiguration configuration)
-        {
-            Configuration = configuration;
-        }
+| 指南 | 内容 |
+|---|---|
+| [direct-dependency.md](docs/guides/direct-dependency.md) | 直接依赖用法与 `AddXxx` 速查表 |
 
-        public IConfiguration Configuration { get; }
+---
 
-        public override void ConfigureServices(ServiceCollectionContext context)
-        {    
-         //方式一
-          context.Services.Configure<ElasticClientFactoryOptions>(Configuration.GetSection("ElasticClient"));
-          
-         //方式二
-          context.Services.AddElasticClientFactory("自定义名称"，options=>{
-           options.UserName="";
-           options.PassWord="";
-           options.Urls=new string[]{};
-           options.DefaultIndex="";
-           options.ElasticClientLifeTime=TimeSpan.FromHours(24)//默认不小于1小时
-          });
-        }
-    }
-```
+## 模块参考表
 
-```c#
-  public interface IDemoEsRepository:IElasticSearchRepositories<自定义类型>
-  {
-     //自定义查询方法
-  }
+仓库当前包含 **46 个 `Core.*` 模块**。带 📄 标记的模块自带独立 README，以它为权威文档。
 
-  public class DemoEsRepository : ElasticSearchRepositories<自定义类型>, IDemoEsRepository
-  {
-      public ComputeApplyEsRepository(IElasticClientFactory elasticClientFactory)
-      : base(elasticClientFactory,elasticClientName:"该名称须跟注入的名称匹配   ")
-      {
-      }
-  }
-```
-```json
-在appsetting.json配置ElasticClient
+### 模块系统 / 框架核心
 
- "ElasticClient": {
-    "UserName": "elastic",
-    "PassWord": "septnet",
-    "Urls":[""],
-    "DefaultIndex":"elastic_search_default_index"
-  },
-```
+| 模块 | 一句话用途 |
+|---|---|
+| `Core.Modularity` | 模块内核：`CoreModuleBase`、`[DependsOn]`、生命周期编排、拓扑装配 |
+| `Core.Framework` | 元包：聚合 DDD、EF Core、EventBus、Modularity、RabbitMQ、Uow 的项目引用 |
+| `Core.Application` | CQRS（MediatR）+ FluentValidation 自动装配，`Command` / `Query` 基类型 |
+| `Core.AspNetCore` | `ApiResult` 统一返回 + `ApiResultWrapAttribute` 结果包装 |
+| `Core.Infrastructure` | 基础工具：`DomainException`、异步定时器、递归模型 |
+| `Core.Json` | `System.Text.Json` 助手（camelCase / 缩进预设） |
+| `Core.Threading.Tasks` | 并发限流（`ConcurrentManager`） |
 
-#### eventbus
+### 数据 / 持久化
 
-##### RabbitMq
+| 模块 | 一句话用途 |
+|---|---|
+| `Core.Ddd.Domain` | DDD 原语：实体、聚合根（本地/分布式领域事件）、值对象、仓储、领域服务、软删除 |
+| `Core.EntityFrameworkCore` | EF Core 集成：`CoreDbContext`、仓储自动注册、`AddDbContextAndEfRepositories<T>` |
+| `Core.EntityFrameworkCore.Sharding` | EF Core 分表（`CoreShardingDbContext`） |
+| `Core.Uow` | 工作单元：`IUnitOfWorkManager`、`[UnitOfWork]`、事务边界 |
+| `Core.ElasticSearch` | Elasticsearch 客户端工厂 + 仓储基类 |
+| `Core.Redis` | Redis 封装：`IRedisCache`（字符串/列表/哈希/集合/Stream + JSON 扩展 + 分布式锁） |
+| `Core.Excel` | Excel 导入导出（EPPlus） |
 
-```c#
-[DependsOn(      
-         typeof(CoreEventBusRabbitMqModule),
-         typeof(CoreEventBusSqlServerModule))]
-    public class StartupModule : CoreModuleBase
-    {
-        public StartupModule(IConfiguration configuration)
-        {
-            Configuration = configuration;
-        }
+### 消息 / 集成
 
-        public IConfiguration Configuration { get; }
-      
-        public override void ConfigureServices(ServiceCollectionContext context)
-        {                              
-            //若该服务是订阅服务，则需配置以下代码
-            context.Services.Configure<EventBusOptions>(options =>
-            {
-                options.AddConsumers(typeof(Startup).Assembly);
-            });    
-        }
-    }
-```
-```json
-2.在appsetting.json配置Rabbitmq
-"EventBus": {
-    "RabbitMq": {
-      "ExchangeName": "exchange_name",
-      "Connection": {
-        "hostName": "81.69.227.172",
-        "userName": "guest",
-        "password": "guest",
-        "port": "30072",
-        "virtualHost": "/"
-      }
-    },
-    "Storage": {
-      "DbConnection": "Host=81.69.227.172;Port=31432;Database=customer;Username=postgres;Password=gb123456",
-      "DbSchema": "EventBus",
-      "DbTable": "PublishMessage"
-    }
-  }
-```
+| 模块 | 一句话用途 |
+|---|---|
+| `Core.EventBus` 📄 | 事件总线契约 + 进程内总线 + 出箱/入箱抽象（`src/Core.EventBus/README.md`） |
+| `Core.EventBus.RabbitMQ` | RabbitMQ 传输实现 |
+| `Core.EventBus.Kafka` | Kafka 传输实现 |
+| `Core.EventBus.Storage.EfCore` | 出箱 / 入箱 / 死信表的 EF Core 存储 |
+| `Core.RabbitMQ` 📄 | RabbitMQ 底层：持久连接（Polly 重试）、消费者管理、发布确认（`src/Core.RabbitMQ/README.md`） |
+| `Core.Kafka` 📄 | Kafka 底层：幂等生产者、消费者管理（`src/Core.Kafka/README.md`） |
 
-注意：<font color='red'> 1.发布和订阅消息，需定义消息名称，且要保持一致，请使用MessageNameAttribute</font></br>
-     2.可配置事件处理器生命周期，请使用MessageHandlerLifetimeAttribute，默认是Transient（仅可定义在class上）</br>
-     3.同一个消息可被多个处理器订阅，可配置处理器处理顺序，请使用MessageHandlerPriorityAttribute</br>
-     4.可配置消息所属组，需在消息上使用MessageGroupAttribute（默认为服务名称）</br>
-#### entityFraworkCore
+### 配置
 
-```c#
-    [DependsOn(typeof(CoreEfCoreModule))]
-    public class StartupModule : CoreModuleBase
-    {
-        public StartupModule(IConfiguration configuration)
-        {
-            Configuration = configuration;
-        }
+| 模块 | 一句话用途 |
+|---|---|
+| `Core.Configuration` | 数据库配置源 `IConfigurationProvider` + 变更通知 |
+| `Core.Configuration.SqlServer` / `.PostgreSql` / `.MySql` | 配置存储后端 |
+| `Core.Configuration.Dashboard` | 配置管理 Dashboard（`MapDbConfigurationDashboard`） |
 
-        public IConfiguration Configuration { get; }
-        
-        public override void PreConfigureServices(ServiceCollectionContext context)
-        {
-            context.Items.Add(nameof(CustomerDbContext), typeof(CustomerDbContext));     
-        }
-        
-        public override void ConfigureServices(ServiceCollectionContext context)
-        {
-            context.Services.AddControllers();
-                    
-            context.Services.AddDbContext<CustomerDbContext>(options =>
-             {
-                 options.UseSqlServer(Configuration.GetConnectionString("Customer"));
-             });
-        }
-    }
-```
+### Web / 安全
 
-描述：若想发送领域事件，自定义的DbContext需继承CoreDbContext，且添加自己的eventbus，如：
+| 模块 | 一句话用途 |
+|---|---|
+| `Core.Authentication.ThirdParty.Sso` 📄 | 第三方 OAuth/OIDC 单点登录 + 登出通知 Hub（`src/Core.Authentication.ThirdParty.Sso/README.md`） |
+| `Core.Permission`（`.PostgreSql`） | RBAC 权限中间件 + 角色权限存储 |
+| `Core.PersistentLogging` 📄 | 请求/响应持久化日志：MVC 过滤器 + HttpClient 委托处理器（两处子 README） |
 
-```
-[DependsOn(      
-        typeof(CoreEventBusRabbitMqModule),
-         typeof(CoreEventBusSqlServerModule))]
-```
+### 调度
 
-#### dbConfiguration
-```c#
- public static IHostBuilder CreateHostBuilder(string[] args) =>
-            Host.CreateDefaultBuilder(args)
-                .ConfigureAppConfiguration((context, builder) =>
-                {
-                    //添加数据库配置文件，例如PostgreSql，Mysql，SqlServer
-                    builder.AddPostgreSqlConfigure(actionOptions =>
-                    {
-                        actionOptions.DbConnection = "Host=**;Port=5432;Database=customer;Username=postgres;Password=123456";
-                    });
-                })
-                .ConfigureWebHostDefaults(webBuilder =>
-                {
-                    webBuilder.UseStartup<Startup>();
-                });
-```
-```c#
-    [DependsOn(typeof(CoreConfigurationModule))]
-    public class StartupModule : CoreModuleBase
-    {
-        public StartupModule(IConfiguration configuration)
-        {
-            Configuration = configuration;
-        }
+| 模块 | 一句话用途 |
+|---|---|
+| `Core.Scheduling.Abstractions` | 调度契约：`IScheduledHandler`、`ScheduleDescriptor`、执行过滤器 |
+| `Core.Scheduling` 📄 | 调度核心：过滤器管道、处理器注册表、状态存储（`src/Core.Scheduling/README.md`） |
+| `Core.Scheduling.Background` | 默认 `BackgroundService` 宿主 |
+| `Core.Scheduling.Quartz` | Quartz 适配（集群、cron、AdoJobStore） |
+| `Core.Scheduling.Hangfire` | Hangfire 适配（RecurringJob、Dashboard） |
+| `Core.Scheduling.Redis` | Redis 分布式锁（叠加在 Background 宿主之上） |
+| `Core.Scheduling.HealthChecks` | 调度状态 → ASP.NET 健康检查 |
 
-        public IConfiguration Configuration { get; }
-        
-        public override void PreConfigureServices(ServiceCollectionContext context)
-        {
-        }
-        
-        public override void ConfigureServices(ServiceCollectionContext context)
-        {       
-            context.Services.AddDbConfiguration(options =>
-            {
-                options.AddDashboard(actionOptions =>
-                 {
-                   //请求/config/dashboard 即可跳转到db config配置页面,可配置，如下
-                   actionOptions.PathMatch = "/config/dashboard";
-                 });
-            }); 
-        }
+### 其他
 
-        public override void Configure(ApplicationBuilderContext context)
-        {
-            var app = context.ApplicationBuilder;
-            app.UseEndpoints(endpoints =>
-            {
-                endpoints.MapDbConfigurationDashboard();              
-            });
-        }
-    }
-```
+| 模块 | 一句话用途 |
+|---|---|
+| `Core.HttpClient` | 类型化 HTTP 客户端 + Kerberos 认证 |
+| `Core.Translate` | 翻译（百度翻译提供方） |
+| `Core.Amazon.S3` | S3 客户端工厂 |
+| `Core.EmailClient`（`.Mysql` / `.PostgreSql`） | 邮件发送 + 出箱式存储 + 后台发送 |
+| `Core.Alert`（`.Redis` / `.Sqlite`） | 告警升级引擎（会话、升级规则、决策） |
 
+---
 
+## 配置约定
 
-### 直接依赖
+框架各模块遵循"模块绑定固定配置节"的约定，配置统一放在 `appsettings.json` 对应节下：
 
-#### elasticSearch
+| 配置节 | 绑定选项 | 绑定模块 |
+|---|---|---|
+| `ElasticSearch` | `ElasticClientFactoryOptions` | `CoreElasticSearchModule` |
+| `Redis` | `RedisCacheOptions` | `CoreRedisModule` |
+| `EventBus:RabbitMq`（`Broker` 子节点 → `RabbitMqOptions`） | `EventBusRabbitMqOptions` | `CoreEventBusRabbitMqModule` |
+| `EventBus:Kafka` | Kafka broker 选项 | `CoreEventBusKafkaModule` |
+| `RabbitMq` | `RabbitMqOptions` | `CoreRabbitMqModule` |
+| `Amazon:S3` | `AmazonS3Options` | S3 模块 |
+| `Translate:BaiDu` | `BaiDuTranslateOptions` | 翻译模块 |
+| `Scheduling`（及 `:Background` / `:Quartz` / `:Hangfire` / `:Redis`） | 各调度宿主选项 | `Scheduling*Module` |
+| `EmailClient` | `EmailClientOptions` | 邮件模块 |
+| 配置中心存储 | 无固定节——由 `AddPostgreSqlConfigure(...)` 等调用处显式传入 `DbConnection` | `Core.Configuration.*` |
 
-```c#
-   public class Startup
-    {
-        public Startup(IConfiguration configuration)
-        {
-            Configuration = configuration;
-        }
+---
 
-        public IConfiguration Configuration { get; }
+## 示例项目
 
-        public void ConfigureServices(IServiceCollection services)
-        {
- //方式一
-         services.Configure<ElasticClientFactoryOptions>(Configuration.GetSection("ElasticClient"));
-         Services.AddElasticClientFactory();
- //方式二
-         services.AddElasticClientFactory("自定义名称"，options=>{
-           options.UserName="";
-           options.PassWord="";
-           options.Urls=new string[]{};
-           options.DefaultIndex="";
-           options.ElasticClientLifeTime=TimeSpan.FromHours(24)//默认不小于1小时
-          });
-                  
-        }   
-    }
-```
+仓库 `test/` 下提供可运行的示例（均基于模块化引导）：
 
-#### eventbus
+| 项目 | 演示 |
+|---|---|
+| `test/eventBus/PublishApi` | 事件总线**发布端**（RabbitMQ） |
+| `test/eventBus/SubscriptionApi` | 事件总线**订阅端**（RabbitMQ） |
+| `test/EntityFrameworkCore.Api` | EF Core + 事件总线 + 工作单元组合用法 |
+| `test/ThirdPartySso.WebApi` | 第三方 SSO 登录（Minimal API 风格引导） |
+| `test/Test` | 单元测试（事件总线、管道、告警、邮件、S3 等） |
 
-##### RabbitMq
+---
 
-```c#
-public class Startup
-    {
-        public Startup(IConfiguration configuration)
-        {
-            Configuration = configuration;
-        }
+## 技术规格
 
-        public IConfiguration Configuration { get; }
-
-        public void ConfigureServices(IServiceCollection services)
-        {
-            //services.AddEventBus(options =>
-            //{
-            //    options.AddConsumers(typeof(Startup).Assembly);
-            //    options.AddRabbitMq(rabbitOptions =>
-            //    {
-            //        rabbitOptions.ExchangeName = "demo";
-            //        rabbitOptions.RabbitMqConnection = new RabbitMqConnectionConfigure();
-            //    });
-            //});
-        }      
-    }
-```
-
-#### entityFraworkCore
-
-```c#
-   public class Startup
-    {
-        public Startup(IConfiguration configuration)
-        {
-            Configuration = configuration;
-        }
-
-        public IConfiguration Configuration { get; }
-
-        public void ConfigureServices(IServiceCollection services)
-        {
-         //方式一
-          services.AddDbContextAndEfRepositories<CustomerDbContext>(options =>
-          {
-              options.UseInMemoryDatabase("customer");
-          });
-          
-          //方式二
-           services.AddDbContext<CustomerDbContext>(options =>
-          {
-              options.UseInMemoryDatabase("customer");
-          })
-          .AddEfRepositories<CustomerDbContext>();
-        }   
-    }
-```
-
-#### dbConfiguration
-```c#
- public static IHostBuilder CreateHostBuilder(string[] args) =>
-            Host.CreateDefaultBuilder(args)
-                .ConfigureAppConfiguration((context, builder) =>
-                {
-                    //添加数据库配置文件，例如PostgreSql，Mysql，SqlServer
-                    builder.AddPostgreSqlConfigure(actionOptions =>
-                    {
-                        actionOptions.DbConnection = "Host=**;Port=5432;Database=customer;Username=postgres;Password=123456";
-                    });
-                })
-                .ConfigureWebHostDefaults(webBuilder =>
-                {
-                    webBuilder.UseStartup<Startup>();
-                });
-```
-
-```c#
-   public class Startup
-    {
-        public Startup(IConfiguration configuration)
-        {
-            Configuration = configuration;
-        }
-
-        public IConfiguration Configuration { get; }
-
-        public void ConfigureServices(IServiceCollection services)
-        {
-            services.AddDbConfiguration(options =>
-            {
-               options.AddDashboard(actionOptions =>
-                 {
-                   //请求/config/dashboard 即可跳转到db config配置页面,可配置，如下
-                   actionOptions.PathMatch = "/config/dashboard";
-                 });
-            }); 
-        }   
-
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
-        {
-            app.UseEndpoints(endpoints =>
-            {
-                endpoints.MapDbConfigurationDashboard();
-            });
-        }
-    }
-```
-
+- **目标框架**：.NET 10（`net10.0`）
+- **版本**：10.0.0
+- **许可证**：MIT
+- **仓库**：<https://github.com/Boy-boy/CoreFramework>
+- **获取方式**：以项目引用（ProjectReference）或 `dotnet new CoreTemplate` 模板接入；暂未发布 NuGet 包。
